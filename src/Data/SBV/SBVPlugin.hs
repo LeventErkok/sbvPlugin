@@ -22,4 +22,4 @@ analyzeBind (Rec binds)     = mapM_ (analyzeExpr . snd) binds
 
 analyzeExpr :: CoreExpr ->  CoreM ()
 analyzeExpr e = do df <- getDynFlags
-                   liftIO $ print $ showSDoc df $ pprCoreExpr e
+                   liftIO $ putStrLn $ showSDoc df $ pprCoreExpr e
