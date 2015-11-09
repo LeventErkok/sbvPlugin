@@ -23,3 +23,4 @@ Library
   Exposed-modules : Data.SBV.SBVPlugin
   build-depends   : base >= 4.8 && < 5, ghc
   hs-source-dirs  : src
+  Other-modules   : Data.SBV.SBVAnalyze

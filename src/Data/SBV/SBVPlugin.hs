@@ -5,6 +5,8 @@ module Data.SBV.SBVPlugin(plugin) where
 import GhcPlugins
 import PprCore
 
+import Data.SBV.SBVAnalyze (analyze)
+
 plugin :: Plugin
 plugin = defaultPlugin {installCoreToDos = install}
 
@@ -17,26 +19,22 @@ install _opts todos = do reinitializeGlobals
                                             return guts
 
 analyzeBind :: CoreBind -> CoreM ()
-analyzeBind = bind
-  where bind (NonRec _ e)    = expr e
-        bind (Rec binds)     = mapM_ (expr . snd) binds
+analyzeBind = bind noSrcSpan
+  where bind l (NonRec _ e)    = expr l e
+        bind l (Rec binds)     = mapM_ (expr l . snd) binds
 
-        expr (Var{})         = return ()
-        expr (Lit{})         = return ()
-        expr (App f a)       = expr f >> expr a
-        expr l@(Lam{})       = analyze l
-        expr (Let b e)       = bind b >> expr e
-        expr (Case e _ _ as) = expr e >> mapM_ alt as
-        expr (Cast e _)      = expr e
-        expr (Tick _ e)      = expr e
-        expr (Type _)        = return ()
-        expr (Coercion _)    = return ()
+        expr _ (Var{})         = return ()
+        expr _ (Lit{})         = return ()
+        expr l (App f a)       = expr l f >> expr l a
+        expr l e@(Lam{})       = analyze l e
+        expr l (Let b e)       = bind l b >> expr l e
+        expr l (Case e _ _ as) = expr l e >> mapM_ (alt l) as
+        expr l (Cast e _)      = expr l e
+        expr l (Tick t e)      = expr (tickSpan t l) e
+        expr _ (Type _)        = return ()
+        expr _ (Coercion _)    = return ()
 
-        alt (_, _, e)        = expr e
+        alt l (_, _, e)        = expr l e
 
-        skipping e = do df <- getDynFlags
-                        liftIO $ putStrLn $ "SBVPlugin, skipping: " ++ showSDoc df (pprCoreExpr e)
-
-        analyze e@(Lam{} ) = do df <- getDynFlags
-                                liftIO $ putStrLn $ "SBVPlugin, considering: " ++ showSDoc df (pprCoreExpr e)
-        analyze e          = skipping e
+        tickSpan (SourceNote l _) _ = RealSrcSpan l
+        tickSpan _                l = l
