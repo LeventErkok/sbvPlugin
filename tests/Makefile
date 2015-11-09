@@ -1,5 +1,5 @@
 t1: t1.hs
-	ghc -o t1 -fplugin=Data.SBV.SBVPlugin t1.hs
+	ghc -c t1.hs -fplugin=Data.SBV.SBVPlugin
 
 clean:
-	rm -f *.o *.hi t1
+	rm -f *.o *.hi
