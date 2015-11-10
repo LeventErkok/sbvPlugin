@@ -4,6 +4,7 @@
 module Data.SBV.SBVPlugin(plugin) where
 
 import GhcPlugins
+import CostCentre
 
 import Control.Monad (unless)
 
@@ -63,5 +64,7 @@ analyzeBind cfg = bind noSrcSpan
 
         alt l (_, _, e)        = expr l e
 
-        tickSpan (SourceNote l _) _ = RealSrcSpan l
-        tickSpan _                l = l
+tickSpan :: Tickish t -> SrcSpan -> SrcSpan
+tickSpan (ProfNote cc _ _) _ = cc_loc cc
+tickSpan (SourceNote s _)  _ = RealSrcSpan s
+tickSpan _                 s = s

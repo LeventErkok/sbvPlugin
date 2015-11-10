@@ -19,9 +19,7 @@ analyze cfg s e
                              return True
   | True                = return False
   where t = exprType e
-        loc = case s of
-                RealSrcSpan{} -> Just $ show s
-                _             -> Nothing
+        loc = if isGoodSrcSpan s then Just (showSDoc (dflags cfg) (ppr s)) else Nothing
 
 -- | Check if a given expression is interesting, i.e., something we can prove something about
 isInteresting :: Config -> Type -> Bool
