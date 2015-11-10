@@ -4,6 +4,5 @@ import GhcPlugins
 
 -- | Configuration info as we run the plugin
 data Config = Config { dflags   :: DynFlags
-                     , floatTC  :: TyCon
-                     , doubleTC :: TyCon
+                     , knownTCs :: [TyCon]
                      }
