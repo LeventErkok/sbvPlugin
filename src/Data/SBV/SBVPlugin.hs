@@ -44,9 +44,10 @@ plugin = defaultPlugin {installCoreToDos = install}
 
 -- | Dispatch the analyzer recursively over subexpressions.
 analyzeBind :: Config -> CoreBind -> CoreM ()
-analyzeBind cfg = bind noSrcSpan
-  where bind l (NonRec _ e)    = expr l e
-        bind l (Rec binds)     = mapM_ (expr l . snd) binds
+analyzeBind cfg = bind
+  where bind :: CoreBind -> CoreM ()
+        bind (NonRec b e)    = expr (bindSpan b) e
+        bind (Rec binds)     = mapM_ (uncurry (expr . bindSpan)) binds
 
         expr l e = do analyzed <- liftIO $ analyze cfg l e
                       unless analyzed $ subExpr l e
@@ -55,7 +56,7 @@ analyzeBind cfg = bind noSrcSpan
         subExpr _ (Lit{})         = return ()
         subExpr l (App f a)       = expr l f >> expr l a
         subExpr l (Lam _ b)       = expr l b
-        subExpr l (Let b e)       = bind l b >> expr l e
+        subExpr l (Let b e)       = bind b   >> expr l e
         subExpr l (Case e _ _ as) = expr l e >> mapM_ (alt l) as
         subExpr l (Cast e _)      = expr l e
         subExpr l (Tick t e)      = expr (tickSpan t l) e
@@ -68,3 +69,6 @@ tickSpan :: Tickish t -> SrcSpan -> SrcSpan
 tickSpan (ProfNote cc _ _) _ = cc_loc cc
 tickSpan (SourceNote s _)  _ = RealSrcSpan s
 tickSpan _                 s = s
+
+bindSpan :: Var -> SrcSpan
+bindSpan = nameSrcSpan . varName

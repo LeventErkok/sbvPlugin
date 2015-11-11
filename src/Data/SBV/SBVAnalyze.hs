@@ -15,8 +15,7 @@ tag w (Just l) = "[SBVPlugin, " ++ w ++ "] " ++ l ++ ":"
 -- | Analyze a core-expression
 analyze :: Config -> SrcSpan -> CoreExpr -> IO Bool
 analyze cfg s e
-  | isInteresting cfg t = do stable cfg loc e
-                             return True
+  | isInteresting cfg t = stable cfg loc e
   | True                = return False
   where t = exprType e
         loc = if isGoodSrcSpan s then Just (showSDoc (dflags cfg) (ppr s)) else Nothing
@@ -29,6 +28,7 @@ isInteresting Config{knownTCs} t = case splitTyConApp_maybe t of
 
 -- | Check if a Floating-Point function is stable. i.e., given normal-arguments, it should
 -- produce normal results.
-stable :: Config -> Maybe String -> CoreExpr -> IO ()
-stable cfg l e = putStrLn $ t ++ " " ++ showSDoc (dflags cfg) (pprCoreExpr e)
+stable :: Config -> Maybe String -> CoreExpr -> IO Bool
+stable cfg l e = do putStrLn $ t ++ " " ++ showSDoc (dflags cfg) (pprCoreExpr e)
+                    return True
   where t = tag "stable" l
