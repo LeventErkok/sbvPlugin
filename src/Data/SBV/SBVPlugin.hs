@@ -60,6 +60,7 @@ analyzeBind cfg = bind
         bind (NonRec b e)    = expr (bindSpan b) e
         bind (Rec binds)     = mapM_ (uncurry (expr . bindSpan)) binds
 
+        expr _ (Type{}) = return ()
         expr l e = do analyzed <- liftIO $ analyze cfg l e
                       unless analyzed $ subExpr l e
 
