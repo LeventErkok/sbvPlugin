@@ -11,6 +11,8 @@ import Control.Monad (unless)
 import Data.Int
 import Data.Word
 
+import qualified Data.SBV.Internals as SBV
+
 import Data.SBV.PluginData
 import Data.SBV.SBVAnalyze (analyze)
 
@@ -23,13 +25,22 @@ plugin = defaultPlugin {installCoreToDos = install}
 
           df <- getDynFlags
 
-          let grabTyCon x = thNameToGhcName x >>= \(Just fn) -> lookupTyCon fn
+          let grabTyCon (k, x) = do Just fn <- thNameToGhcName x
+                                    tc <- lookupTyCon fn
+                                    return (tc, k)
 
-          baseTCs <- mapM grabTyCon [ ''Bool
-                                    , ''Int
-                                    , ''Float, ''Double
-                                    , ''Int8,  ''Int16,  ''Int32,  ''Int64
-                                    , ''Word8, ''Word16, ''Word32, ''Word64
+          baseTCs <- mapM grabTyCon [ (SBV.KBool,             ''Bool)
+                                    , (SBV.KUnbounded,        ''Integer)
+                                    , (SBV.KFloat,            ''Float)
+                                    , (SBV.KDouble,           ''Double)
+                                    , (SBV.KBounded True   8, ''Int8)
+                                    , (SBV.KBounded True  16, ''Int16)
+                                    , (SBV.KBounded True  32, ''Int32)
+                                    , (SBV.KBounded True  64, ''Int64)
+                                    , (SBV.KBounded False  8, ''Word8)
+                                    , (SBV.KBounded False 16, ''Word16)
+                                    , (SBV.KBounded False 32, ''Word32)
+                                    , (SBV.KBounded False 64, ''Word64)
                                     ]
 
           let cfg = Config { dflags   = df
