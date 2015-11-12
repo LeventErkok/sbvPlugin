@@ -5,7 +5,7 @@ module Data.SBV.SBVAnalyze (analyze) where
 import GhcPlugins
 import PprCore
 
-import qualified Data.SBV as SBV
+import qualified Data.SBV as S
 
 import Data.SBV.PluginData
 
@@ -24,14 +24,18 @@ analyze cfg s e
 
 -- | Check if a given expression is interesting, i.e., something we can prove something about
 --
-isInteresting :: Config -> Type -> Maybe SBV.Kind
+isInteresting :: Config -> Type -> Maybe S.Kind
 isInteresting Config{knownTCs} t = case splitTyConApp_maybe t of
                                      Just (tc, []) -> tc `lookup` knownTCs
                                      _             -> Nothing
 
 -- | Check if a Floating-Point function is stable. i.e., given normal-arguments, it should
 -- produce normal results.
-stable :: Config -> SBV.Kind -> Maybe String -> CoreExpr -> IO Bool
-stable cfg k l e = do putStrLn $ t ++ " " ++ showSDoc (dflags cfg) (pprCoreExpr e)
-                      return True
+stable :: Config -> S.Kind -> Maybe String -> CoreExpr -> IO Bool
+stable cfg k l e 
+  | not (S.isDouble k || S.isFloat k)
+  = return False
+  | True
+  = do putStrLn $ t ++ " " ++ showSDoc (dflags cfg) (pprCoreExpr e)
+       return True
   where t = tag ("stable(" ++ show k ++ ")") l
