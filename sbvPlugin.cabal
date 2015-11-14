@@ -21,7 +21,7 @@ Library
   default-language: Haskell2010
   ghc-options     : -Wall
   Exposed-modules : Data.SBV.SBVPlugin
-  build-depends   : base >= 4.8 && < 5, ghc, sbv
+  build-depends   : base >= 4.8 && < 5, ghc, containers, sbv
   hs-source-dirs  : src
   Other-modules   : Data.SBV.SBVAnalyze
                   , Data.SBV.PluginData

@@ -5,7 +5,11 @@ module Data.SBV.SBVAnalyze (analyze) where
 import GhcPlugins
 import PprCore
 
-import qualified Data.SBV as S
+import qualified Data.Map as M
+
+import qualified Data.SBV           as S
+import qualified Data.SBV.Dynamic   as S
+import qualified Data.SBV.Internals as S
 
 import Data.Maybe
 
@@ -49,10 +53,25 @@ stable cfg k l e
       Tick{}     -> return False
       Type{}     -> return False
       Coercion{} -> return False
-      App{}      -> todo "App"
-      Let{}      -> todo "Let"
-      Case{}     -> todo "Case"
+      App{}      -> interpret cfg l e
+      Let{}      -> interpret cfg l e
+      Case{}     -> interpret cfg l e
   where allKnown = allBaseTypes cfg (exprFreeVars e)
-        todo w = do let t = tag ("stable(" ++ show k ++ ", " ++ w ++ ")") l
-                    putStrLn $ t ++ " " ++ showSDoc (dflags cfg) (pprCoreExpr e)
-                    return True
+
+interpret :: Config -> Maybe String -> CoreExpr -> IO Bool
+interpret cfg l topExpr = do mbR <- S.runSymbolic' (S.Proof (False, S.defaultSMTCfg)) $ go M.empty topExpr
+                             case mbR of
+                               (Nothing,     _) -> do todo
+                                                      return False
+                               (Just (m, r), _) -> do print r
+                                                      todo
+                                                      return False -- will be "True" eventually
+  where sh = showSDoc (dflags cfg) . pprCoreExpr
+        go m e@(Var v) = case v `M.lookup` m of
+                           Just s  -> return $ Just (m, s)
+                           Nothing -> case getBaseType cfg (exprType e) of
+                                        Just k  -> do s <- S.svMkSymVar Nothing k (Just (sh e))
+                                                      return $ Just (M.insert v s m, s)
+                                        Nothing -> return Nothing
+        go _ _         = return Nothing
+        todo  = liftIO $ putStrLn $ tag "stable" l ++ " " ++ sh topExpr
