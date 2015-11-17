@@ -4,6 +4,7 @@ module Data.SBV.Plugin.Analyze (prove) where
 
 import GhcPlugins
 
+import Data.List
 import qualified Data.Map as M
 
 import qualified Data.SBV           as S hiding (proveWith)
@@ -39,7 +40,9 @@ type Env = M.Map Var S.SVal
 
 checkTheorem :: Config -> String -> CoreExpr -> IO ()
 checkTheorem cfg l topExpr = print =<< S.proveWith S.defaultSMTCfg (snd `fmap` go M.empty topExpr)
-  where tbd w e = error $ "[SBVPlugin:" ++ l ++  "] Skipping proof. " ++ w ++ ":\n" ++ unlines e
+  where tbd w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
+          where tag s = "[SBVPlugin:" ++ l ++ "] " ++ s
+                tab s = "    " ++ s
 
         sh o = showSDoc (dflags cfg) (ppr o)
 
