@@ -1,5 +1,5 @@
 t1: t1.hs
-	ghc -g -fforce-recomp -c t1.hs -fplugin=Data.SBV.SBVPlugin
+	ghc -package sbvPlugin -g -fforce-recomp -c t1.hs -fplugin=Data.SBV.Plugin
 
 clean:
 	rm -f *.o *.hi

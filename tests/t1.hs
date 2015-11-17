@@ -1,10 +1,13 @@
 module Main where
 
-f :: Double -> Double -> Double
-f x y = x + y
+import Data.SBV.Plugin
 
-g :: Integer -> Integer -> Integer
-g x y = x * y
+f :: Double -> Double -> Bool
+f x y = x + y == y
+
+{-# ANN g SBVTheorem #-}
+g :: Integer -> Integer -> Bool
+g x y = x == y
 
 main :: IO ()
 main = print $ f 2 3
