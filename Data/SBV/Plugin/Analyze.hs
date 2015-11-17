@@ -16,10 +16,9 @@ import Data.SBV.Plugin.Data
 
 -- | Prove an SBVTheorem
 prove :: Config -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg b s e
-  | isProvable (exprType e) = safely $ checkTheorem cfg loc e
-  | True                    = error $ "SBVPlugin: " ++ loc ++ " does not have a provable type!"
-  where loc = showSDoc (dflags cfg) $ if isGoodSrcSpan s then ppr s <> text ":" <> ppr b else ppr b
+prove cfg b topLoc e
+  | isProvable (exprType e) = safely $ checkTheorem cfg (topLoc, b) e
+  | True                    = error $ "SBVPlugin: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 
 -- | Is this a provable type?
 -- TODO: Currently we always say yes!
@@ -38,28 +37,49 @@ getBaseType Config{knownTCs} t = case splitTyConApp_maybe t of
 
 type Env = M.Map Var S.SVal
 
-checkTheorem :: Config -> String -> CoreExpr -> IO ()
-checkTheorem cfg l topExpr = print =<< S.proveWith S.defaultSMTCfg (snd `fmap` go M.empty topExpr)
-  where tbd w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
-          where tag s = "[SBVPlugin:" ++ l ++ "] " ++ s
+checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO ()
+checkTheorem cfg (topLoc, topBind) topExpr =
+      print =<< S.proveWith S.defaultSMTCfg (snd `fmap` go topLoc M.empty topExpr)
+  where tbd loc w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
+          where tag s = "[SBVPlugin:" ++ showSpan cfg topBind loc ++ "] " ++ s
                 tab s = "    " ++ s
 
         sh o = showSDoc (dflags cfg) (ppr o)
 
-        go :: Env -> CoreExpr -> S.Symbolic (Env, S.SVal)
-
-        go m e@(Var v)
+        go :: SrcSpan -> Env -> CoreExpr -> S.Symbolic (Env, S.SVal)
+        go loc m e@(Var v)
            | Just s <- v `M.lookup` m
            = return (m, s)
            | True
-           = tbd "Expression refers to non-local variable" [sh e]
+           = tbd loc "Expression refers to non-local variable" [sh e]
 
-        go m e@(Lam b body)
+        go loc _ e@(Lit _)
+           = tbd loc "Unsupported literal" [sh e]
+
+        go loc _ (App f e)
+           = tbd loc "Unsupported application" [sh f, sh e]
+
+        go loc m e@(Lam b body)
            | Just k <- getBaseType cfg (varType b)
            = do s <- S.svMkSymVar Nothing k (Just (sh b))
-                go (M.insert b s m) body
+                go loc (M.insert b s m) body
            | True
-           = tbd "Abstraction with a non-basic binder" [sh e]
+           = tbd loc "Abstraction with a non-basic binder" [sh e]
 
-        go _ e
-          = tbd "Expression with too complicated structure" [sh e]
+        go loc _ e@(Let _ _)
+           = tbd loc "Unsupported let-binding" [sh e]
+
+        go loc _ e@(Case{})
+           = tbd loc "Unsupported case-expression" [sh e]
+
+        go loc _ e@(Cast{})
+           = tbd loc "Unsupported case-expression" [sh e]
+
+        go loc m (Tick t e)
+           = go (tickSpan t loc) m e
+
+        go loc _ e@(Type{})
+           = tbd loc "Unsupported type-expression" [sh e]
+
+        go loc _ e@(Coercion{})
+           = tbd loc "Unsupported coercion-expression" [sh e]

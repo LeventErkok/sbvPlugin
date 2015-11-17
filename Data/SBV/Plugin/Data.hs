@@ -24,3 +24,6 @@ tickSpan _                 s = s
 
 bindSpan :: Var -> SrcSpan
 bindSpan = nameSrcSpan . varName
+
+showSpan :: Config -> Var -> SrcSpan -> String
+showSpan cfg b s = showSDoc (dflags cfg) $ if isGoodSrcSpan s then ppr s <> text ":" <> ppr b else ppr b
