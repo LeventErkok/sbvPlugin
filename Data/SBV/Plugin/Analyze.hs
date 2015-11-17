@@ -37,19 +37,26 @@ getBaseType Config{knownTCs} t = case splitTyConApp_maybe t of
 
 type Env = M.Map Var S.SVal
 
+data Val = Base S.SVal
+         | Func (Val -> Val)
+
 checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO ()
-checkTheorem cfg (topLoc, topBind) topExpr =
-      print =<< S.proveWith S.defaultSMTCfg (snd `fmap` go topLoc M.empty topExpr)
-  where tbd loc w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
-          where tag s = "[SBVPlugin:" ++ showSpan cfg topBind loc ++ "] " ++ s
-                tab s = "    " ++ s
+checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTCfg res
+  where res = do (_, v) <- go topLoc M.empty topExpr
+                 case v of
+                   Base r -> return r
+                   Func _ -> tbd topLoc "Expression too complicated for SBVPlugin" [sh topExpr]
+
+        tbd loc w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
+           where tag s = "[SBVPlugin:" ++ showSpan cfg topBind loc ++ "] " ++ s
+                 tab s = "    " ++ s
 
         sh o = showSDoc (dflags cfg) (ppr o)
 
-        go :: SrcSpan -> Env -> CoreExpr -> S.Symbolic (Env, S.SVal)
+        go :: SrcSpan -> Env -> CoreExpr -> S.Symbolic (Env, Val)
         go loc m e@(Var v)
            | Just s <- v `M.lookup` m
-           = return (m, s)
+           = return (m, Base s)
            | True
            = tbd loc "Expression refers to non-local variable" [sh e]
 
