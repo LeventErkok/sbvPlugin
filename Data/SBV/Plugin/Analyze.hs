@@ -7,8 +7,8 @@ import GhcPlugins
 import Data.List
 import qualified Data.Map as M
 
-import qualified Data.SBV           as S hiding (proveWith)
-import qualified Data.SBV.Dynamic   as S
+import qualified Data.SBV         as S hiding (proveWith)
+import qualified Data.SBV.Dynamic as S
 
 import qualified Control.Exception as C
 
@@ -32,17 +32,12 @@ safely a = a `C.catch` bad
 
 getBaseType :: Config -> Type -> Maybe S.Kind
 getBaseType Config{knownTCs} t = case splitTyConApp_maybe t of
-                                   Just (tc, []) -> tc `lookup` knownTCs
+                                   Just (tc, []) -> tc `M.lookup` knownTCs
                                    _             -> Nothing
-
-type Env = M.Map Var S.SVal
-
-data Val = Base S.SVal
-         | Func (Val -> Val)
 
 checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO ()
 checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTCfg res
-  where res = do (_, v) <- go topLoc M.empty topExpr
+  where res = do (_, v) <- go topLoc (knownFuns cfg) topExpr
                  case v of
                    Base r -> return r
                    Func _ -> tbd topLoc "Expression too complicated for SBVPlugin" [sh topExpr]
@@ -56,20 +51,27 @@ checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTC
         go :: SrcSpan -> Env -> CoreExpr -> S.Symbolic (Env, Val)
         go loc m e@(Var v)
            | Just s <- v `M.lookup` m
-           = return (m, Base s)
+           = return (m, s)
            | True
            = tbd loc "Expression refers to non-local variable" [sh e]
 
         go loc _ e@(Lit _)
            = tbd loc "Unsupported literal" [sh e]
 
-        go loc _ (App f e)
-           = tbd loc "Unsupported application" [sh f, sh e]
+        go loc m (App a (Type _))
+           = go loc m a
+
+        go loc m (App f e)
+           = do (_, fv) <- go loc m f
+                (_, ev) <- go loc m e
+                case fv of
+                  Base _ -> tbd loc "Unsupported application" [sh f, sh e]
+                  Func sf -> return (m, sf ev)
 
         go loc m e@(Lam b body)
            | Just k <- getBaseType cfg (varType b)
            = do s <- S.svMkSymVar Nothing k (Just (sh b))
-                go loc (M.insert b s m) body
+                go loc (M.insert b (Base s) m) body
            | True
            = tbd loc "Abstraction with a non-basic binder" [sh e]
 
@@ -80,7 +82,7 @@ checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTC
            = tbd loc "Unsupported case-expression" [sh e]
 
         go loc _ e@(Cast{})
-           = tbd loc "Unsupported case-expression" [sh e]
+           = tbd loc "Unsupported cast-expression" [sh e]
 
         go loc m (Tick t e)
            = go (tickSpan t loc) m e

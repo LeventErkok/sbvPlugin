@@ -6,10 +6,13 @@ module Data.SBV.Plugin.Plugin(plugin) where
 import GhcPlugins
 import Control.Monad (when)
 
+import qualified Data.Map as M
+
 import Data.Int
 import Data.Word
 
-import qualified Data.SBV.Internals as SBV
+import qualified Data.SBV.Internals as S
+import qualified Data.SBV.Dynamic   as S
 
 import Data.SBV.Plugin.Data
 import Data.SBV.Plugin.Analyze (prove)
@@ -33,24 +36,32 @@ plugin = defaultPlugin {installCoreToDos = install}
                                     tc <- lookupTyCon fn
                                     return (tc, k)
 
-          baseTCs <- mapM grabTyCon [ (SBV.KBool,             ''Bool)
-                                    , (SBV.KUnbounded,        ''Integer)
-                                    , (SBV.KFloat,            ''Float)
-                                    , (SBV.KDouble,           ''Double)
-                                    , (SBV.KBounded True   8, ''Int8)
-                                    , (SBV.KBounded True  16, ''Int16)
-                                    , (SBV.KBounded True  32, ''Int32)
-                                    , (SBV.KBounded True  64, ''Int64)
-                                    , (SBV.KBounded False  8, ''Word8)
-                                    , (SBV.KBounded False 16, ''Word16)
-                                    , (SBV.KBounded False 32, ''Word32)
-                                    , (SBV.KBounded False 64, ''Word64)
-                                    ]
+          baseTCs <- M.fromList `fmap` mapM grabTyCon [ (S.KBool,             ''Bool)
+                                                      , (S.KUnbounded,        ''Integer)
+                                                      , (S.KFloat,            ''Float)
+                                                      , (S.KDouble,           ''Double)
+                                                      , (S.KBounded True   8, ''Int8)
+                                                      , (S.KBounded True  16, ''Int16)
+                                                      , (S.KBounded True  32, ''Int32)
+                                                      , (S.KBounded True  64, ''Int64)
+                                                      , (S.KBounded False  8, ''Word8)
+                                                      , (S.KBounded False 16, ''Word16)
+                                                      , (S.KBounded False 32, ''Word32)
+                                                      , (S.KBounded False 64, ''Word64)
+                                                      ]
+
+          let grabVar (x, sfn) = do Just fn <- thNameToGhcName x
+                                    f <- lookupId fn
+                                    return (f, sfn)
+
+          -- TODO: The following isn't correct, we need fEqInteger, whereever that is hiding
+          baseEnv <- M.fromList `fmap` mapM grabVar [ ('(==), lift2 S.svEqual)]
 
           anns <- getAnnotations deserializeWithData guts
 
           let cfg = Config { dflags        = df
                            , knownTCs      = baseTCs
+                           , knownFuns     = baseEnv
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
                            }
 

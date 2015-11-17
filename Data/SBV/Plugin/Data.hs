@@ -2,20 +2,31 @@
 module Data.SBV.Plugin.Data where
 
 import Data.Data (Data, Typeable)
+import qualified Data.Map as M
 
 import CostCentre
 import GhcPlugins
 
-import qualified Data.SBV as SBV
+import qualified Data.SBV         as S
+import qualified Data.SBV.Dynamic as S
 
 -- | SBV Annotations
 data SBVAnnotation = SBVTheorem deriving (Eq, Data, Typeable)
 
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
-                     , knownTCs      :: [(TyCon, SBV.Kind)]
+                     , knownTCs      :: M.Map TyCon S.Kind
+                     , knownFuns     :: M.Map Var Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
                      }
+
+data Val = Base S.SVal
+         | Func (Val -> Val)
+
+type Env = M.Map Var Val
+
+lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
+lift2 f = Func $ \(Base a) -> Func $ \(Base b) -> Base (f a b)
 
 tickSpan :: Tickish t -> SrcSpan -> SrcSpan
 tickSpan (ProfNote cc _ _) _ = cc_loc cc
