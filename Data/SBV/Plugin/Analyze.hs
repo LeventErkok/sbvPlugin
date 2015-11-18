@@ -68,6 +68,8 @@ checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTC
                   Base _ -> tbd loc "Unsupported application" [sh f, sh e]
                   Func sf -> return (m, sf ev)
 
+        -- NB: We do *not* have to worry about shadowing when we enter the body
+        -- of a lambda, as Core variables are guaranteed unique
         go loc m e@(Lam b body)
            | Just k <- getBaseType cfg (varType b)
            = do s <- S.svMkSymVar Nothing k (Just (sh b))
