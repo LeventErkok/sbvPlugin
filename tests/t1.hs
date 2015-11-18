@@ -14,5 +14,9 @@ g x y = x == y
 h :: Integer -> Bool
 h x = x == x
 
+{-# ANN q SBVTheorem #-}
+q :: Integer -> Integer -> Bool
+q x y = x + y >= x - y
+
 main :: IO ()
 main = return ()

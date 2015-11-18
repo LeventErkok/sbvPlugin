@@ -8,6 +8,8 @@ import Control.Monad (when)
 
 import qualified Data.Map as M
 
+import Language.Haskell.TH as TH
+
 import Data.Int
 import Data.Word
 
@@ -54,11 +56,7 @@ plugin = defaultPlugin {installCoreToDos = install}
                                        f <- lookupId fn
                                        return ((f, k), sfn)
 
-          -- TODO: The following isn't correct, we need fEqInteger, whereever that is hiding
-          baseEnv <- M.fromList `fmap` mapM grabVar [ ('(==), S.KUnbounded, lift2 S.svEqual)
-                                                    , ('(==), S.KDouble,    lift2 S.svEqual)
-                                                    , ('(+),  S.KDouble,    lift2 S.svPlus)
-                                                    ]
+          baseEnv <- M.fromList `fmap` mapM grabVar binOps
 
           anns <- getAnnotations deserializeWithData guts
 
@@ -79,3 +77,35 @@ analyzeBind cfg@Config{sbvAnnotation} = go
         go (Rec binds)  = mapM_ bind binds
         bind (b, e) = do let anns = sbvAnnotation b
                          when (SBVTheorem `elem` anns) $ liftIO $ prove cfg b (bindSpan b) e
+
+binOps :: [(TH.Name, S.Kind, Val)]
+binOps =  -- equality is for all kinds
+          [('(==), k, lift2 S.svEqual) | k <- allKinds]
+
+          -- arithmetic
+       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- arithOps]
+
+          -- comparisons
+       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- compOps ]
+ where
+       -- Bit-vectors
+       bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
+
+       -- Arithmetic kinds
+       arithKinds = [S.KUnbounded, S.KFloat, S.KDouble] ++ bvKinds
+
+       -- Everything
+       allKinds   = S.KBool : arithKinds
+
+       -- Binary arithmetic UOPs
+       arithOps   = [ ('(+), S.svPlus)
+                    , ('(-), S.svMinus)
+                    , ('(*), S.svTimes)
+                    ]
+
+       -- Comparisons
+       compOps    = [ ('(<),  S.svLessThan)
+                    , ('(>),  S.svGreaterThan)
+                    , ('(<=), S.svLessEq)
+                    , ('(>=), S.svGreaterEq)
+                    ]
