@@ -55,7 +55,10 @@ plugin = defaultPlugin {installCoreToDos = install}
                                        return ((f, k), sfn)
 
           -- TODO: The following isn't correct, we need fEqInteger, whereever that is hiding
-          baseEnv <- M.fromList `fmap` mapM grabVar [('(==), S.KUnbounded, lift2 S.svEqual)]
+          baseEnv <- M.fromList `fmap` mapM grabVar [ ('(==), S.KUnbounded, lift2 S.svEqual)
+                                                    , ('(==), S.KDouble,    lift2 S.svEqual)
+                                                    , ('(+),  S.KDouble,    lift2 S.svPlus)
+                                                    ]
 
           anns <- getAnnotations deserializeWithData guts
 

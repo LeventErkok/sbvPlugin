@@ -3,8 +3,8 @@ module Main where
 import Data.SBV.Plugin
 
 {-# ANN f SBVTheorem #-}
-f :: Double -> Double -> Bool
-f x y = x + y == y
+f :: Double -> Double -> Double -> Bool
+f x y z = x + (y + z) == (x + y) + z
 
 {-# ANN g SBVTheorem #-}
 g :: Integer -> Integer -> Bool
@@ -15,4 +15,4 @@ h :: Integer -> Bool
 h x = x == x
 
 main :: IO ()
-main = print $ f 2 3
+main = return ()
