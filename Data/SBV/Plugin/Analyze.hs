@@ -4,6 +4,8 @@ module Data.SBV.Plugin.Analyze (prove) where
 
 import GhcPlugins
 
+import Control.Monad.Reader
+
 import Data.List
 import qualified Data.Map as M
 
@@ -30,67 +32,95 @@ safely a = a `C.catch` bad
   where bad :: C.SomeException -> IO ()
         bad = print
 
-getBaseType :: Config -> Type -> Maybe S.Kind
-getBaseType Config{knownTCs} t = case splitTyConApp_maybe t of
-                                   Just (tc, []) -> tc `M.lookup` knownTCs
-                                   _             -> Nothing
+data Env = Env { curLoc  :: SrcSpan
+               , baseTCs :: M.Map TyCon S.Kind
+               , envMap  :: M.Map (Var, S.Kind) Val
+               }
+
+type Eval a = ReaderT Env S.Symbolic a
 
 checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO ()
 checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTCfg res
-  where res = do (_, v) <- go topLoc (knownFuns cfg) topExpr
+  where res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
                  case v of
                    Base r -> return r
-                   Func _ -> tbd topLoc "Expression too complicated for SBVPlugin" [sh topExpr]
+                   Func _ -> die topLoc "Expression too complicated for SBVPlugin" [sh topExpr]
 
-        tbd loc w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
-           where tag s = "[SBVPlugin:" ++ showSpan cfg topBind loc ++ "] " ++ s
-                 tab s = "    " ++ s
+        die :: SrcSpan -> String -> [String] -> a
+        die loc w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
+          where tag s = "[SBVPlugin:" ++ showSpan cfg topBind loc ++ "] " ++ s
+                tab s = "    " ++ s
+
+        tbd :: String -> [String] -> Eval Val
+        tbd w ws = do Env{curLoc} <- ask
+                      die curLoc w ws
 
         sh o = showSDoc (dflags cfg) (ppr o)
 
-        go :: SrcSpan -> Env -> CoreExpr -> S.Symbolic (Env, Val)
-        go loc m e@(Var v)
-           | Just s <- v `M.lookup` m
-           = return (m, s)
-           | True
-           = tbd loc "Expression refers to non-local variable" [sh e]
+        go :: CoreExpr -> ReaderT Env S.Symbolic Val
+        go e@(Var v) = do Env{envMap} <- ask
+                          let t = exprType e
+                          mbK <- getBaseType t
+                          case mbK of
+                            Nothing -> tbd "Expression refers to non-local variable with complicated type" [sh e, sh t]
+                            Just k  -> case (v, k) `M.lookup` envMap of
+                                          Just s  -> return s
+                                          Nothing -> tbd "Expression refers to non-local variable" [sh e, sh t]
 
-        go loc _ e@(Lit _)
-           = tbd loc "Unsupported literal" [sh e]
+        go e@(Lit _)
+           = tbd "Unsupported literal" [sh e]
 
-        go loc m (App a (Type _))
-           = go loc m a
+        go (App a (Type _))
+           = go a
 
-        go loc m (App f e)
-           = do (_, fv) <- go loc m f
-                (_, ev) <- go loc m e
+        go (App f e)
+           = do fv <- do mbSF <- getSymFun f
+                         case mbSF of
+                           Nothing -> go f
+                           Just sf -> return sf
+                ev <- go e
                 case fv of
-                  Base _ -> tbd loc "Unsupported application" [sh f, sh e]
-                  Func sf -> return (m, sf ev)
+                  Base _  -> tbd "Unsupported application" [sh f, sh e]
+                  Func sf -> return $ sf ev
 
         -- NB: We do *not* have to worry about shadowing when we enter the body
         -- of a lambda, as Core variables are guaranteed unique
-        go loc m e@(Lam b body)
-           | Just k <- getBaseType cfg (varType b)
-           = do s <- S.svMkSymVar Nothing k (Just (sh b))
-                go loc (M.insert b (Base s) m) body
-           | True
-           = tbd loc "Abstraction with a non-basic binder" [sh e]
+        go e@(Lam b body) = do
+            let t = varType b
+            mbK <- getBaseType t
+            case mbK of
+              Nothing -> tbd "Abstraction with a non-basic binder" [sh e, sh t]
+              Just k  -> do s <- lift $ S.svMkSymVar Nothing k (Just (sh b))
+                            local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) $ go body
 
-        go loc _ e@(Let _ _)
-           = tbd loc "Unsupported let-binding" [sh e]
+        go e@(Let _ _)
+           = tbd "Unsupported let-binding" [sh e]
 
-        go loc _ e@(Case{})
-           = tbd loc "Unsupported case-expression" [sh e]
+        go e@(Case{})
+           = tbd "Unsupported case-expression" [sh e]
 
-        go loc _ e@(Cast{})
-           = tbd loc "Unsupported cast-expression" [sh e]
+        go e@(Cast{})
+           = tbd "Unsupported cast-expression" [sh e]
 
-        go loc m (Tick t e)
-           = go (tickSpan t loc) m e
+        go (Tick t e)
+           = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
 
-        go loc _ e@(Type{})
-           = tbd loc "Unsupported type-expression" [sh e]
+        go e@(Type{})
+           = tbd "Unsupported type-expression" [sh e]
 
-        go loc _ e@(Coercion{})
-           = tbd loc "Unsupported coercion-expression" [sh e]
+        go e@(Coercion{})
+           = tbd "Unsupported coercion-expression" [sh e]
+
+getSymFun :: CoreExpr -> Eval (Maybe Val)
+getSymFun (App (Var v) (Type t)) = do Env{envMap} <- ask
+                                      mbK <- getBaseType t
+                                      case mbK of
+                                        Nothing -> return Nothing
+                                        Just k  -> return $ (v, k) `M.lookup` envMap
+getSymFun _                      = return Nothing
+
+getBaseType :: Type -> Eval (Maybe S.Kind)
+getBaseType t = do Env{baseTCs} <- ask
+                   case splitTyConApp_maybe t of
+                     Just (tc, []) -> return $ tc `M.lookup` baseTCs
+                     _             -> return Nothing

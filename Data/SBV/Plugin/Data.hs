@@ -16,14 +16,12 @@ data SBVAnnotation = SBVTheorem deriving (Eq, Data, Typeable)
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
                      , knownTCs      :: M.Map TyCon S.Kind
-                     , knownFuns     :: M.Map Var Val
+                     , knownFuns     :: M.Map (Var, S.Kind) Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
                      }
 
 data Val = Base S.SVal
          | Func (Val -> Val)
-
-type Env = M.Map Var Val
 
 lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
 lift2 f = Func $ \(Base a) -> Func $ \(Base b) -> Base (f a b)

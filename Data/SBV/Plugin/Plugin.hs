@@ -50,12 +50,12 @@ plugin = defaultPlugin {installCoreToDos = install}
                                                       , (S.KBounded False 64, ''Word64)
                                                       ]
 
-          let grabVar (x, sfn) = do Just fn <- thNameToGhcName x
-                                    f <- lookupId fn
-                                    return (f, sfn)
+          let grabVar (n, k, sfn) = do Just fn <- thNameToGhcName n
+                                       f <- lookupId fn
+                                       return ((f, k), sfn)
 
           -- TODO: The following isn't correct, we need fEqInteger, whereever that is hiding
-          baseEnv <- M.fromList `fmap` mapM grabVar [ ('(==), lift2 S.svEqual)]
+          baseEnv <- M.fromList `fmap` mapM grabVar [('(==), S.KUnbounded, lift2 S.svEqual)]
 
           anns <- getAnnotations deserializeWithData guts
 
