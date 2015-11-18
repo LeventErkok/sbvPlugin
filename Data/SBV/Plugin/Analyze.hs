@@ -6,7 +6,6 @@ import GhcPlugins
 
 import Control.Monad.Reader
 
-import Data.List
 import qualified Data.Map as M
 
 import qualified Data.SBV         as S hiding (proveWith)
@@ -20,7 +19,7 @@ import Data.SBV.Plugin.Data
 prove :: Config -> Var -> SrcSpan -> CoreExpr -> IO ()
 prove cfg b topLoc e
   | isProvable (exprType e) = safely $ checkTheorem cfg (topLoc, b) e
-  | True                    = error $ "SBVPlugin: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
+  | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 
 -- | Is this a provable type?
 -- TODO: Currently we always say yes!
@@ -40,16 +39,21 @@ data Env = Env { curLoc  :: SrcSpan
 type Eval a = ReaderT Env S.Symbolic a
 
 checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO ()
-checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTCfg res
-  where res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
+checkTheorem cfg (topLoc, topBind) topExpr = do
+        let loc = "[SBV] " ++ showSpan cfg topBind topLoc
+        putStr $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ ".. "
+        print =<< S.proveWith S.defaultSMTCfg res
+  where res :: S.Symbolic S.SVal
+        res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
                  case v of
                    Base r -> return r
-                   Func _ -> die topLoc "Expression too complicated for SBVPlugin" [sh topExpr]
+                   Func _ -> die topLoc "Expression too complicated for SBV" [sh topExpr]
 
         die :: SrcSpan -> String -> [String] -> a
-        die loc w es = error $ intercalate "\n" $ tag ("Skipping proof. " ++ w ++ ":") : map (tag . tab) es
-          where tag s = "[SBVPlugin:" ++ showSpan cfg topBind loc ++ "] " ++ s
-                tab s = "    " ++ s
+        die loc w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
+          where marker = "[SBV] " ++ showSpan cfg topBind loc
+                tag s = marker ++ " " ++ s
+                tab s = replicate (length marker) ' ' ++  "    " ++ s
 
         tbd :: String -> [String] -> Eval Val
         tbd w ws = do Env{curLoc} <- ask
@@ -62,10 +66,10 @@ checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTC
                           let t = exprType e
                           mbK <- getBaseType t
                           case mbK of
-                            Nothing -> tbd "Expression refers to non-local variable with complicated type" [sh e, sh t]
+                            Nothing -> tbd "Expression refers to non-local variable with complicated type" [sh e ++ " :: " ++ sh t]
                             Just k  -> case (v, k) `M.lookup` envMap of
                                           Just s  -> return s
-                                          Nothing -> tbd "Expression refers to non-local variable" [sh e, sh t]
+                                          Nothing -> tbd "Expression refers to non-local variable" [sh e ++ " :: " ++ sh t]
 
         go e@(Lit _)
            = tbd "Unsupported literal" [sh e]
@@ -112,12 +116,20 @@ checkTheorem cfg (topLoc, topBind) topExpr = print =<< S.proveWith S.defaultSMTC
            = tbd "Unsupported coercion-expression" [sh e]
 
 getSymFun :: CoreExpr -> Eval (Maybe Val)
-getSymFun (App (Var v) (Type t)) = do Env{envMap} <- ask
-                                      mbK <- getBaseType t
-                                      case mbK of
-                                        Nothing -> return Nothing
-                                        Just k  -> return $ (v, k) `M.lookup` envMap
-getSymFun _                      = return Nothing
+getSymFun (App (App (Var v) (Type t)) (Var dict))
+  | isReallyADictionary dict = do Env{envMap} <- ask
+                                  mbK <- getBaseType t
+                                  case mbK of
+                                    Nothing -> return Nothing
+                                    Just k  -> return $ (v, k) `M.lookup` envMap
+getSymFun _ = return Nothing
+
+isReallyADictionary :: Var -> Bool
+isReallyADictionary v = case classifyPredType (varType v) of
+                          ClassPred{} -> True
+                          EqPred{}    -> True
+                          TuplePred{} -> True
+                          IrredPred{} -> False
 
 getBaseType :: Type -> Eval (Maybe S.Kind)
 getBaseType t = do Env{baseTCs} <- ask
