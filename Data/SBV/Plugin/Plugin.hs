@@ -4,11 +4,10 @@
 module Data.SBV.Plugin.Plugin(plugin) where
 
 import GhcPlugins
-import Control.Monad (when)
 
 import qualified Data.Map as M
 
-import Language.Haskell.TH as TH
+import qualified Language.Haskell.TH as TH
 
 import Data.Int
 import Data.Word
@@ -61,6 +60,7 @@ plugin = defaultPlugin {installCoreToDos = install}
           anns <- getAnnotations deserializeWithData guts
 
           let cfg = Config { dflags        = df
+                           , opts          = []
                            , knownTCs      = baseTCs
                            , knownFuns     = baseEnv
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
@@ -75,8 +75,10 @@ analyzeBind :: Config -> CoreBind -> CoreM ()
 analyzeBind cfg@Config{sbvAnnotation} = go
   where go (NonRec b e) = bind (b, e)
         go (Rec binds)  = mapM_ bind binds
-        bind (b, e) = do let anns = sbvAnnotation b
-                         when (SBVTheorem `elem` anns) $ liftIO $ prove cfg b (bindSpan b) e
+        bind (b, e) = mapM_ work (sbvAnnotation b)
+          where work (SBVTheorem opts) = liftIO $ prove cfg{opts=opts} b (bindSpan b) e
+                work (SBVSafe  _)      = return ()
+                work SBVUninterpret    = return ()
 
 binOps :: [(TH.Name, S.Kind, Val)]
 binOps =  -- equality is for all kinds

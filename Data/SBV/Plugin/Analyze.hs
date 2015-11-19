@@ -5,20 +5,28 @@ module Data.SBV.Plugin.Analyze (prove) where
 import GhcPlugins
 
 import Control.Monad.Reader
+import Data.Maybe
 
 import qualified Data.Map as M
 
-import qualified Data.SBV         as S hiding (proveWith)
+import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
 
 import qualified Control.Exception as C
 
+import System.Exit hiding (die)
+
 import Data.SBV.Plugin.Data
+
 
 -- | Prove an SBVTheorem
 prove :: Config -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg b topLoc e
-  | isProvable (exprType e) = safely $ checkTheorem cfg (topLoc, b) e
+prove cfg@Config{opts} b topLoc e
+  | isProvable (exprType e) = do success <- safely $ checkTheorem cfg (topLoc, b) e
+                                 unless success $ if WarnIfFails `elem` opts
+                                                  then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
+                                                  else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
+                                                          exitFailure
   | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 
 -- | Is this a provable type?
@@ -26,10 +34,11 @@ prove cfg b topLoc e
 isProvable :: Type -> Bool
 isProvable _ = True
 
-safely :: IO () -> IO ()
+safely :: IO Bool -> IO Bool
 safely a = a `C.catch` bad
-  where bad :: C.SomeException -> IO ()
-        bad = print
+  where bad :: C.SomeException -> IO Bool
+        bad e = do print e
+                   return False
 
 data Env = Env { curLoc  :: SrcSpan
                , baseTCs :: M.Map TyCon S.Kind
@@ -38,11 +47,44 @@ data Env = Env { curLoc  :: SrcSpan
 
 type Eval a = ReaderT Env S.Symbolic a
 
-checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO ()
-checkTheorem cfg (topLoc, topBind) topExpr = do
+proveIt :: [SBVAttribute] -> S.Symbolic S.SVal -> IO (S.Solver, S.ThmResult)
+proveIt opts thm = case chosen of
+                     []  -> do r <- S.proveWith S.defaultSMTCfg{S.verbose = verbose} thm
+                               return (S.name (S.solver S.defaultSMTCfg), r)
+                     [s] -> do r <- S.proveWith s thm
+                               return (S.name (S.solver s), r)
+                     _   -> S.proveWithAny chosen thm
+  where verbose = Debug `elem` opts
+        chosen
+          | AnySolver `elem` opts = map snd solvers
+          | True                  = mapMaybe (`lookup` solvers) opts
+        solvers = [ (n, s{S.verbose = verbose})
+                  | (n, s) <- [ (Z3,        S.z3)
+                              , (Yices,     S.yices)
+                              , (Boolector, S.boolector)
+                              , (CVC4,      S.cvc4)
+                              , (MathSAT,   S.mathSAT)
+                              , (ABC,       S.abc)
+                              ]
+                  ]
+
+-- Returns True if proof went thru
+checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO Bool
+checkTheorem cfg@Config{opts} (topLoc, topBind) topExpr = do
         let loc = "[SBV] " ++ showSpan cfg topBind topLoc
+            verbose = Debug `elem` opts
         putStr $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ ".. "
-        print =<< S.proveWith S.defaultSMTCfg res
+        when verbose $ putStrLn ""
+        (solver, sres@(S.ThmResult smtRes)) <- proveIt opts res
+        unless verbose $ putStr $ "[" ++ show solver ++ "] "
+        print sres
+        return $ case smtRes of
+                   S.Unsatisfiable{} -> True
+                   S.Satisfiable{}   -> False
+                   S.Unknown{}       -> False   -- conservative
+                   S.ProofError{}    -> False   -- conservative
+                   S.TimeOut{}       -> False   -- conservative
+
   where res :: S.Symbolic S.SVal
         res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
                  case v of

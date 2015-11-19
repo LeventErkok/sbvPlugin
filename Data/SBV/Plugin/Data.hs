@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
 module Data.SBV.Plugin.Data where
 
 import Data.Data (Data, Typeable)
@@ -11,10 +11,25 @@ import qualified Data.SBV         as S
 import qualified Data.SBV.Dynamic as S
 
 -- | SBV Annotations
-data SBVAnnotation = SBVTheorem deriving (Eq, Data, Typeable)
+data SBVAttribute  = WarnIfFails
+                   | Debug
+                   | Z3
+                   | Yices
+                   | Boolector
+                   | CVC4
+                   | MathSAT
+                   | ABC
+                   | AnySolver
+                   deriving (Eq, Data, Typeable)
+
+data SBVAnnotation = SBVTheorem      [SBVAttribute]
+                   | SBVSafe         [SBVAttribute]
+                   | SBVUninterpret
+                   deriving (Eq, Data, Typeable)
 
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
+                     , opts          :: [SBVAttribute]
                      , knownTCs      :: M.Map TyCon S.Kind
                      , knownFuns     :: M.Map (Var, S.Kind) Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
