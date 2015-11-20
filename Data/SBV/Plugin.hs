@@ -1,6 +1,6 @@
 module Data.SBV.Plugin(
          plugin
-       , SBVOption(..), SBVAnnotation(..), SBVSolver(..)
+       , SBVOption(..), SBVAnnotation(..)
        , theorem
        , safe
        , uninterpret

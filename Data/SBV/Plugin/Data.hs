@@ -13,9 +13,7 @@ import qualified Data.SBV.Dynamic as S
 -- | SBV Annotations
 data SBVOption = WarnIfFails
                | Debug
-               deriving (Eq, Data, Typeable)
-
-data SBVSolver = Z3
+               | Z3
                | Yices
                | Boolector
                | CVC4
@@ -24,14 +22,14 @@ data SBVSolver = Z3
                | AnySolver
                deriving (Eq, Data, Typeable)
 
-data SBVAnnotation = SBVTheorem      {options :: [SBVOption], solvers :: [SBVSolver]}
-                   | SBVSafe         {options :: [SBVOption], solvers :: [SBVSolver]}
+data SBVAnnotation = SBVTheorem      {options :: [SBVOption]}
+                   | SBVSafe         {options :: [SBVOption]}
                    | SBVUninterpret
                    deriving (Eq, Data, Typeable)
 
 theorem, safe, uninterpret :: SBVAnnotation
-theorem     = SBVTheorem {options = [], solvers = []}
-safe        = SBVSafe    {options = [], solvers = []}
+theorem     = SBVTheorem {options = []}
+safe        = SBVSafe    {options = []}
 uninterpret = SBVUninterpret
 
 -- | Configuration info as we run the plugin

@@ -15,11 +15,11 @@ g x y = x == y
 t :: Word8 -> Bool
 t x = x >= x
 
-{-# ANN h theorem {solvers = [AnySolver]} #-}
+{-# ANN h theorem {options = [AnySolver]} #-}
 h :: Word8 -> Bool
 h x = x == x
 
-{-# ANN q theorem {options = [WarnIfFails], solvers = [CVC4, Yices]} #-}
+{-# ANN q theorem {options = [WarnIfFails, CVC4, Yices]} #-}
 q :: Integer -> Integer -> Bool
 q x y = x + y >= x - y
 

@@ -22,9 +22,9 @@ import Data.SBV.Plugin.Data
 
 
 -- | Prove an SBVTheorem
-prove :: Config -> ([SBVOption], [SBVSolver]) -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg (opts, solvers) b topLoc e
-  | isProvable (exprType e) = do success <- safely $ checkTheorem cfg (opts, solvers) (topLoc, b) e
+prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
+prove cfg opts b topLoc e
+  | isProvable (exprType e) = do success <- safely $ checkTheorem cfg opts (topLoc, b) e
                                  unless success $ if WarnIfFails `elem` opts
                                                   then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
                                                   else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
@@ -49,7 +49,7 @@ data Env = Env { curLoc  :: SrcSpan
 
 type Eval a = ReaderT Env S.Symbolic a
 
-pickSolvers :: [SBVSolver] -> IO [S.SMTConfig]
+pickSolvers :: [SBVOption] -> IO [S.SMTConfig]
 pickSolvers []    = return [S.defaultSMTCfg]
 pickSolvers slvrs
   | AnySolver `elem` slvrs = S.sbvAvailableSolvers
@@ -67,9 +67,9 @@ proveIt opts slvrs = S.proveWithAny [s{S.verbose = verbose} | s <- slvrs]
   where verbose = Debug `elem` opts
 
 -- Returns True if proof went thru
-checkTheorem :: Config -> ([SBVOption], [SBVSolver]) -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-checkTheorem cfg (opts, slvrs) (topLoc, topBind) topExpr = do
-        solverConfigs <- pickSolvers slvrs
+checkTheorem :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
+checkTheorem cfg opts (topLoc, topBind) topExpr = do
+        solverConfigs <- pickSolvers opts
         let loc = "[SBV] " ++ showSpan cfg topBind topLoc
             slvrTag = case solverConfigs of
                         []     -> "no solvers"  -- can't really happen
