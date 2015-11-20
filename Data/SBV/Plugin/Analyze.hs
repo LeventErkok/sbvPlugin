@@ -5,7 +5,9 @@ module Data.SBV.Plugin.Analyze (prove) where
 import GhcPlugins
 
 import Control.Monad.Reader
-import Data.Maybe
+
+import Data.List  (intercalate)
+import Data.Maybe (mapMaybe)
 
 import qualified Data.Map as M
 
@@ -20,9 +22,9 @@ import Data.SBV.Plugin.Data
 
 
 -- | Prove an SBVTheorem
-prove :: Config -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg@Config{opts} b topLoc e
-  | isProvable (exprType e) = do success <- safely $ checkTheorem cfg (topLoc, b) e
+prove :: Config -> ([SBVOption], [SBVSolver]) -> Var -> SrcSpan -> CoreExpr -> IO ()
+prove cfg (opts, solvers) b topLoc e
+  | isProvable (exprType e) = do success <- safely $ checkTheorem cfg (opts, solvers) (topLoc, b) e
                                  unless success $ if WarnIfFails `elem` opts
                                                   then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
                                                   else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
@@ -47,36 +49,36 @@ data Env = Env { curLoc  :: SrcSpan
 
 type Eval a = ReaderT Env S.Symbolic a
 
-proveIt :: [SBVAttribute] -> S.Symbolic S.SVal -> IO (S.Solver, S.ThmResult)
-proveIt opts thm = case chosen of
-                     []  -> do r <- S.proveWith S.defaultSMTCfg{S.verbose = verbose} thm
-                               return (S.name (S.solver S.defaultSMTCfg), r)
-                     [s] -> do r <- S.proveWith s thm
-                               return (S.name (S.solver s), r)
-                     _   -> S.proveWithAny chosen thm
-  where verbose = Debug `elem` opts
-        chosen
-          | AnySolver `elem` opts = map snd solvers
-          | True                  = mapMaybe (`lookup` solvers) opts
-        solvers = [ (n, s{S.verbose = verbose})
-                  | (n, s) <- [ (Z3,        S.z3)
-                              , (Yices,     S.yices)
-                              , (Boolector, S.boolector)
-                              , (CVC4,      S.cvc4)
-                              , (MathSAT,   S.mathSAT)
-                              , (ABC,       S.abc)
-                              ]
+pickSolvers :: [SBVSolver] -> IO [S.SMTConfig]
+pickSolvers []    = return [S.defaultSMTCfg]
+pickSolvers slvrs
+  | AnySolver `elem` slvrs = S.sbvAvailableSolvers
+  | True                   = return $ mapMaybe (`lookup` solvers) slvrs
+  where solvers = [ (Z3,        S.z3)
+                  , (Yices,     S.yices)
+                  , (Boolector, S.boolector)
+                  , (CVC4,      S.cvc4)
+                  , (MathSAT,   S.mathSAT)
+                  , (ABC,       S.abc)
                   ]
 
+proveIt :: [SBVOption] -> [S.SMTConfig] -> S.Symbolic S.SVal -> IO (S.Solver, S.ThmResult)
+proveIt opts slvrs = S.proveWithAny [s{S.verbose = verbose} | s <- slvrs]
+  where verbose = Debug `elem` opts
+
 -- Returns True if proof went thru
-checkTheorem :: Config -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-checkTheorem cfg@Config{opts} (topLoc, topBind) topExpr = do
+checkTheorem :: Config -> ([SBVOption], [SBVSolver]) -> (SrcSpan, Var) -> CoreExpr -> IO Bool
+checkTheorem cfg (opts, slvrs) (topLoc, topBind) topExpr = do
+        solverConfigs <- pickSolvers slvrs
         let loc = "[SBV] " ++ showSpan cfg topBind topLoc
-            verbose = Debug `elem` opts
-        putStr $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ ".. "
-        when verbose $ putStrLn ""
-        (solver, sres@(S.ThmResult smtRes)) <- proveIt opts res
-        unless verbose $ putStr $ "[" ++ show solver ++ "] "
+            slvrTag = case solverConfigs of
+                        []     -> "no solvers"  -- can't really happen
+                        [x]    -> show x
+                        [x, y] -> show x ++ " and " ++ show y
+                        xs  -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
+        putStrLn $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ ", using " ++ slvrTag ++ "."
+        (solver, sres@(S.ThmResult smtRes)) <- proveIt opts solverConfigs res
+        putStr $ "[" ++ show solver ++ "] "
         print sres
         return $ case smtRes of
                    S.Unsatisfiable{} -> True
@@ -84,7 +86,6 @@ checkTheorem cfg@Config{opts} (topLoc, topBind) topExpr = do
                    S.Unknown{}       -> False   -- conservative
                    S.ProofError{}    -> False   -- conservative
                    S.TimeOut{}       -> False   -- conservative
-
   where res :: S.Symbolic S.SVal
         res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
                  case v of

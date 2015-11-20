@@ -76,9 +76,9 @@ analyzeBind cfg@Config{sbvAnnotation} = go
   where go (NonRec b e) = bind (b, e)
         go (Rec binds)  = mapM_ bind binds
         bind (b, e) = mapM_ work (sbvAnnotation b)
-          where work (SBVTheorem opts) = liftIO $ prove cfg{opts=opts} b (bindSpan b) e
-                work (SBVSafe  _)      = return ()
-                work SBVUninterpret    = return ()
+          where work (SBVTheorem opts slvrs) = liftIO $ prove cfg (opts, slvrs) b (bindSpan b) e
+                work (SBVSafe{})             = return ()
+                work SBVUninterpret          = return ()
 
 binOps :: [(TH.Name, S.Kind, Val)]
 binOps =  -- equality is for all kinds

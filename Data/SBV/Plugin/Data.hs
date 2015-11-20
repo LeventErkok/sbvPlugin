@@ -11,25 +11,32 @@ import qualified Data.SBV         as S
 import qualified Data.SBV.Dynamic as S
 
 -- | SBV Annotations
-data SBVAttribute  = WarnIfFails
-                   | Debug
-                   | Z3
-                   | Yices
-                   | Boolector
-                   | CVC4
-                   | MathSAT
-                   | ABC
-                   | AnySolver
-                   deriving (Eq, Data, Typeable)
+data SBVOption = WarnIfFails
+               | Debug
+               deriving (Eq, Data, Typeable)
 
-data SBVAnnotation = SBVTheorem      [SBVAttribute]
-                   | SBVSafe         [SBVAttribute]
+data SBVSolver = Z3
+               | Yices
+               | Boolector
+               | CVC4
+               | MathSAT
+               | ABC
+               | AnySolver
+               deriving (Eq, Data, Typeable)
+
+data SBVAnnotation = SBVTheorem      {options :: [SBVOption], solvers :: [SBVSolver]}
+                   | SBVSafe         {options :: [SBVOption], solvers :: [SBVSolver]}
                    | SBVUninterpret
                    deriving (Eq, Data, Typeable)
 
+theorem, safe, uninterpret :: SBVAnnotation
+theorem     = SBVTheorem {options = [], solvers = []}
+safe        = SBVSafe    {options = [], solvers = []}
+uninterpret = SBVUninterpret
+
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
-                     , opts          :: [SBVAttribute]
+                     , opts          :: [SBVAnnotation]
                      , knownTCs      :: M.Map TyCon S.Kind
                      , knownFuns     :: M.Map (Var, S.Kind) Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
