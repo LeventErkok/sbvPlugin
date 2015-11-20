@@ -4,6 +4,7 @@
 module Data.SBV.Plugin.Plugin(plugin) where
 
 import GhcPlugins
+import System.Exit
 
 import qualified Data.Map as M
 
@@ -22,9 +23,9 @@ import Data.SBV.Plugin.Analyze (prove)
 plugin :: Plugin
 plugin = defaultPlugin {installCoreToDos = install}
  where install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-       install _opts todos = do
-          reinitializeGlobals
-          return $ sbvPass : todos
+       install []   todos = reinitializeGlobals >> return (sbvPass : todos)
+       install opts _     = do liftIO $ putStrLn $ "[SBV] Unexpected command line options: " ++ show opts
+                               liftIO exitFailure
 
        sbvPass = CoreDoPluginPass "SBV based analysis" pass
 
