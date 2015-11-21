@@ -1,30 +1,116 @@
-{-# LANGUAGE NamedFieldPuns #-}
+---------------------------------------------------------------------------
+-- |
+-- Module      :  Data.SBV.Plugin.Analyze
+-- Copyright   :  (c) Levent Erkok
+-- License     :  BSD3
+-- Maintainer  :  erkokl@gmail.com
+-- Stability   :  experimental
+--
+-- Walk the GHC Core, proving theorems/checking safety as they are found
+-----------------------------------------------------------------------------
 
-module Data.SBV.Plugin.Analyze (prove) where
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE TemplateHaskell #-}
+
+module Data.SBV.Plugin.Analyze (buildEnv, analyzeBind) where
 
 import GhcPlugins
+import qualified Language.Haskell.TH as TH
 
 import Control.Monad.Reader
+import System.Exit hiding (die)
 
 import Data.List  (intercalate)
-import Data.Maybe (mapMaybe)
-
 import qualified Data.Map as M
+
+import Data.Int
+import Data.Word
 
 import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
 
 import qualified Control.Exception as C
 
-import System.Exit hiding (die)
-
+import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
 
+-- | Build the initial environment
+buildEnv :: CoreM (M.Map TyCon S.Kind, M.Map (Id, S.Kind) Val)
+buildEnv = do
+   baseTCs <- M.fromList `fmap` mapM grabTyCon [ (S.KBool,             ''Bool)
+                                               , (S.KUnbounded,        ''Integer)
+                                               , (S.KFloat,            ''Float)
+                                               , (S.KDouble,           ''Double)
+                                               , (S.KBounded True   8, ''Int8)
+                                               , (S.KBounded True  16, ''Int16)
+                                               , (S.KBounded True  32, ''Int32)
+                                               , (S.KBounded True  64, ''Int64)
+                                               , (S.KBounded False  8, ''Word8)
+                                               , (S.KBounded False 16, ''Word16)
+                                               , (S.KBounded False 32, ''Word32)
+                                               , (S.KBounded False 64, ''Word64)
+                                               ]
+
+   baseEnv <- M.fromList `fmap` mapM grabVar binOps
+   return (baseTCs, baseEnv)
+  where grabTyCon (k, x) = do Just fn <- thNameToGhcName x
+                              tc <- lookupTyCon fn
+                              return (tc, k)
+        grabVar (n, k, sfn) = do Just fn <- thNameToGhcName n
+                                 f <- lookupId fn
+                                 return ((f, k), sfn)
+
+-- | Dispatch the analyzer recursively over subexpressions
+analyzeBind :: Config -> CoreBind -> CoreM ()
+analyzeBind cfg@Config{sbvAnnotation} = go
+  where go (NonRec b e) = bind (b, e)
+        go (Rec binds)  = mapM_ bind binds
+        bind (b, e) = mapM_ work (sbvAnnotation b)
+          where work (SBVTheorem opts) = liftIO $ prove cfg opts b (bindSpan b) e
+                work (SBVSafe{})       = return ()
+                work SBVUninterpret    = return ()
+
+-- | Binary operatos supported by the plugin.
+binOps :: [(TH.Name, S.Kind, Val)]
+binOps =  -- equality is for all kinds
+          [('(==), k, lift2 S.svEqual) | k <- allKinds]
+
+          -- arithmetic
+       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- arithOps]
+
+          -- comparisons
+       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- compOps ]
+ where
+       -- Bit-vectors
+       bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
+
+       -- Arithmetic kinds
+       arithKinds = [S.KUnbounded, S.KFloat, S.KDouble] ++ bvKinds
+
+       -- Everything
+       allKinds   = S.KBool : arithKinds
+
+       -- Binary arithmetic UOPs
+       arithOps   = [ ('(+), S.svPlus)
+                    , ('(-), S.svMinus)
+                    , ('(*), S.svTimes)
+                    ]
+
+       -- Comparisons
+       compOps    = [ ('(<),  S.svLessThan)
+                    , ('(>),  S.svGreaterThan)
+                    , ('(<=), S.svLessEq)
+                    , ('(>=), S.svGreaterEq)
+                    ]
+
+-- | Lift a two argument SBV function to our the plugin value space
+lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
+lift2 f = Func $ \(Base a) -> Func $ \(Base b) -> Base (f a b)
 
 -- | Prove an SBVTheorem
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
 prove cfg opts b topLoc e
-  | isProvable (exprType e) = do success <- safely $ checkTheorem cfg opts (topLoc, b) e
+  | isProvable (exprType e) = do success <- safely $ proveIt cfg opts (topLoc, b) e
                                  unless success $ if WarnIfFails `elem` opts
                                                   then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
                                                   else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
@@ -36,49 +122,36 @@ prove cfg opts b topLoc e
 isProvable :: Type -> Bool
 isProvable _ = True
 
+-- | Safely execute an action, catching the exceptions, printing and returning False if something goes wrong
 safely :: IO Bool -> IO Bool
 safely a = a `C.catch` bad
   where bad :: C.SomeException -> IO Bool
         bad e = do print e
                    return False
 
+-- | Interpreter environment
 data Env = Env { curLoc  :: SrcSpan
                , baseTCs :: M.Map TyCon S.Kind
                , envMap  :: M.Map (Var, S.Kind) Val
                }
 
+-- | The interpreter monad
 type Eval a = ReaderT Env S.Symbolic a
 
-pickSolvers :: [SBVOption] -> IO [S.SMTConfig]
-pickSolvers slvrs
-  | AnySolver `elem` slvrs = S.sbvAvailableSolvers
-  | True                   = case mapMaybe (`lookup` solvers) slvrs of
-                                [] -> return [S.defaultSMTCfg]
-                                xs -> return xs
-  where solvers = [ (Z3,        S.z3)
-                  , (Yices,     S.yices)
-                  , (Boolector, S.boolector)
-                  , (CVC4,      S.cvc4)
-                  , (MathSAT,   S.mathSAT)
-                  , (ABC,       S.abc)
-                  ]
-
-proveIt :: [SBVOption] -> [S.SMTConfig] -> S.Symbolic S.SVal -> IO (S.Solver, S.ThmResult)
-proveIt opts slvrs = S.proveWithAny [s{S.verbose = verbose} | s <- slvrs]
-  where verbose = Debug `elem` opts
-
 -- Returns True if proof went thru
-checkTheorem :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-checkTheorem cfg opts (topLoc, topBind) topExpr = do
+proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
+proveIt cfg opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
-        let loc = "[SBV] " ++ showSpan cfg topBind topLoc
+        let verbose = Debug `elem` opts
+            runProver = S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs]
+            loc = "[SBV] " ++ showSpan cfg topBind topLoc
             slvrTag = case solverConfigs of
                         []     -> "no solvers"  -- can't really happen
                         [x]    -> show x
                         [x, y] -> show x ++ " and " ++ show y
                         xs  -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
         putStrLn $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ ", using " ++ slvrTag ++ "."
-        (solver, sres@(S.ThmResult smtRes)) <- proveIt opts solverConfigs res
+        (solver, sres@(S.ThmResult smtRes)) <- runProver res
         putStr $ "[" ++ show solver ++ "] "
         print sres
         return $ case smtRes of
@@ -159,6 +232,8 @@ checkTheorem cfg opts (topLoc, topBind) topExpr = do
         go e@(Coercion{})
            = tbd "Unsupported coercion-expression" [sh e]
 
+-- | Return, if known, the symbolic function corresponding to
+-- the application found in the core
 getSymFun :: CoreExpr -> Eval (Maybe Val)
 getSymFun (App (App (Var v) (Type t)) (Var dict))
   | isReallyADictionary dict = do Env{envMap} <- ask
@@ -168,6 +243,7 @@ getSymFun (App (App (Var v) (Type t)) (Var dict))
                                     Just k  -> return $ (v, k) `M.lookup` envMap
 getSymFun _ = return Nothing
 
+-- | Check if the given variable corresponds to a real dictionary
 isReallyADictionary :: Var -> Bool
 isReallyADictionary v = case classifyPredType (varType v) of
                           ClassPred{} -> True
@@ -175,6 +251,7 @@ isReallyADictionary v = case classifyPredType (varType v) of
                           TuplePred{} -> True
                           IrredPred{} -> False
 
+-- | Convert a Core type to an SBV kind, if known
 getBaseType :: Type -> Eval (Maybe S.Kind)
 getBaseType t = do Env{baseTCs} <- ask
                    case splitTyConApp_maybe t of

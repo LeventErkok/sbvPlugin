@@ -1,58 +1,49 @@
-{-# LANGUAGE DeriveDataTypeable   #-}
+---------------------------------------------------------------------------
+-- |
+-- Module      :  Data.SBV.Plugin.Data
+-- Copyright   :  (c) Levent Erkok
+-- License     :  BSD3
+-- Maintainer  :  erkokl@gmail.com
+-- Stability   :  experimental
+--
+-- Internal data-structures for the sbvPlugin
+-----------------------------------------------------------------------------
+
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Data.SBV.Plugin.Data where
 
-import Data.Data (Data, Typeable)
-import qualified Data.Map as M
+import Data.Data  (Data, Typeable)
 
-import CostCentre
-import GhcPlugins
-
-import qualified Data.SBV         as S
-import qualified Data.SBV.Dynamic as S
-
--- | SBV Annotations
-data SBVOption = WarnIfFails
-               | Debug
-               | Z3
-               | Yices
-               | Boolector
-               | CVC4
-               | MathSAT
-               | ABC
-               | AnySolver
+-- | Plugin options. Note that we allow picking multiple solvers, which
+-- will all be run in parallel. If you want to run all available solvers,
+-- use the option 'AnySolver'. The default is to error-out on failure, using
+-- the default-SMT solver picked by SBV, which is currently Z3.
+data SBVOption = WarnIfFails    -- ^ Continue even if proof fails
+               | Debug          -- ^ Produce verbose output
+               | Z3             -- ^ Use Z3
+               | Yices          -- ^ Use Yices
+               | Boolector      -- ^ Use Boolector
+               | CVC4           -- ^ Use CVC4
+               | MathSAT        -- ^ Use MathSAT
+               | ABC            -- ^ Use ABC
+               | AnySolver      -- ^ Use all installed solvers
                deriving (Eq, Data, Typeable)
 
-data SBVAnnotation = SBVTheorem      {options :: [SBVOption]}
-                   | SBVSafe         {options :: [SBVOption]}
-                   | SBVUninterpret
+-- | The actual annotation.
+data SBVAnnotation = SBVTheorem      {options :: [SBVOption]}  -- ^ Theorem
+                   | SBVSafe         {options :: [SBVOption]}  -- ^ Safety checks
+                   | SBVUninterpret                            -- ^ Uninterpeted function\/constant
                    deriving (Eq, Data, Typeable)
 
-theorem, safe, uninterpret :: SBVAnnotation
-theorem     = SBVTheorem {options = []}
-safe        = SBVSafe    {options = []}
+-- | A theorem annotation, using default options.
+theorem :: SBVAnnotation
+theorem = SBVTheorem {options = []}
+
+-- | A safe annotation, using default options.
+safe :: SBVAnnotation
+safe = SBVSafe {options = []}
+
+-- | An uninterpret, using default options.
+uninterpret :: SBVAnnotation
 uninterpret = SBVUninterpret
-
--- | Configuration info as we run the plugin
-data Config = Config { dflags        :: DynFlags
-                     , opts          :: [SBVAnnotation]
-                     , knownTCs      :: M.Map TyCon S.Kind
-                     , knownFuns     :: M.Map (Var, S.Kind) Val
-                     , sbvAnnotation :: Var -> [SBVAnnotation]
-                     }
-
-data Val = Base S.SVal
-         | Func (Val -> Val)
-
-lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
-lift2 f = Func $ \(Base a) -> Func $ \(Base b) -> Base (f a b)
-
-tickSpan :: Tickish t -> SrcSpan -> SrcSpan
-tickSpan (ProfNote cc _ _) _ = cc_loc cc
-tickSpan (SourceNote s _)  _ = RealSrcSpan s
-tickSpan _                 s = s
-
-bindSpan :: Var -> SrcSpan
-bindSpan = nameSrcSpan . varName
-
-showSpan :: Config -> Var -> SrcSpan -> String
-showSpan cfg b s = showSDoc (dflags cfg) $ if isGoodSrcSpan s then ppr s else ppr b

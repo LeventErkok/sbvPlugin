@@ -24,4 +24,5 @@ Library
   build-depends   : base >= 4.8 && < 5, ghc, containers, sbv, mtl, template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Data
+                  , Data.SBV.Plugin.Common
                   , Data.SBV.Plugin.Plugin

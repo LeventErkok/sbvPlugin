@@ -6,6 +6,7 @@ STAMPFILE = Data/SBV/Plugin/SBVPluginBuildTime.hs
 DEPSRCS   = $(shell find . -name '*.hs' -or -name '*.lhs' -or -name '*.cabal' | grep -v Paths_sbvPlugin.hs | grep -v $(STAMPFILE) | grep -v dist-sandbox)
 TESTSRCS  = $DEPSRCS
 CABAL     = cabal
+SIMPLIFY  = ./buildUtils/simplify
 EXTRAOPTS = "--ghc-options=-Werror -Wall"
 TIME      = /usr/bin/time caffeinate
 
@@ -29,10 +30,11 @@ install: $(STAMPFILE)
 
 $(STAMPFILE): $(DEPSRCS) Makefile
 	@-ghc-pkg unregister --force sbvPlugin
+	@(make -s -C buildUtils)
 	$(call mkStamp)
 	$(call mkTags)
 	@$(CABAL) configure --disable-library-profiling --enable-tests
-	@((set -o pipefail; $(CABAL) build $(EXTRAOPTS) 2>&1) || (rm $(STAMPFILE) && false))
+	@((set -o pipefail; $(CABAL) build $(EXTRAOPTS) 2>&1 | $(SIMPLIFY)) || (rm $(STAMPFILE) && false))
 	@$(CABAL) copy
 	@$(CABAL) register
 
@@ -41,7 +43,7 @@ test: install
 	@(set -o pipefail; $(TIME) doctest ${TSTSRCS} 2>&1)
 
 sdist: install
-	@(set -o pipefail; $(CABAL) sdist)
+	@(set -o pipefail; $(CABAL) sdist | $(SIMPLIFY))
 
 veryclean: clean
 	@-ghc-pkg unregister sbvPlugin
@@ -50,7 +52,7 @@ clean:
 	@rm -rf dist $(STAMPFILE)
 
 docs:
-	@(set -o pipefail; $(CABAL) haddock --haddock-option=--no-warnings --hyperlink-source 2>&1)
+	@(set -o pipefail; $(CABAL) haddock --haddock-option=--no-warnings --hyperlink-source 2>&1 | $(SIMPLIFY))
 
 release: clean install sdist hlint docs test
 	@echo "*** SBVPlugin is ready for release!"
