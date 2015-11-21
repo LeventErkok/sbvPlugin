@@ -50,10 +50,11 @@ data Env = Env { curLoc  :: SrcSpan
 type Eval a = ReaderT Env S.Symbolic a
 
 pickSolvers :: [SBVOption] -> IO [S.SMTConfig]
-pickSolvers []    = return [S.defaultSMTCfg]
 pickSolvers slvrs
   | AnySolver `elem` slvrs = S.sbvAvailableSolvers
-  | True                   = return $ mapMaybe (`lookup` solvers) slvrs
+  | True                   = case mapMaybe (`lookup` solvers) slvrs of
+                                [] -> return [S.defaultSMTCfg]
+                                xs -> return xs
   where solvers = [ (Z3,        S.z3)
                   , (Yices,     S.yices)
                   , (Boolector, S.boolector)

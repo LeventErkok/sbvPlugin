@@ -11,7 +11,7 @@ f x y z = x + (y + z) == (x + y) + z
 g :: Integer -> Integer -> Bool
 g x y = x == y
 
-{-# ANN h theorem #-}
+{-# ANN t theorem #-}
 t :: Word8 -> Bool
 t x = x >= x
 
