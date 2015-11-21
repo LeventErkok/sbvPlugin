@@ -1,0 +1,8 @@
+The sbvPlugin can be installed simply by issuing cabal install:
+
+     cabal install sbvPlugin
+
+This will also install the SBV library if you do not already have it.
+You should also install an SMT solver, preferably the default solver
+used by SBV; i.e., Z3 from Microsoft: http://github.com/Z3Prover/z3.
+Please make sure that the "z3" executable is in your path.
