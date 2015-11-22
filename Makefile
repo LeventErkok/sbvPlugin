@@ -39,8 +39,8 @@ $(STAMPFILE): $(DEPSRCS) Makefile
 	@$(CABAL) register
 
 test: install
-	@echo "*** Starting inline tests.."
-	@(set -o pipefail; $(TIME) doctest ${TSTSRCS} 2>&1)
+	$(TIME) $(CABAL) test
+	@cat dist/test/*sbvPluginTests.log
 
 sdist: install
 	@(set -o pipefail; $(CABAL) sdist | $(SIMPLIFY))
