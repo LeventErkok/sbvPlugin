@@ -1,17 +1,18 @@
-Name:          sbvPlugin
-Version:       0.1
-Category:      Formal methods, Theorem provers, Math, SMT, Symbolic Computation
-Synopsis:      Analyze Haskell expressions using SBV/SMT
-Description:   SBV based plugin for analyzing expressions using SMT solvers.
-License:       BSD3
-License-file:  LICENSE
-Stability:     Experimental
-Author:        Levent Erkok
-Homepage:      http://github.com/LeventErkok/sbvPlugin
-Bug-reports:   http://github.com/LeventErkok/sbvPlugin/issues
-Maintainer:    Levent Erkok (erkokl@gmail.com)
-Build-Type:    Simple
-Cabal-Version: >= 1.14
+Name              : sbvPlugin
+Version           : 0.1
+Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
+Synopsis          : Analyze Haskell expressions using SBV/SMT
+Description       : SBV based plugin for analyzing expressions using SMT solvers.
+License           : BSD3
+License-file      : LICENSE
+Stability         : Experimental
+Author            : Levent Erkok
+Homepage          : http://github.com/LeventErkok/sbvPlugin
+Bug-reports       : http://github.com/LeventErkok/sbvPlugin/issues
+Maintainer        : Levent Erkok (erkokl@gmail.com)
+Build-Type        : Simple
+Cabal-Version     : >= 1.14
+Extra-Source-Files: INSTALL, README.md, COPYRIGHT, CHANGES.md
 
 source-repository head
     type:       git
@@ -25,4 +26,5 @@ Library
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Data
                   , Data.SBV.Plugin.Common
+                  , Data.SBV.Plugin.Env
                   , Data.SBV.Plugin.Plugin
