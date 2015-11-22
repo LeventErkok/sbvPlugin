@@ -40,7 +40,6 @@ $(STAMPFILE): $(DEPSRCS) Makefile
 
 test: install
 	$(TIME) $(CABAL) test
-	@cat dist/test/*sbvPluginTests.log
 
 sdist: install
 	@(set -o pipefail; $(CABAL) sdist | $(SIMPLIFY))
