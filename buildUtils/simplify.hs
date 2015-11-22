@@ -19,6 +19,7 @@ main = do hSetBuffering stdin  NoBuffering
 clean :: String -> Maybe String
 clean s
   | junk s    = Nothing
+clean l@('[':'S':'B':'V':']':_) = Just l
 clean ('[':r) = Just $ extract False r
 clean l       = Just l
 
