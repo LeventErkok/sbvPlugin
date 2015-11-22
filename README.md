@@ -26,7 +26,7 @@ When compiled or loaded in to ghci, we get:
 ```
 $ ghc -c Test.hs
 
-[SBV] Test.hs:7:1-4 Proving "test", using Z3.
+[SBV] Test.hs:9:1-4 Proving "test", using Z3.
 [Z3] Falsifiable. Counter-example:
   x = 0 :: Integer
   y = -1 :: Integer
