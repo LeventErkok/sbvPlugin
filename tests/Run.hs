@@ -14,8 +14,8 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests" [unitTests]
 
-mkTest :: String -> TestTree
-mkTest f = goldenVsFile f gld out act
+runTest :: String -> TestTree
+runTest f = goldenVsFile f gld out act
   where inp = "tests" </> f <.> "hs"
         hi  = "tests" </> f <.> "hi"
         o   = "tests" </> f <.> "o"
@@ -25,4 +25,4 @@ mkTest f = goldenVsFile f gld out act
                  void $ system $ unwords ["/bin/rm", "-f", hi, o]
 
 unitTests :: TestTree
-unitTests = testGroup "Unit tests" $ map mkTest ["T01", "T02", "T03", "T04", "T05"]
+unitTests = testGroup "Unit tests" $ map runTest ["T01", "T02", "T03", "T04", "T05", "T06"]
