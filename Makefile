@@ -64,7 +64,7 @@ hlint:
 tags:
 	$(call mkTags)
 
-# use this as follows: make gold TGTS="T01"
+# use this as follows: make golds TGTS="T01 T02"
 # where the tag is one (or many) given in the SBVUnitTest.hs file
 # if TGTS is not specified, then all gold files are regenerated
 golds:
