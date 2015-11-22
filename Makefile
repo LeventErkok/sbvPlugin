@@ -64,3 +64,10 @@ hlint:
 
 tags:
 	$(call mkTags)
+
+golds:
+	 @(for i in tests/T*.hs; do                      			    		    \
+	    ghc -fplugin=Data.SBV.Plugin -c $$i > tests/GoldFiles/`basename $$i`.golden 2>&1;  \
+	    /bin/rm -f $$i.hi $$i.o;					            		    \
+	  done)
+	@/bin/rm -f tests/*.hi tests/*.o
