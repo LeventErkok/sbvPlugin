@@ -17,8 +17,9 @@ test :: Integer -> Integer -> Bool
 test x y = x + y >= x - y
 ```
 
-Note the GHC option of using the plugin; either decorate your file with this option, or pass `-fplugin=Data.SBV.Plugin` as
-an argument to GHC, either on the command line or via cabal.
+[Note the GHC option of using the plugin on the very first line. Either decorate your file with
+this option, or pass `-fplugin=Data.SBV.Plugin` as an argument to GHC, either on the command line
+or via cabal. Same trick also works for GHCi.]
 
 If we compile this program with the SBVPlugin enabled, SBV will automatically attempt to prove
 this theorem, and will produce a counter-example at compile time:
