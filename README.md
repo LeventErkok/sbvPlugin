@@ -3,11 +3,11 @@
 [![Hackage version](http://img.shields.io/hackage/v/sbvPlugin.svg?label=Hackage)](http://hackage.haskell.org/package/sbvPlugin)
     [![Build Status](http://img.shields.io/travis/LeventErkok/sbvPlugin.svg?label=Build)](http://travis-ci.org/LeventErkok/sbvPlugin)
 
-Example
--------
+### Example
 
 ```haskell
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+
 module Test where
 
 import Data.SBV.Plugin
@@ -40,10 +40,7 @@ can be instructed to continue in that case, using an annotation of the form:
 {-# ANN test theorem {options = [WarnIfFails]} #-}
 ```
 
-Using SBVPlugin from GHCi
--------------------------
-The plugin with work from GHCi with no changes. You can use the `OPTIONS_GHC` as above as a pragma, or pass the
-the argument `-fplugin=Data.SBV.Plugin` to ghci
-
-Note that when run from GHCi, the plugin will behave as if the `WarnIfFails` argument is given on all annotations, so that
-failures do not stop the load process.
+### Using SBVPlugin from GHCi
+The plugin should work from GHCi with no changes.  Note that when run from GHCi, the plugin will
+behave as if the `WarnIfFails` argument is given on all annotations, so that failures do not stop
+the load process.
