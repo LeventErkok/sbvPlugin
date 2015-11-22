@@ -10,21 +10,15 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE TemplateHaskell #-}
-
-module Data.SBV.Plugin.Analyze (buildEnv, analyzeBind) where
+module Data.SBV.Plugin.Analyze (analyzeBind) where
 
 import GhcPlugins
-import qualified Language.Haskell.TH as TH
 
 import Control.Monad.Reader
 import System.Exit hiding (die)
 
 import Data.List  (intercalate)
 import qualified Data.Map as M
-
-import Data.Int
-import Data.Word
 
 import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
@@ -33,32 +27,6 @@ import qualified Control.Exception as C
 
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
-
--- | Build the initial environment
-buildEnv :: CoreM (M.Map TyCon S.Kind, M.Map (Id, S.Kind) Val)
-buildEnv = do
-   baseTCs <- M.fromList `fmap` mapM grabTyCon [ (S.KBool,             ''Bool)
-                                               , (S.KUnbounded,        ''Integer)
-                                               , (S.KFloat,            ''Float)
-                                               , (S.KDouble,           ''Double)
-                                               , (S.KBounded True   8, ''Int8)
-                                               , (S.KBounded True  16, ''Int16)
-                                               , (S.KBounded True  32, ''Int32)
-                                               , (S.KBounded True  64, ''Int64)
-                                               , (S.KBounded False  8, ''Word8)
-                                               , (S.KBounded False 16, ''Word16)
-                                               , (S.KBounded False 32, ''Word32)
-                                               , (S.KBounded False 64, ''Word64)
-                                               ]
-
-   baseEnv <- M.fromList `fmap` mapM grabVar binOps
-   return (baseTCs, baseEnv)
-  where grabTyCon (k, x) = do Just fn <- thNameToGhcName x
-                              tc <- lookupTyCon fn
-                              return (tc, k)
-        grabVar (n, k, sfn) = do Just fn <- thNameToGhcName n
-                                 f <- lookupId fn
-                                 return ((f, k), sfn)
 
 -- | Dispatch the analyzer recursively over subexpressions
 analyzeBind :: Config -> CoreBind -> CoreM ()
@@ -70,51 +38,15 @@ analyzeBind cfg@Config{sbvAnnotation} = go
                 work (SBVSafe{})       = return ()
                 work SBVUninterpret    = return ()
 
--- | Binary operatos supported by the plugin.
-binOps :: [(TH.Name, S.Kind, Val)]
-binOps =  -- equality is for all kinds
-          [('(==), k, lift2 S.svEqual) | k <- allKinds]
-
-          -- arithmetic
-       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- arithOps]
-
-          -- comparisons
-       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- compOps ]
- where
-       -- Bit-vectors
-       bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
-
-       -- Arithmetic kinds
-       arithKinds = [S.KUnbounded, S.KFloat, S.KDouble] ++ bvKinds
-
-       -- Everything
-       allKinds   = S.KBool : arithKinds
-
-       -- Binary arithmetic UOPs
-       arithOps   = [ ('(+), S.svPlus)
-                    , ('(-), S.svMinus)
-                    , ('(*), S.svTimes)
-                    ]
-
-       -- Comparisons
-       compOps    = [ ('(<),  S.svLessThan)
-                    , ('(>),  S.svGreaterThan)
-                    , ('(<=), S.svLessEq)
-                    , ('(>=), S.svGreaterEq)
-                    ]
-
--- | Lift a two argument SBV function to our the plugin value space
-lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
-lift2 f = Func $ \(Base a) -> Func $ \(Base b) -> Base (f a b)
-
 -- | Prove an SBVTheorem
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg opts b topLoc e
+prove cfg@Config{isGHCi} opts b topLoc e
   | isProvable (exprType e) = do success <- safely $ proveIt cfg opts (topLoc, b) e
-                                 unless success $ if WarnIfFails `elem` opts
-                                                  then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
-                                                  else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
-                                                          exitFailure
+                                 unless (isGHCi || success) $
+                                        if WarnIfFails `elem` opts
+                                           then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
+                                           else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
+                                                   exitFailure
   | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 
 -- | Is this a provable type?
@@ -140,26 +72,30 @@ type Eval a = ReaderT Env S.Symbolic a
 
 -- Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-proveIt cfg opts (topLoc, topBind) topExpr = do
+proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
         let verbose = Debug `elem` opts
             runProver = S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs]
             loc = "[SBV] " ++ showSpan cfg topBind topLoc
-            slvrTag = case solverConfigs of
-                        []     -> "no solvers"  -- can't really happen
-                        [x]    -> show x
-                        [x, y] -> show x ++ " and " ++ show y
-                        xs  -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
-        putStrLn $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ ", using " ++ slvrTag ++ "."
+            slvrTag | isGHCi && not verbose = ".. "
+                    | True                  = ", using " ++ tag ++ "."
+                    where tag = case solverConfigs of
+                                  []     -> "no solvers"  -- can't really happen
+                                  [x]    -> show x
+                                  [x, y] -> show x ++ " and " ++ show y
+                                  xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
+        putStr $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ slvrTag
+        unless isGHCi $ putStrLn ""
         (solver, sres@(S.ThmResult smtRes)) <- runProver res
+        let success = case smtRes of
+                        S.Unsatisfiable{} -> True
+                        S.Satisfiable{}   -> False
+                        S.Unknown{}       -> False   -- conservative
+                        S.ProofError{}    -> False   -- conservative
+                        S.TimeOut{}       -> False   -- conservative
         putStr $ "[" ++ show solver ++ "] "
         print sres
-        return $ case smtRes of
-                   S.Unsatisfiable{} -> True
-                   S.Satisfiable{}   -> False
-                   S.Unknown{}       -> False   -- conservative
-                   S.ProofError{}    -> False   -- conservative
-                   S.TimeOut{}       -> False   -- conservative
+        return success
   where res :: S.Symbolic S.SVal
         res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
                  case v of

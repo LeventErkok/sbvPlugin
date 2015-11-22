@@ -17,7 +17,8 @@ import GhcPlugins
 import System.Exit
 
 import Data.SBV.Plugin.Common
-import Data.SBV.Plugin.Analyze (buildEnv, analyzeBind)
+import Data.SBV.Plugin.Env
+import Data.SBV.Plugin.Analyze (analyzeBind)
 
 -- | Entry point to the plugin
 plugin :: Plugin
@@ -35,10 +36,12 @@ plugin = defaultPlugin {installCoreToDos = install}
           df   <- getDynFlags
           anns <- getAnnotations deserializeWithData guts
 
-          (baseTCs, baseEnv) <- buildEnv
+          baseTCs <- buildTCEnv
+          baseEnv <- buildFunEnv
 
           let cfg = Config { dflags        = df
                            , opts          = []
+                           , isGHCi        = ghcMode df == CompManager
                            , knownTCs      = baseTCs
                            , knownFuns     = baseEnv
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
