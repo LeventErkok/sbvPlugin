@@ -34,7 +34,7 @@
 --  >
 --  > [SBV] Test.hs:9:1-4 Proving "test", using Z3.
 --  > [Z3] Falsifiable. Counter-example:
---  >   x = 0 :: Integer
+--  >   x =  0 :: Integer
 --  >   y = -1 :: Integer
 --  > [SBV] Failed. (Use option 'WarnIfFails' to continue.)
 --

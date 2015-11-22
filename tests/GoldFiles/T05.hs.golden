@@ -1,6 +1,6 @@
 
 [SBV] tests/T05.hs:7:1 Proving "f", using CVC4 and Yices.
 [Yices] Falsifiable. Counter-example:
-  x = 0 :: Integer
+  x =  0 :: Integer
   y = -1 :: Integer
 [SBV] Failed. Continuing due to the 'WarnIfFails' flag.
