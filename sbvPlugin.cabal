@@ -40,4 +40,4 @@ Test-Suite sbvPluginTests
   Build-depends   : base >= 4.8 && < 5, sbvPlugin, tasty, tasty-golden, filepath, process
   Hs-Source-Dirs  : tests
   main-is         : Run.hs
-  Other-modules   : T01
+  Other-modules   : T01, T02, T03, T04, T05

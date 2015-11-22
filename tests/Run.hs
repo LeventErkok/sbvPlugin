@@ -25,6 +25,4 @@ mkTest f = goldenVsFile f gld out act
                  void $ system $ unwords ["/bin/rm", "-f", hi, o]
 
 unitTests :: TestTree
-unitTests = testGroup "Unit tests" [
-                  mkTest "T01"
-                ]
+unitTests = testGroup "Unit tests" $ map mkTest ["T01", "T02", "T03", "T04", "T05"]
