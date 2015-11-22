@@ -20,6 +20,7 @@ import qualified Data.Map as M
 
 import Data.Int
 import Data.Word
+import Data.Maybe (fromMaybe)
 
 import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
@@ -47,33 +48,44 @@ buildTCEnv = M.fromList `fmap` mapM grabTyCon [ (S.KBool,             ''Bool)
 
 -- | Build the initial environment containing functions
 buildFunEnv :: CoreM (M.Map (Id, S.Kind) Val)
-buildFunEnv = M.fromList `fmap` mapM grabVar binOps
+buildFunEnv = M.fromList `fmap` mapM grabVar symFuncs
   where grabVar (n, k, sfn) = do Just fn <- thNameToGhcName n
                                  f <- lookupId fn
                                  return ((f, k), sfn)
 
--- | Binary operatos supported by the plugin.
-binOps :: [(TH.Name, S.Kind, Val)]
-binOps =  -- equality is for all kinds
+-- | Symbolic functions supported by the plugin
+symFuncs :: [(TH.Name, S.Kind, Val)]
+symFuncs =  -- equality is for all kinds
           [('(==), k, lift2 S.svEqual) | k <- allKinds]
 
           -- arithmetic
-       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- arithOps]
+       ++ [(op, k, lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
+       ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
+
+          -- literal conversions
+       ++ [(op, k, lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
 
           -- comparisons
-       ++ [(op,    k, lift2 sOp)       | k <- arithKinds, (op, sOp) <- compOps ]
+       ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
  where
        -- Bit-vectors
        bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
 
-       -- Arithmetic kinds
-       arithKinds = [S.KUnbounded, S.KFloat, S.KDouble] ++ bvKinds
+       -- Integer kinds
+       integerKinds = S.KUnbounded : bvKinds
+
+       -- All arithmetic kinds
+       arithKinds = [S.KFloat, S.KDouble] ++ integerKinds
 
        -- Everything
        allKinds   = S.KBool : arithKinds
 
-       -- Binary arithmetic UOPs
-       arithOps   = [ ('(+), S.svPlus)
+       -- Unary arithmetic ops
+       unaryOps   = [ ('abs, S.svAbs)
+                    ]
+
+       -- Binary arithmetic ops
+       binaryOps  = [ ('(+), S.svPlus)
                     , ('(-), S.svMinus)
                     , ('(*), S.svTimes)
                     ]
@@ -84,6 +96,14 @@ binOps =  -- equality is for all kinds
                     , ('(<=), S.svLessEq)
                     , ('(>=), S.svGreaterEq)
                     ]
+
+-- | Lift a unary SBV function to the plugin value space
+lift1 :: (S.SVal -> S.SVal) -> Val
+lift1 f = Func $ \(Base a) -> Base (f a)
+
+-- | Lift a unary SBV function that takes and integer value to the plugin value space
+lift1Int :: (Integer -> S.SVal) -> Val
+lift1Int f = Func $ \(Base i) -> Base (f (fromMaybe (error ("Cannot extract an integer from value: " ++ show i)) (S.svAsInteger i)))
 
 -- | Lift a two argument SBV function to our the plugin value space
 lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
