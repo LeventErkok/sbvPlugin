@@ -124,6 +124,12 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
                                           Just s  -> return s
                                           Nothing -> tbd "Expression refers to non-local variable" [sh e ++ " :: " ++ sh t]
 
+        go (Lit (LitInteger i t))
+           = do mbK <- getBaseType t
+                case mbK of
+                  Nothing -> tbd "Expression has a constant with a complicated type" [show i ++ " :: " ++ sh t]
+                  Just k  -> return $ Base $ S.svInteger k i
+
         go e@(Lit _)
            = tbd "Unsupported literal" [sh e]
 
