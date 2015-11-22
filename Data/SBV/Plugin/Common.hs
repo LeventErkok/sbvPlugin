@@ -24,6 +24,7 @@ import Data.SBV.Plugin.Data
 
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
+                     , isGHCi        :: Bool
                      , opts          :: [SBVAnnotation]
                      , knownTCs      :: M.Map TyCon S.Kind
                      , knownFuns     :: M.Map (Var, S.Kind) Val
