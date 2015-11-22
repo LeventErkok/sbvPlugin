@@ -21,8 +21,7 @@ test x y = x + y >= x - y
 this option, or pass `-fplugin=Data.SBV.Plugin` as an argument to GHC, either on the command line
 or via cabal. Same trick also works for GHCi.*
 
-If we compile this program with the SBVPlugin enabled, SBV will automatically attempt to prove
-this theorem, and will produce a counter-example at compile time:
+When compiled or loaded in to ghci, we get:
 
 ```
 $ ghc -c Test.hs
