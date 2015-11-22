@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
-
 module Main where
 
 import Data.Word
