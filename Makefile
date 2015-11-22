@@ -64,9 +64,8 @@ hlint:
 tags:
 	$(call mkTags)
 
+# use this as follows: make gold TGTS="T01"
+# where the tag is one (or many) given in the SBVUnitTest.hs file
+# if TGTS is not specified, then all gold files are regenerated
 golds:
-	 @(for i in tests/T*.hs; do                      			    		    \
-	    ghc -fplugin=Data.SBV.Plugin -c $$i > tests/GoldFiles/`basename $$i`.golden 2>&1;  \
-	    /bin/rm -f $$i.hi $$i.o;					            		    \
-	  done)
-	@/bin/rm -f tests/*.hi tests/*.o
+	dist/build/sbvPluginTests/sbvPluginTests --gold ${TGTS}
