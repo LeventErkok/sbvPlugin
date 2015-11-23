@@ -124,14 +124,10 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
 
         -- go e | trace ("--> " ++ show (sh e)) False = undefined
 
-        go e@(Var v) = do Env{envMap} <- ask
-                          let t = exprType e
-                          mbK <- getBaseType t
-                          case mbK of
-                            Nothing -> tbd "Expression refers to variable with complicated type" [sh e ++ " :: " ++ sh t]
-                            Just k  -> case (v, k) `M.lookup` envMap of
-                                          Just s  -> return s
-                                          Nothing -> tbd "Expression refers to variable" [sh e ++ " :: " ++ sh t]
+        go e@(Var v) = do mbF <- findSymbolic e
+                          case mbF of
+                            Just sv -> return sv
+                            Nothing -> tbd "Not-yet-supported expression" [sh e ++ " :: " ++ sh (varType v)]
 
         go (Lit (LitInteger i t))
            = do mbK <- getBaseType t
@@ -196,6 +192,12 @@ findSymbolic e = do mb <- getSymFun e
                       Just _  -> return mb
                       Nothing -> getSpecialFun e
   where getSymFun :: CoreExpr -> Eval (Maybe Val)
+        getSymFun (Var v) = do Env{envMap} <- ask
+                               let t = exprType e
+                               mbK <- getBaseType t
+                               case mbK of
+                                 Nothing -> return Nothing
+                                 Just k  -> return $ (v, k) `M.lookup` envMap
         getSymFun (App (App (Var v) (Type t)) (Var dict))
           | isReallyADictionary dict = do Env{envMap} <- ask
                                           mbK <- getBaseType t
