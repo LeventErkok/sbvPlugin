@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+
 module T06 where
 
 import Data.Int

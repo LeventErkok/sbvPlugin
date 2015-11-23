@@ -1,3 +1,3 @@
 
-[SBV] tests/T04.hs:8:1 Proving "f", using Z3.
+[SBV] tests/T04.hs:10:1 Proving "f", using Z3.
 [Z3] Q.E.D.

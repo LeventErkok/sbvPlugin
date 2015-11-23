@@ -1,5 +1,5 @@
 
-[SBV] tests/T05.hs:7:1 Proving "f", using CVC4 and Yices.
+[SBV] tests/T05.hs:9:1 Proving "f", using CVC4 and Yices.
 [Yices] Falsifiable. Counter-example:
   x =  0 :: Integer
   y = -1 :: Integer

@@ -28,7 +28,7 @@ findTests = do allEntries <- getDirectoryContents "tests"
 runTest :: String -> TestTree
 runTest f = goldenVsFile f gld out act
   where (inp, hi, o, gld, out) = fileNames f
-        act = do void $ system $ unwords ["ghc", "-package", "sbvPlugin", "-fplugin=Data.SBV.Plugin", "-c", inp, ">", out, "2>&1"]
+        act = do void $ system $ unwords ["ghc", "-c", inp, ">", out, "2>&1"]
                  void $ system $ unwords ["/bin/rm", "-f", hi, o]
 
 fileNames :: FilePath -> (FilePath, FilePath, FilePath, FilePath, FilePath)

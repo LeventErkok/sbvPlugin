@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+
 module T05 where
 
 import Data.SBV.Plugin

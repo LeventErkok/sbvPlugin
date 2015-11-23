@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+
 module T04 where
 
 import Data.Word

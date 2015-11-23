@@ -1,5 +1,5 @@
 
-[SBV] tests/T01.hs:7:1 Proving "f", using Z3.
+[SBV] tests/T01.hs:9:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   x =  40959.98499298095 :: Double
   y = -73732.00109529495 :: Double
