@@ -31,7 +31,7 @@ data SBVOption = WarnIfFails    -- ^ Continue even if proof fails
                | MathSAT        -- ^ Use MathSAT
                | ABC            -- ^ Use ABC
                | AnySolver      -- ^ Use all installed solvers
-               deriving (Eq, Data, Typeable)
+               deriving (Show, Eq, Data, Typeable)
 
 -- | The actual annotation.
 newtype SBVAnnotation = SBV {options :: [SBVOption]}

@@ -51,8 +51,8 @@ prove cfg@Config{isGHCi} opts b topLoc e
   | isProvable (exprType e) = do success <- safely $ proveIt cfg opts (topLoc, b) e
                                  unless (isGHCi || success) $
                                         if WarnIfFails `elem` opts
-                                           then    putStrLn "[SBV] Failed. Continuing due to the 'WarnIfFails' flag."
-                                           else do putStrLn "[SBV] Failed. (Use option 'WarnIfFails' to continue.)"
+                                           then    putStrLn $ "[SBV] Failed. Continuing due to the '" ++ show WarnIfFails ++ "' flag."
+                                           else do putStrLn $ "[SBV] Failed. (Use option '" ++ show WarnIfFails ++ "' to continue.)"
                                                    exitFailure
   | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 
