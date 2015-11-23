@@ -93,14 +93,14 @@ instance Q.Testable PQC where
           test = do success <- Q.run $ newStdGen >>= runOnce
                     unless success $ fail "Falsifiable"
 
--- | Run quick-check (instead of fool proof)
+-- | Run quick-check (instead of full proof)
 quick :: PQC -> IO Bool
 quick a = do r <- Q.quickCheckWithResult Q.stdArgs{Q.chatty=False} a
              let n     = Q.numTests r
                  tests = if n > 1 then "tests" else "test"
              case r of
                Q.Success{} -> do putStrLn $ "+++ OK, passed " ++ show n ++ " " ++ tests
-                                 return True 
+                                 return True
                _           -> do putStrLn $ "[SBV] Failed after " ++ show n ++ " " ++ tests ++ "."
                                  return False
 
