@@ -20,14 +20,19 @@ import System.Exit hiding (die)
 import Data.List  (intercalate)
 import qualified Data.Map as M
 
-import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
-import qualified Data.SBV.Dynamic as S
+import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
+import qualified Data.SBV.Dynamic   as S
+import qualified Data.SBV.Internals as S
 
 import qualified Control.Exception as C
-import qualified Test.QuickCheck   as Q
+
+import qualified Test.QuickCheck         as Q
+import qualified Test.QuickCheck.Monadic as Q
 
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
+
+import System.Random (newStdGen)
 
 -- | Dispatch the analyzer recursively over subexpressions
 analyzeBind :: Config -> CoreBind -> CoreM ()
@@ -73,12 +78,31 @@ data Env = Env { curLoc  :: SrcSpan
 -- | The interpreter monad
 type Eval a = ReaderT Env S.Symbolic a
 
--- | Use quickcheck, putting the result into an SMT answer
-quick :: Q.Testable a => a -> IO Bool
-quick a = do r <- Q.quickCheckResult a
+-- | Use quickcheck, but a custom interface which is simpler than SBVs
+newtype PQC = PQC (S.Symbolic S.SVal)
+
+instance Q.Testable PQC where
+  property (PQC m) = Q.monadicIO test
+    where runOnce g = do (r, res) <- S.runSymbolic' (S.Concrete g) m
+                         case S.svAsBool r of
+                           Just True  -> return True
+                           Just False -> do putStrLn "Falsifiable. Counter-example:"
+                                            putStrLn $ S.showModel S.defaultSMTCfg (S.SMTModel (S.resTraces res))
+                                            return False
+                           Nothing    -> error "Property did not reduce to a symbolic value, uninterpreted constants perhaps?"
+          test = do success <- Q.run $ newStdGen >>= runOnce
+                    unless success $ fail "Falsifiable"
+
+-- | Run quick-check (instead of fool proof)
+quick :: PQC -> IO Bool
+quick a = do r <- Q.quickCheckWithResult Q.stdArgs{Q.chatty=False} a
+             let n     = Q.numTests r
+                 tests = if n > 1 then "tests" else "test"
              case r of
-               Q.Success{} -> return True
-               _           -> return False
+               Q.Success{} -> do putStrLn $ "+++ OK, passed " ++ show n ++ " " ++ tests
+                                 return True 
+               _           -> do putStrLn $ "[SBV] Failed after " ++ show n ++ " " ++ tests ++ "."
+                                 return False
 
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
@@ -87,7 +111,7 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         let verbose = Debug      `elem` opts
             qCheck  = QuickCheck `elem` opts
             runProver prop
-              | qCheck = Left  `fmap` quick prop
+              | qCheck = Left  `fmap` quick (PQC prop)
               | True   = Right `fmap` S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs] prop
             loc = "[SBV] " ++ showSpan cfg topBind topLoc
             slvrTag | isGHCi && not verbose = ".. "
@@ -98,7 +122,7 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
                                   [x, y] -> show x ++ " and " ++ show y
                                   xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
         putStr $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
-        when (not isGHCi || qCheck) $ putStrLn ""
+        unless isGHCi $ putStrLn ""
         finalResult <- runProver res
         case finalResult of
           Right (solver, sres@(S.ThmResult smtRes)) -> do
