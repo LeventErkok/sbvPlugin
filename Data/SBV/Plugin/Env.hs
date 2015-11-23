@@ -71,7 +71,7 @@ buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
 -- | Symbolic functions supported by the plugin
 symFuncs :: [(TH.Name, S.Kind, Val)]
 symFuncs =  -- equality is for all kinds
-          [('(==), k, lift2 S.svEqual) | k <- allKinds]
+          [(op, k, lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
 
           -- arithmetic
        ++ [(op, k, lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
