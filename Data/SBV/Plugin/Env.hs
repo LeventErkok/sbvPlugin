@@ -9,11 +9,14 @@
 -- The environment for mapping concrete functions/types to symbolic ones.
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Data.SBV.Plugin.Env (buildFunEnv, buildTCEnv) where
+module Data.SBV.Plugin.Env (buildFunEnv, buildTCEnv, buildSpecialEnv) where
 
 import GhcPlugins
+import GHC.Types
+
 import qualified Language.Haskell.TH as TH
 
 import qualified Data.Map as M
@@ -53,6 +56,16 @@ buildFunEnv = M.fromList `fmap` mapM grabVar symFuncs
                                  f <- lookupId fn
                                  return ((f, k), sfn)
 
+-- | Special functions that we treat internally
+buildSpecialEnv :: CoreM (M.Map Id Val)
+buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
+   where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
+                               f <- lookupId fn
+                               return (f, sfn)
+         specials = [ ('F#, Func id)
+                    , ('D#, Func id)
+                    ]
+
 -- | Symbolic functions supported by the plugin
 symFuncs :: [(TH.Name, S.Kind, Val)]
 symFuncs =  -- equality is for all kinds
@@ -67,6 +80,7 @@ symFuncs =  -- equality is for all kinds
 
           -- comparisons
        ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
+
  where
        -- Bit-vectors
        bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]

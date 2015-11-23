@@ -36,14 +36,16 @@ plugin = defaultPlugin {installCoreToDos = install}
           df   <- getDynFlags
           anns <- getAnnotations deserializeWithData guts
 
-          baseTCs <- buildTCEnv
-          baseEnv <- buildFunEnv
+          baseTCs      <- buildTCEnv
+          baseEnv      <- buildFunEnv
+          baseSpecials <- buildSpecialEnv
 
           let cfg = Config { dflags        = df
                            , opts          = []
                            , isGHCi        = ghcMode df == CompManager
                            , knownTCs      = baseTCs
                            , knownFuns     = baseEnv
+                           , knownSpecials = baseSpecials
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
                            }
 

@@ -63,8 +63,9 @@ safely a = a `C.catch` bad
 
 -- | Interpreter environment
 data Env = Env { curLoc  :: SrcSpan
-               , baseTCs :: M.Map TyCon S.Kind
+               , baseTCs :: M.Map TyCon         S.Kind
                , envMap  :: M.Map (Var, S.Kind) Val
+               , specMap :: M.Map Var           Val
                }
 
 -- | The interpreter monad
@@ -97,7 +98,12 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         print sres
         return success
   where res :: S.Symbolic S.SVal
-        res = do v <- runReaderT (go topExpr) Env{curLoc = topLoc, envMap = knownFuns cfg, baseTCs = knownTCs cfg}
+        res = do v <- runReaderT (go topExpr)
+                                 Env{ curLoc  = topLoc
+                                    , envMap  = knownFuns     cfg
+                                    , baseTCs = knownTCs      cfg
+                                    , specMap = knownSpecials cfg
+                                    }
                  case v of
                    Base r -> return r
                    Func _ -> die topLoc "Expression too complicated for SBV" [sh topExpr]
@@ -115,6 +121,9 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         sh o = showSDoc (dflags cfg) (ppr o)
 
         go :: CoreExpr -> ReaderT Env S.Symbolic Val
+
+        -- go e | trace ("--> " ++ show (sh e)) False = undefined
+
         go e@(Var v) = do Env{envMap} <- ask
                           let t = exprType e
                           mbK <- getBaseType t
@@ -143,13 +152,13 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
            = go a
 
         go (App f e)
-           = do fv <- do mbSF <- getSymFun f
+           = do fv <- do mbSF <- findSymbolic f
                          case mbSF of
                            Nothing -> go f
                            Just sf -> return sf
                 ev <- go e
                 case fv of
-                  Base _  -> tbd "Unsupported application" [sh f, sh e]
+                  Base _  -> tbd "Unsupported application" [sh f, sh e]   -- shouldn't happen
                   Func sf -> return $ sf ev
 
         -- NB: We do *not* have to worry about shadowing when we enter the body
@@ -180,24 +189,32 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         go e@(Coercion{})
            = tbd "Unsupported coercion-expression" [sh e]
 
--- | Return, if known, the symbolic function corresponding to
--- the application found in the core
-getSymFun :: CoreExpr -> Eval (Maybe Val)
-getSymFun (App (App (Var v) (Type t)) (Var dict))
-  | isReallyADictionary dict = do Env{envMap} <- ask
-                                  mbK <- getBaseType t
-                                  case mbK of
-                                    Nothing -> return Nothing
-                                    Just k  -> return $ (v, k) `M.lookup` envMap
-getSymFun _ = return Nothing
+-- | Return, if known, whatever symbolic function we can for an expression
+findSymbolic :: CoreExpr -> Eval (Maybe Val)
+findSymbolic e = do mb <- getSymFun e
+                    case mb of
+                      Just _  -> return mb
+                      Nothing -> getSpecialFun e
+  where getSymFun :: CoreExpr -> Eval (Maybe Val)
+        getSymFun (App (App (Var v) (Type t)) (Var dict))
+          | isReallyADictionary dict = do Env{envMap} <- ask
+                                          mbK <- getBaseType t
+                                          case mbK of
+                                            Nothing -> return Nothing
+                                            Just k  -> return $ (v, k) `M.lookup` envMap
+        getSymFun _ = return Nothing
 
--- | Check if the given variable corresponds to a real dictionary
-isReallyADictionary :: Var -> Bool
-isReallyADictionary v = case classifyPredType (varType v) of
-                          ClassPred{} -> True
-                          EqPred{}    -> True
-                          TuplePred{} -> True
-                          IrredPred{} -> False
+        getSpecialFun :: CoreExpr -> Eval (Maybe Val)
+        getSpecialFun (Var v) = do Env{specMap} <- ask
+                                   return $ v `M.lookup` specMap
+        getSpecialFun _       = return Nothing
+
+        isReallyADictionary :: Var -> Bool
+        isReallyADictionary v = case classifyPredType (varType v) of
+                                  ClassPred{} -> True
+                                  EqPred{}    -> True
+                                  TuplePred{} -> True
+                                  IrredPred{} -> False
 
 -- | Convert a Core type to an SBV kind, if known
 getBaseType :: Type -> Eval (Maybe S.Kind)

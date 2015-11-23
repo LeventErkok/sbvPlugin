@@ -28,6 +28,7 @@ data Config = Config { dflags        :: DynFlags
                      , opts          :: [SBVAnnotation]
                      , knownTCs      :: M.Map TyCon S.Kind
                      , knownFuns     :: M.Map (Var, S.Kind) Val
+                     , knownSpecials :: M.Map Var Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
                      }
 
