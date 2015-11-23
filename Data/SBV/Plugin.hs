@@ -52,9 +52,7 @@ module Data.SBV.Plugin(
          plugin
        -- * Annotations
        , SBVAnnotation(..)
-       , theorem
-       , safe
-       , uninterpret
+       , sbv, theorem
        -- * Plugin options
        , SBVOption(..)
        ) where

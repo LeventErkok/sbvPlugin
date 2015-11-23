@@ -34,9 +34,10 @@ analyzeBind cfg@Config{sbvAnnotation} = go
   where go (NonRec b e) = bind (b, e)
         go (Rec binds)  = mapM_ bind binds
         bind (b, e) = mapM_ work (sbvAnnotation b)
-          where work (SBVTheorem opts) = liftIO $ prove cfg opts b (bindSpan b) e
-                work (SBVSafe{})       = error "SBV: The safe pragma isn't supported yet"
-                work SBVUninterpret    = error "SBV: The uninterpret pragma isn't supported yet"
+          where work (SBV opts)
+                 | Safety `elem` opts      = error "SBV: Safety pragma is not implemented yet"
+                 | Uninterpret `elem` opts = error "SBV: Uninterpret pragma is not implemented yet"
+                 | True                    = liftIO $ prove cfg opts b (bindSpan b) e
 
 -- | Prove an SBVTheorem
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()

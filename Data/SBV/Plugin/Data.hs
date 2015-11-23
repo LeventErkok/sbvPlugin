@@ -21,6 +21,8 @@ import Data.Data  (Data, Typeable)
 -- the default-SMT solver picked by SBV, which is currently Z3.
 data SBVOption = WarnIfFails    -- ^ Continue even if proof fails
                | Debug          -- ^ Produce verbose output
+               | Safety         -- ^ Check for safety
+               | Uninterpret    -- ^ Uninterpret this binding for proof purposes
                | Z3             -- ^ Use Z3
                | Yices          -- ^ Use Yices
                | Boolector      -- ^ Use Boolector
@@ -31,19 +33,13 @@ data SBVOption = WarnIfFails    -- ^ Continue even if proof fails
                deriving (Eq, Data, Typeable)
 
 -- | The actual annotation.
-data SBVAnnotation = SBVTheorem      {options :: [SBVOption]}  -- ^ Theorem
-                   | SBVSafe         {options :: [SBVOption]}  -- ^ Safety checks
-                   | SBVUninterpret                            -- ^ Uninterpeted function\/constant
-                   deriving (Eq, Data, Typeable)
+newtype SBVAnnotation = SBV {options :: [SBVOption]}
+                      deriving (Eq, Data, Typeable)
 
--- | A theorem annotation, using default options.
+-- | A property annotation, using default options.
+sbv :: SBVAnnotation
+sbv = SBV {options = []}
+
+-- | Synonym for sbv really, just looks cooler
 theorem :: SBVAnnotation
-theorem = SBVTheorem {options = []}
-
--- | A safe annotation, using default options.
-safe :: SBVAnnotation
-safe = SBVSafe {options = []}
-
--- | An uninterpret, using default options.
-uninterpret :: SBVAnnotation
-uninterpret = SBVUninterpret
+theorem = sbv
