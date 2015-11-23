@@ -24,6 +24,7 @@ import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
 
 import qualified Control.Exception as C
+import qualified Test.QuickCheck   as Q
 
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
@@ -72,12 +73,22 @@ data Env = Env { curLoc  :: SrcSpan
 -- | The interpreter monad
 type Eval a = ReaderT Env S.Symbolic a
 
--- Returns True if proof went thru
+-- | Use quickcheck, putting the result into an SMT answer
+quick :: Q.Testable a => a -> IO Bool
+quick a = do r <- Q.quickCheckResult a
+             case r of
+               Q.Success{} -> return True
+               _           -> return False
+
+-- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
 proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
-        let verbose = Debug `elem` opts
-            runProver = S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs]
+        let verbose = Debug      `elem` opts
+            qCheck  = QuickCheck `elem` opts
+            runProver prop
+              | qCheck = Left  `fmap` quick prop
+              | True   = Right `fmap` S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs] prop
             loc = "[SBV] " ++ showSpan cfg topBind topLoc
             slvrTag | isGHCi && not verbose = ".. "
                     | True                  = ", using " ++ tag ++ "."
@@ -86,18 +97,21 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
                                   [x]    -> show x
                                   [x, y] -> show x ++ " and " ++ show y
                                   xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
-        putStr $ "\n" ++ loc ++ " Proving " ++ show (sh topBind) ++ slvrTag
-        unless isGHCi $ putStrLn ""
-        (solver, sres@(S.ThmResult smtRes)) <- runProver res
-        let success = case smtRes of
-                        S.Unsatisfiable{} -> True
-                        S.Satisfiable{}   -> False
-                        S.Unknown{}       -> False   -- conservative
-                        S.ProofError{}    -> False   -- conservative
-                        S.TimeOut{}       -> False   -- conservative
-        putStr $ "[" ++ show solver ++ "] "
-        print sres
-        return success
+        putStr $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
+        when (not isGHCi || qCheck) $ putStrLn ""
+        finalResult <- runProver res
+        case finalResult of
+          Right (solver, sres@(S.ThmResult smtRes)) -> do
+                let success = case smtRes of
+                                S.Unsatisfiable{} -> True
+                                S.Satisfiable{}   -> False
+                                S.Unknown{}       -> False   -- conservative
+                                S.ProofError{}    -> False   -- conservative
+                                S.TimeOut{}       -> False   -- conservative
+                putStr $ "[" ++ show solver ++ "] "
+                print sres
+                return success
+          Left success -> return success
   where res :: S.Symbolic S.SVal
         res = do v <- runReaderT (go topExpr)
                                  Env{ curLoc  = topLoc

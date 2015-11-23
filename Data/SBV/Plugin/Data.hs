@@ -22,6 +22,7 @@ import Data.Data  (Data, Typeable)
 data SBVOption = WarnIfFails    -- ^ Continue even if proof fails
                | Debug          -- ^ Produce verbose output
                | Safety         -- ^ Check for safety
+               | QuickCheck     -- ^ Perform quickCheck
                | Uninterpret    -- ^ Uninterpret this binding for proof purposes
                | Z3             -- ^ Use Z3
                | Yices          -- ^ Use Yices
