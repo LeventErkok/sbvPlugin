@@ -1,9 +1,9 @@
 
+[SBV] tests/T00.hs:10:1 Proving "f", using Z3.
+[Z3] Q.E.D.
+
 [SBV] tests/T00.hs:14:1 Proving "g", using Z3.
 [Z3] Falsifiable. Counter-example:
   _x =     0 :: Int8
   _y = False :: Bool
 [SBV] Failed. Continuing due to the 'WarnIfFails' flag.
-
-[SBV] tests/T00.hs:10:1 Proving "f", using Z3.
-[Z3] Q.E.D.

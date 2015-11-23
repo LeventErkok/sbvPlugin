@@ -16,6 +16,9 @@ module Data.SBV.Plugin.Plugin(plugin) where
 import GhcPlugins
 import System.Exit
 
+import Data.List (sortBy)
+import Data.Ord  (comparing)
+
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Env
 import Data.SBV.Plugin.Analyze (analyzeBind)
@@ -49,6 +52,10 @@ plugin = defaultPlugin {installCoreToDos = install}
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
                            }
 
-          mapM_ (analyzeBind cfg) mg_binds
+          let bindLoc (NonRec b _)     = bindSpan b
+              bindLoc (Rec [])         = noSrcSpan
+              bindLoc (Rec ((b, _):_)) = bindSpan b
+
+          mapM_ (analyzeBind cfg) $ sortBy (comparing bindLoc) mg_binds
 
           return guts
