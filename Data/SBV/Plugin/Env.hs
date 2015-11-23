@@ -62,7 +62,7 @@ symFuncs =  -- equality is for all kinds
        ++ [(op, k, lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
        ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
 
-          -- literal conversions
+          -- literal conversions from Integer
        ++ [(op, k, lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
 
           -- comparisons
@@ -74,8 +74,11 @@ symFuncs =  -- equality is for all kinds
        -- Integer kinds
        integerKinds = S.KUnbounded : bvKinds
 
+       -- Float kinds
+       floatKinds = [S.KFloat, S.KDouble]
+
        -- All arithmetic kinds
-       arithKinds = [S.KFloat, S.KDouble] ++ integerKinds
+       arithKinds = floatKinds ++ integerKinds
 
        -- Everything
        allKinds   = S.KBool : arithKinds
