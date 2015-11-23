@@ -62,8 +62,10 @@ buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
    where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
                                f <- lookupId fn
                                return (f, sfn)
-         specials = [ ('F#, Func id)
-                    , ('D#, Func id)
+         specials = [ ('F#,    Func id)
+                    , ('D#,    Func id)
+                    , ('True,  Base S.svTrue)
+                    , ('False, Base S.svFalse)
                     ]
 
 -- | Symbolic functions supported by the plugin
