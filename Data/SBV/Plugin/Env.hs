@@ -23,6 +23,7 @@ import qualified Data.Map as M
 
 import Data.Int
 import Data.Word
+import Data.Bits
 import Data.Maybe (fromMaybe)
 
 import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
@@ -56,7 +57,7 @@ buildFunEnv = M.fromList `fmap` mapM grabVar symFuncs
                                  f <- lookupId fn
                                  return ((f, k), sfn)
 
--- | Special functions that we treat internally
+-- | Special functions that have a fixed-type
 buildSpecialEnv :: CoreM (M.Map Id Val)
 buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
    where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
@@ -64,11 +65,14 @@ buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
                                return (f, sfn)
          specials = [ ('F#,    Func id)
                     , ('D#,    Func id)
-                    , ('True,  Base S.svTrue)
-                    , ('False, Base S.svFalse)
+                    , ('True,  Base  S.svTrue)
+                    , ('False, Base  S.svFalse)
+                    , ('(&&),  lift2 S.svAnd)
+                    , ('(||),  lift2 S.svOr)
+                    , ('not,   lift1 S.svNot)
                     ]
 
--- | Symbolic functions supported by the plugin
+-- | Symbolic functions supported by the plugin; those from a class.
 symFuncs :: [(TH.Name, S.Kind, Val)]
 symFuncs =  -- equality is for all kinds
           [(op, k, lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
@@ -82,6 +86,9 @@ symFuncs =  -- equality is for all kinds
 
           -- comparisons
        ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
+
+         -- bit-vector
+      ++ [ (op, k, lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
 
  where
        -- Bit-vectors
@@ -100,7 +107,8 @@ symFuncs =  -- equality is for all kinds
        allKinds   = S.KBool : arithKinds
 
        -- Unary arithmetic ops
-       unaryOps   = [ ('abs, S.svAbs)
+       unaryOps   = [ ('abs,    S.svAbs)
+                    , ('negate, S.svUNeg)
                     ]
 
        -- Binary arithmetic ops
@@ -110,11 +118,17 @@ symFuncs =  -- equality is for all kinds
                     ]
 
        -- Comparisons
-       compOps    = [ ('(<),  S.svLessThan)
-                    , ('(>),  S.svGreaterThan)
-                    , ('(<=), S.svLessEq)
-                    , ('(>=), S.svGreaterEq)
-                    ]
+       compOps = [ ('(<),  S.svLessThan)
+                 , ('(>),  S.svGreaterThan)
+                 , ('(<=), S.svLessEq)
+                 , ('(>=), S.svGreaterEq)
+                 ]
+
+       -- Binary bit-vector ops
+       bvBinOps = [ ('(.&.), S.svAnd)
+                  , ('(.|.), S.svOr)
+                  , ('xor,   S.svXOr)
+                  ]
 
 -- | Lift a unary SBV function to the plugin value space
 lift1 :: (S.SVal -> S.SVal) -> Val
