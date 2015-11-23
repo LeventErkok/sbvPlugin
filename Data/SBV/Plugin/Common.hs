@@ -30,6 +30,7 @@ data Config = Config { dflags        :: DynFlags
                      , knownFuns     :: M.Map (Var, S.Kind) Val
                      , knownSpecials :: M.Map Var Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
+                     , allBinds      :: M.Map Var CoreExpr
                      }
 
 -- | Given the user options, determine which solver(s) to use

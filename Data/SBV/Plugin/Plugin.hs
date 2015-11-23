@@ -19,6 +19,8 @@ import System.Exit
 import Data.List (sortBy)
 import Data.Ord  (comparing)
 
+import qualified Data.Map as M
+
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Env
 import Data.SBV.Plugin.Analyze (analyzeBind)
@@ -50,6 +52,7 @@ plugin = defaultPlugin {installCoreToDos = install}
                            , knownFuns     = baseEnv
                            , knownSpecials = baseSpecials
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
+                           , allBinds      = M.fromList (flattenBinds mg_binds)
                            }
 
           let bindLoc (NonRec b _)     = bindSpan b

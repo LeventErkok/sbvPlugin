@@ -73,6 +73,7 @@ data Env = Env { curLoc  :: SrcSpan
                , baseTCs :: M.Map TyCon         S.Kind
                , envMap  :: M.Map (Var, S.Kind) Val
                , specMap :: M.Map Var           Val
+               , coreMap :: M.Map Var           CoreExpr
                }
 
 -- | The interpreter monad
@@ -142,6 +143,7 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
                                     , envMap  = knownFuns     cfg
                                     , baseTCs = knownTCs      cfg
                                     , specMap = knownSpecials cfg
+                                    , coreMap = allBinds      cfg
                                     }
                  case v of
                    Base r -> return r
@@ -166,7 +168,10 @@ proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
         go e@(Var v) = do mbF <- findSymbolic e
                           case mbF of
                             Just sv -> return sv
-                            Nothing -> tbd "Not-yet-supported expression" [sh e ++ " :: " ++ sh (varType v)]
+                            Nothing -> do Env{coreMap} <- ask
+                                          case v `M.lookup` coreMap of
+                                            Just e' -> go e'
+                                            Nothing -> tbd "Not-yet-supported expression" [sh e ++ " :: " ++ sh (varType v)]
 
         go (Lit (LitInteger i t))
            = do mbK <- getBaseType t
