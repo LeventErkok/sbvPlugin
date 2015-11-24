@@ -22,17 +22,11 @@ import qualified Data.Map as M
 
 import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic   as S
-import qualified Data.SBV.Internals as S
 
 import qualified Control.Exception as C
 
-import qualified Test.QuickCheck         as Q
-import qualified Test.QuickCheck.Monadic as Q
-
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
-
-import System.Random (newStdGen)
 
 -- | Dispatch the analyzer recursively over subexpressions
 analyzeBind :: Config -> CoreBind -> CoreM ()
@@ -49,11 +43,9 @@ analyzeBind cfg@Config{sbvAnnotation} = go
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
 prove cfg@Config{isGHCi} opts b topLoc e
   | isProvable (exprType e) = do success <- safely $ proveIt cfg opts (topLoc, b) e
-                                 unless (isGHCi || success) $
-                                        if WarnIfFails `elem` opts
-                                           then    putStrLn $ "[SBV] Failed. Continuing due to the '" ++ show WarnIfFails ++ "' flag."
-                                           else do putStrLn $ "[SBV] Failed. (Use option '" ++ show WarnIfFails ++ "' to continue.)"
-                                                   exitFailure
+                                 unless (success || isGHCi || WarnIfFails `elem` opts) $ do
+                                     putStrLn $ "[SBV] Failed. (Use option '" ++ show WarnIfFails ++ "' to continue.)" 
+                                     exitFailure
   | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 
 -- | Is this a provable type?
@@ -79,51 +71,23 @@ data Env = Env { curLoc  :: SrcSpan
 -- | The interpreter monad
 type Eval a = ReaderT Env S.Symbolic a
 
--- | Use quickcheck, but a custom interface which is simpler than SBVs
-newtype PQC = PQC (S.Symbolic S.SVal)
-
-instance Q.Testable PQC where
-  property (PQC m) = Q.monadicIO test
-    where runOnce g = do (r, res) <- S.runSymbolic' (S.Concrete g) m
-                         case S.svAsBool r of
-                           Just True  -> return True
-                           Just False -> do putStrLn "Falsifiable. Counter-example:"
-                                            putStrLn $ S.showModel S.defaultSMTCfg (S.SMTModel (S.resTraces res))
-                                            return False
-                           Nothing    -> error "Property did not reduce to a symbolic value, uninterpreted constants perhaps?"
-          test = do success <- Q.run $ newStdGen >>= runOnce
-                    unless success $ fail "Falsifiable"
-
--- | Run quick-check (instead of full proof)
-quick :: PQC -> IO Bool
-quick a = do r <- Q.quickCheckWithResult Q.stdArgs{Q.chatty=False} a
-             let n     = Q.numTests r
-                 tests = if n > 1 then "tests" else "test"
-             case r of
-               Q.Success{} -> do putStrLn $ "+++ OK, passed " ++ show n ++ " " ++ tests
-                                 return True
-               _           -> do putStrLn $ "[SBV] Failed after " ++ show n ++ " " ++ tests ++ "."
-                                 return False
-
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-proveIt cfg@Config{isGHCi} opts (topLoc, topBind) topExpr = do
+proveIt cfg opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
         let verbose = Debug      `elem` opts
             qCheck  = QuickCheck `elem` opts
             runProver prop
-              | qCheck = Left  `fmap` quick (PQC prop)
+              | qCheck = Left  `fmap` S.svQuickCheck prop
               | True   = Right `fmap` S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs] prop
             loc = "[SBV] " ++ showSpan cfg topBind topLoc
-            slvrTag | isGHCi && not verbose = ".. "
-                    | True                  = ", using " ++ tag ++ "."
-                    where tag = case solverConfigs of
-                                  []     -> "no solvers"  -- can't really happen
-                                  [x]    -> show x
-                                  [x, y] -> show x ++ " and " ++ show y
-                                  xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
-        putStr $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
-        unless isGHCi $ putStrLn ""
+            slvrTag = ", using " ++ tag ++ "."
+              where tag = case solverConfigs of
+                            []     -> "no solvers"  -- can't really happen
+                            [x]    -> show x
+                            [x, y] -> show x ++ " and " ++ show y
+                            xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
+        putStrLn $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
         finalResult <- runProver res
         case finalResult of
           Right (solver, sres@(S.ThmResult smtRes)) -> do

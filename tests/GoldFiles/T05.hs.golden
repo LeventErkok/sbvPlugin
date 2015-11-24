@@ -3,4 +3,3 @@
 [Yices] Falsifiable. Counter-example:
   x =  0 :: Integer
   y = -1 :: Integer
-[SBV] Failed. Continuing due to the 'WarnIfFails' flag.

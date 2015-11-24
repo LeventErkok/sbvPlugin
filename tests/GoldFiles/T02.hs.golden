@@ -3,4 +3,3 @@
 [Z3] Falsifiable. Counter-example:
   x = 1 :: Integer
   y = 0 :: Integer
-[SBV] Failed. Continuing due to the 'WarnIfFails' flag.

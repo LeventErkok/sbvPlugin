@@ -6,4 +6,3 @@
 [Z3] Falsifiable. Counter-example:
   _x =     0 :: Int8
   _y = False :: Bool
-[SBV] Failed. Continuing due to the 'WarnIfFails' flag.
