@@ -25,6 +25,8 @@ import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Env
 import Data.SBV.Plugin.Analyze (analyzeBind)
 
+import GHC.Environment
+
 -- | Entry point to the plugin
 plugin :: Plugin
 plugin = defaultPlugin {installCoreToDos = install}
@@ -45,9 +47,11 @@ plugin = defaultPlugin {installCoreToDos = install}
           baseEnv      <- buildFunEnv
           baseSpecials <- buildSpecialEnv
 
+          fullArgs     <- liftIO getFullArgs
+
           let cfg = Config { dflags        = df
                            , opts          = []
-                           , isGHCi        = ghcMode df == CompManager
+                           , isGHCi        = "--interactive" `elem` fullArgs
                            , knownTCs      = baseTCs
                            , knownFuns     = baseEnv
                            , knownSpecials = baseSpecials
