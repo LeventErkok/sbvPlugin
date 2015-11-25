@@ -16,8 +16,10 @@ module Data.SBV.Plugin.Plugin(plugin) where
 import GhcPlugins
 import System.Exit
 
-import Data.List (sortBy)
-import Data.Ord  (comparing)
+import Data.Maybe (fromJust)
+import Data.List  (sortBy)
+import Data.Ord   (comparing)
+import Data.Bits  (bitSizeMaybe)
 
 import qualified Data.Map as M
 
@@ -43,7 +45,7 @@ plugin = defaultPlugin {installCoreToDos = install}
           df   <- getDynFlags
           anns <- getAnnotations deserializeWithData guts
 
-          baseTCs      <- buildTCEnv
+          baseTCs      <- buildTCEnv (fromJust (bitSizeMaybe (0::Int)))
           baseEnv      <- buildFunEnv
           baseSpecials <- buildSpecialEnv
 
