@@ -2,4 +2,4 @@
 [SBV] tests/T07.hs:9:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   x = NaN :: Double
-[SBV] Failed. (Use option 'WarnIfFails' to continue.)
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)

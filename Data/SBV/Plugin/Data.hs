@@ -19,7 +19,7 @@ import Data.Data  (Data, Typeable)
 -- will all be run in parallel. If you want to run all available solvers,
 -- use the option 'AnySolver'. The default is to error-out on failure, using
 -- the default-SMT solver picked by SBV, which is currently Z3.
-data SBVOption = WarnIfFails    -- ^ Continue even if proof fails
+data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | Debug          -- ^ Produce verbose output
                | Safety         -- ^ Check for safety
                | QuickCheck     -- ^ Perform quickCheck

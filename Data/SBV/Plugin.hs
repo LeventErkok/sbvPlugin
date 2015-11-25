@@ -36,15 +36,15 @@
 --  > [Z3] Falsifiable. Counter-example:
 --  >   x =  0 :: Integer
 --  >   y = -1 :: Integer
---  > [SBV] Failed. (Use option 'WarnIfFails' to continue.)
+--  > [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
 --
 -- Note that the compilation will be aborted, since the theorem doesn't hold. As shown in the hint, GHC
 -- can be instructed to continue in that case, using an annotation of the form:
 --
--- > {-# ANN test theorem {options = [WarnIfFails]} #-}
+-- > {-# ANN test theorem {options = [IgnoreFailure]} #-}
 --
 -- The plugin should work from GHCi with no changes.  Note that when run from GHCi, the plugin will
--- behave as if the /WarnIfFails/ option is given on all annotations, so that failures do not stop
+-- behave as if the /IgnoreFailure/ option is given on all annotations, so that failures do not stop
 -- the load process.
 ---------------------------------------------------------------------------------
 module Data.SBV.Plugin(

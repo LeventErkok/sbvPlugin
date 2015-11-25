@@ -4,4 +4,4 @@
   x =  40959.98499298095 :: Double
   y = -73732.00109529495 :: Double
   z =  257.9890136271454 :: Double
-[SBV] Failed. (Use option 'WarnIfFails' to continue.)
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)

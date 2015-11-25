@@ -20,8 +20,8 @@ import System.Exit hiding (die)
 import Data.List  (intercalate)
 import qualified Data.Map as M
 
-import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
-import qualified Data.SBV.Dynamic   as S
+import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
+import qualified Data.SBV.Dynamic as S
 
 import qualified Control.Exception as C
 
@@ -43,8 +43,8 @@ analyzeBind cfg@Config{sbvAnnotation} = go
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
 prove cfg@Config{isGHCi} opts b topLoc e
   | isProvable (exprType e) = do success <- safely $ proveIt cfg opts (topLoc, b) e
-                                 unless (success || isGHCi || WarnIfFails `elem` opts) $ do
-                                     putStrLn $ "[SBV] Failed. (Use option '" ++ show WarnIfFails ++ "' to continue.)" 
+                                 unless (success || isGHCi || IgnoreFailure `elem` opts) $ do
+                                     putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)" 
                                      exitFailure
   | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
 

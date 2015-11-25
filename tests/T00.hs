@@ -11,6 +11,6 @@ import Data.SBV.Plugin
 f :: Word8 -> Bool -> Bool
 f _ _ = True
 
-{-# ANN g theorem {options = [WarnIfFails]} #-}
+{-# ANN g theorem {options = [IgnoreFailure]} #-}
 g :: Int8 -> Bool -> Bool
 g _x _y = False
