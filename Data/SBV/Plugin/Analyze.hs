@@ -179,7 +179,7 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                   (Func (k, _) sf, Base sv) -> if S.kindOf sv == k
                                                then sf sv
                                                else error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ show (S.kindOf sv, k)
-                  _                    -> tbd "Unsupported higher-order application" [sh f, sh e]   -- shouldn't happen
+                  _ -> tbd "Unsupported higher-order application" [sh f, sh e]   -- shouldn't happen
 
         go e@(Lam b body) = do
             let t = varType b
