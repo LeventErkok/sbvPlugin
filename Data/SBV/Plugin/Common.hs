@@ -11,6 +11,8 @@
 
 module Data.SBV.Plugin.Common where
 
+import Control.Monad.Reader
+
 import CostCentre
 import GhcPlugins
 
@@ -21,6 +23,17 @@ import qualified Data.SBV         as S
 import qualified Data.SBV.Dynamic as S
 
 import Data.SBV.Plugin.Data
+
+-- | Interpreter environment
+data Env = Env { curLoc  :: SrcSpan
+               , baseTCs :: M.Map TyCon         S.Kind
+               , envMap  :: M.Map (Var, S.Kind) Val
+               , specMap :: M.Map Var           Val
+               , coreMap :: M.Map Var           CoreExpr
+               }
+
+-- | The interpreter monad
+type Eval a = ReaderT Env S.Symbolic a
 
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
@@ -50,7 +63,7 @@ pickSolvers slvrs
 
 -- | The values kept track of by the interpreter
 data Val = Base S.SVal
-         | Func (Val -> Val)
+         | Func (S.Kind, Maybe String) (S.SVal -> Eval Val)
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan -> SrcSpan
