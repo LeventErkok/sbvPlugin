@@ -18,7 +18,7 @@ import GhcPlugins
 import Control.Monad.Reader
 import System.Exit hiding (die)
 
-import Data.List  (intercalate)
+import Data.List  (intercalate, partition)
 import qualified Data.Map as M
 
 import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
@@ -191,8 +191,44 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         go e@(Let _ _)
            = tbd "Unsupported let-binding" [sh e]
 
-        go e@(Case{})
-           = tbd "Unsupported case-expression" [sh e]
+        -- Case expressions. We take advantage of the core-invariant that each case alternative
+        -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
+        -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
+        go e@(Case ce _b _t alts)
+           = do sce <- go ce
+                let isDefault (DEFAULT, _, _) = True
+                    isDefault _               = False
+                    (nonDefs, defs) = partition isDefault alts
+                    walk [(_, [], rhs)]        = go rhs
+                    walk ((p, [], rhs) : rest) = case sce of
+                                                   Base a -> do mr <- match a p
+                                                                case mr of
+                                                                  Just m  -> choose m (go rhs) (walk rest)
+                                                                  Nothing -> caseTooComplicated ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
+                                                   _      -> caseTooComplicated []
+                    walk _                     = caseTooComplicated []
+                walk (nonDefs ++ defs)
+           where caseTooComplicated [] = tbd "Unsupported complicated case-expression" [sh e]
+                 caseTooComplicated xs = tbd "Unsupported complicated case-expression" $ [sh e, "While Analyzing:"] ++ xs
+                 choose t tb fb = case S.svAsBool t of
+                                     Nothing    -> do stb <- tb
+                                                      sfb <- fb
+                                                      case (stb, sfb) of
+                                                        (Base a, Base b) -> return $ Base $ S.svIte t a b
+                                                        _                -> caseTooComplicated []
+                                     Just True  -> tb
+                                     Just False -> fb
+                 match :: S.SVal -> AltCon -> Eval (Maybe S.SVal)
+                 match a c = case c of
+                               DEFAULT    -> return $ Just S.svTrue
+                               LitAlt  l  -> do le <- go (Lit l)
+                                                case le of
+                                                  Base b -> return $ Just $ a `S.svEqual` b
+                                                  Func{} -> return Nothing
+                               DataAlt dc -> do Env{specMap} <- ask
+                                                case dataConWorkId dc `M.lookup` specMap of
+                                                  Just (Base b) -> return $ Just $ a `S.svEqual` b
+                                                  _             -> return Nothing
 
         go e@(Cast{})
            = tbd "Unsupported cast-expression" [sh e]

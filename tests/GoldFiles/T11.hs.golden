@@ -1,0 +1,5 @@
+
+[SBV] tests/T11.hs:15:1 Proving "f", using Z3.
+[Z3] Falsifiable. Counter-example:
+  x = 11 :: Integer
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
