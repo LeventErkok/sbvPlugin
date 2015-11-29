@@ -16,10 +16,12 @@ module Data.SBV.Plugin.Env (buildFunEnv, buildTCEnv, buildSpecialEnv) where
 
 import GhcPlugins
 import GHC.Types
+import TysPrim
+import MkId
 
+import qualified Data.Generics       as G
+import qualified Data.Map            as M
 import qualified Language.Haskell.TH as TH
-
-import qualified Data.Map as M
 
 import Data.Int
 import Data.Word
@@ -33,23 +35,36 @@ import Data.SBV.Plugin.Common
 
 -- | Build the initial environment containing types
 buildTCEnv :: Int -> CoreM (M.Map TyCon S.Kind)
-buildTCEnv isz = M.fromList `fmap` mapM grabTyCon [ (S.KBool,             ''Bool)
-                                                  , (S.KUnbounded,        ''Integer)
-                                                  , (S.KFloat,            ''Float)
-                                                  , (S.KDouble,           ''Double)
-                                                  , (S.KBounded True isz, ''Int)
-                                                  , (S.KBounded True   8, ''Int8)
-                                                  , (S.KBounded True  16, ''Int16)
-                                                  , (S.KBounded True  32, ''Int32)
-                                                  , (S.KBounded True  64, ''Int64)
-                                                  , (S.KBounded False  8, ''Word8)
-                                                  , (S.KBounded False 16, ''Word16)
-                                                  , (S.KBounded False 32, ''Word32)
-                                                  , (S.KBounded False 64, ''Word64)
-                                                  ]
+buildTCEnv isz = do
+        xs <- mapM grabTyCon basics
+        return $ M.fromList $ xs ++ specials
+
   where grabTyCon (k, x) = do Just fn <- thNameToGhcName x
                               tc <- lookupTyCon fn
                               return (tc, k)
+
+        basics = [ (S.KBool,             ''Bool)
+                 , (S.KUnbounded,        ''Integer)
+                 , (S.KFloat,            ''Float)
+                 , (S.KDouble,           ''Double)
+                 , (S.KBounded True isz, ''Int)
+                 , (S.KBounded True   8, ''Int8)
+                 , (S.KBounded True  16, ''Int16)
+                 , (S.KBounded True  32, ''Int32)
+                 , (S.KBounded True  64, ''Int64)
+                 , (S.KBounded False  8, ''Word8)
+                 , (S.KBounded False 16, ''Word16)
+                 , (S.KBounded False 32, ''Word32)
+                 , (S.KBounded False 64, ''Word64)
+                 ]
+
+        -- special types that appear in the Core, that we more or less ignore
+        specials = [(voidPrimTyCon, voidKind)]
+
+voidKind :: S.Kind
+voidKind = S.KUserSort "Void#" (Right [], G.dataTypeOf void)
+   where void :: ()
+         void = error "[SBV] Impossible-happened: queried rep for Void#"
 
 -- | Build the initial environment containing functions
 buildFunEnv :: CoreM (M.Map (Id, S.Kind) Val)
@@ -60,18 +75,22 @@ buildFunEnv = M.fromList `fmap` mapM grabVar symFuncs
 
 -- | Special functions that have a fixed-type
 buildSpecialEnv :: CoreM (M.Map Id Val)
-buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
+buildSpecialEnv = do as <- mapM grabVar basics
+                     return $ M.fromList $ as ++ specials
    where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
                                f <- lookupId fn
                                return (f, sfn)
-         specials = [ ('F#,    Func  (S.KFloat,  Nothing) (return . Base))
-                    , ('D#,    Func  (S.KDouble, Nothing) (return . Base))
-                    , ('True,  Base  S.svTrue)
-                    , ('False, Base  S.svFalse)
-                    , ('(&&),  lift2 S.KBool S.svAnd)
-                    , ('(||),  lift2 S.KBool S.svOr)
-                    , ('not,   lift1 S.KBool S.svNot)
-                    ]
+
+         basics = [ ('F#,    Func  (S.KFloat,  Nothing) (return . Base))
+                  , ('D#,    Func  (S.KDouble, Nothing) (return . Base))
+                  , ('True,  Base  S.svTrue)
+                  , ('False, Base  S.svFalse)
+                  , ('(&&),  lift2 S.KBool S.svAnd)
+                  , ('(||),  lift2 S.KBool S.svOr)
+                  , ('not,   lift1 S.KBool S.svNot)
+                  ]
+
+         specials = [(voidPrimId, Base (S.svUninterpreted voidKind "void#" Nothing []))]
 
 -- | Symbolic functions supported by the plugin; those from a class.
 symFuncs :: [(TH.Name, S.Kind, Val)]

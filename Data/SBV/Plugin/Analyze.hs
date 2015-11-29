@@ -9,7 +9,8 @@
 -- Walk the GHC Core, proving theorems/checking safety as they are found
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns       #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.SBV.Plugin.Analyze (analyzeBind) where
 
@@ -55,6 +56,13 @@ safely a = a `C.catch` bad
   where bad :: C.SomeException -> IO Bool
         bad e = do print e
                    return False
+
+instance Outputable S.Kind where
+   ppr = text . show
+
+instance Outputable Val where
+   ppr (Base s)   = text (show s)
+   ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
@@ -146,7 +154,8 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         go e@(Var v) = do mbF <- findSymbolic e
                           case mbF of
                             Just sv -> return sv
-                            Nothing -> do Env{coreMap} <- ask
+                            Nothing -> do -- () <- do Env{envMap, specMap} <- ask; trace (sh (envMap, specMap, e, v)) (return ())
+                                          Env{coreMap} <- ask
                                           case v `M.lookup` coreMap of
                                             Just e' -> go e'
                                             Nothing -> tbd "Not-yet-supported expression" [sh e ++ " :: " ++ sh (varType v)]
@@ -204,18 +213,18 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                                                    Base a -> do mr <- match a p
                                                                 case mr of
                                                                   Just m  -> choose m (go rhs) (walk rest)
-                                                                  Nothing -> caseTooComplicated ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
-                                                   _      -> caseTooComplicated []
-                    walk _                     = caseTooComplicated []
+                                                                  Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
+                                                   _      -> caseTooComplicated "with-non-base-scrutinee" []
+                    walk _                     = caseTooComplicated "with-pattern-bindings" []
                 walk (nonDefs ++ defs)
-           where caseTooComplicated [] = tbd "Unsupported complicated case-expression" [sh e]
-                 caseTooComplicated xs = tbd "Unsupported complicated case-expression" $ [sh e, "While Analyzing:"] ++ xs
+           where caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
+                 caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
                  choose t tb fb = case S.svAsBool t of
                                      Nothing    -> do stb <- tb
                                                       sfb <- fb
                                                       case (stb, sfb) of
                                                         (Base a, Base b) -> return $ Base $ S.svIte t a b
-                                                        _                -> caseTooComplicated []
+                                                        _                -> caseTooComplicated "with-non-base-alternatives" []
                                      Just True  -> tb
                                      Just False -> fb
                  match :: S.SVal -> AltCon -> Eval (Maybe S.SVal)
