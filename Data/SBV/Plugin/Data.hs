@@ -20,7 +20,7 @@ import Data.Data  (Data, Typeable)
 -- use the option 'AnySolver'. The default is to error-out on failure, using
 -- the default-SMT solver picked by SBV, which is currently Z3.
 data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
-               | Debug          -- ^ Produce verbose output
+               | Verbose        -- ^ Produce verbose output, good for debugging
                | Safety         -- ^ Check for safety
                | QuickCheck     -- ^ Perform quickCheck
                | Uninterpret    -- ^ Uninterpret this binding for proof purposes
