@@ -64,32 +64,32 @@ buildSpecialEnv = M.fromList `fmap` mapM grabVar specials
    where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
                                f <- lookupId fn
                                return (f, sfn)
-         specials = [ ('F#,    Func id)
-                    , ('D#,    Func id)
+         specials = [ ('F#,    Func  (S.KFloat,  Nothing) (return . Base))
+                    , ('D#,    Func  (S.KDouble, Nothing) (return . Base))
                     , ('True,  Base  S.svTrue)
                     , ('False, Base  S.svFalse)
-                    , ('(&&),  lift2 S.svAnd)
-                    , ('(||),  lift2 S.svOr)
-                    , ('not,   lift1 S.svNot)
+                    , ('(&&),  lift2 S.KBool S.svAnd)
+                    , ('(||),  lift2 S.KBool S.svOr)
+                    , ('not,   lift1 S.KBool S.svNot)
                     ]
 
 -- | Symbolic functions supported by the plugin; those from a class.
 symFuncs :: [(TH.Name, S.Kind, Val)]
 symFuncs =  -- equality is for all kinds
-          [(op, k, lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
+          [(op, k, lift2 k sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
 
           -- arithmetic
-       ++ [(op, k, lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
-       ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
+       ++ [(op, k, lift1 k sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
+       ++ [(op, k, lift2 k sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
 
           -- literal conversions from Integer
        ++ [(op, k, lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
 
           -- comparisons
-       ++ [(op, k, lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
+       ++ [(op, k, lift2 k sOp) | k <- arithKinds, (op, sOp) <- compOps ]
 
          -- bit-vector
-      ++ [ (op, k, lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
+      ++ [ (op, k, lift2 k sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
 
  where
        -- Bit-vectors
@@ -132,13 +132,13 @@ symFuncs =  -- equality is for all kinds
                   ]
 
 -- | Lift a unary SBV function to the plugin value space
-lift1 :: (S.SVal -> S.SVal) -> Val
-lift1 f = Func $ \(Base a) -> Base (f a)
+lift1 :: S.Kind -> (S.SVal -> S.SVal) -> Val
+lift1 k f = Func (k, Nothing) $ return . Base . f
 
 -- | Lift a unary SBV function that takes and integer value to the plugin value space
 lift1Int :: (Integer -> S.SVal) -> Val
-lift1Int f = Func $ \(Base i) -> Base (f (fromMaybe (error ("Cannot extract an integer from value: " ++ show i)) (S.svAsInteger i)))
+lift1Int f = Func (S.KUnbounded, Nothing) $ \i -> return $ Base (f (fromMaybe (error ("Cannot extract an integer from value: " ++ show i)) (S.svAsInteger i)))
 
 -- | Lift a two argument SBV function to our the plugin value space
-lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
-lift2 f = Func $ \(Base a) -> Func $ \(Base b) -> Base (f a b)
+lift2 :: S.Kind -> (S.SVal -> S.SVal -> S.SVal) -> Val
+lift2 k f = Func (k, Nothing) $ \a -> return $ Func (k, Nothing) $ \b -> return (Base (f a b))

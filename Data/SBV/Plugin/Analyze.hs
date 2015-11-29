@@ -9,7 +9,8 @@
 -- Walk the GHC Core, proving theorems/checking safety as they are found
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Data.SBV.Plugin.Analyze (analyzeBind) where
 
 import GhcPlugins
@@ -20,8 +21,8 @@ import System.Exit hiding (die)
 import Data.List  (intercalate)
 import qualified Data.Map as M
 
-import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
-import qualified Data.SBV.Dynamic as S
+import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
+import qualified Data.SBV.Dynamic   as S
 
 import qualified Control.Exception as C
 
@@ -33,6 +34,7 @@ analyzeBind :: Config -> CoreBind -> CoreM ()
 analyzeBind cfg@Config{sbvAnnotation} = go
   where go (NonRec b e) = bind (b, e)
         go (Rec binds)  = mapM_ bind binds
+
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
                  | Safety `elem` opts      = error "SBV: Safety pragma is not implemented yet"
@@ -41,17 +43,11 @@ analyzeBind cfg@Config{sbvAnnotation} = go
 
 -- | Prove an SBVTheorem
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg@Config{isGHCi} opts b topLoc e
-  | isProvable (exprType e) = do success <- safely $ proveIt cfg opts (topLoc, b) e
-                                 unless (success || isGHCi || IgnoreFailure `elem` opts) $ do
-                                     putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)" 
-                                     exitFailure
-  | True                    = error $ "SBV: " ++ showSpan cfg b topLoc ++ " does not have a provable type!"
-
--- | Is this a provable type?
--- TODO: Currently we always say yes!
-isProvable :: Type -> Bool
-isProvable _ = True
+prove cfg@Config{isGHCi} opts b topLoc e = do
+        success <- safely $ proveIt cfg opts (topLoc, b) e
+        unless (success || isGHCi || IgnoreFailure `elem` opts) $ do
+            putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)" 
+            exitFailure
 
 -- | Safely execute an action, catching the exceptions, printing and returning False if something goes wrong
 safely :: IO Bool -> IO Bool
@@ -60,22 +56,11 @@ safely a = a `C.catch` bad
         bad e = do print e
                    return False
 
--- | Interpreter environment
-data Env = Env { curLoc  :: SrcSpan
-               , baseTCs :: M.Map TyCon         S.Kind
-               , envMap  :: M.Map (Var, S.Kind) Val
-               , specMap :: M.Map Var           Val
-               , coreMap :: M.Map Var           CoreExpr
-               }
-
--- | The interpreter monad
-type Eval a = ReaderT Env S.Symbolic a
-
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
 proveIt cfg opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
-        let verbose = Debug      `elem` opts
+        let verbose = Verbose    `elem` opts
             qCheck  = QuickCheck `elem` opts
             runProver prop
               | qCheck = Left  `fmap` S.svQuickCheck prop
@@ -101,17 +86,17 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                 print sres
                 return success
           Left success -> return success
+
   where res :: S.Symbolic S.SVal
-        res = do v <- runReaderT (go topExpr)
-                                 Env{ curLoc  = topLoc
-                                    , envMap  = knownFuns     cfg
-                                    , baseTCs = knownTCs      cfg
-                                    , specMap = knownSpecials cfg
-                                    , coreMap = allBinds      cfg
-                                    }
+        res = do v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
+                                                      , envMap  = knownFuns     cfg
+                                                      , baseTCs = knownTCs      cfg
+                                                      , specMap = knownSpecials cfg
+                                                      , coreMap = allBinds      cfg
+                                                      }
                  case v of
                    Base r -> return r
-                   Func _ -> die topLoc "Expression too complicated for SBV" [sh topExpr]
+                   Func{} -> error "Impossible happened. Final result reduced to a non-base value!"
 
         die :: SrcSpan -> String -> [String] -> a
         die loc w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
@@ -125,6 +110,27 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
 
         sh o = showSDoc (dflags cfg) (ppr o)
 
+        -- Given an alleged theorem, first establish it has the right type, and
+        -- then go ahead and evaluate it symbolicly after applying it to sufficient
+        -- number of symbolic arguments
+        symEval :: CoreExpr -> ReaderT Env S.Symbolic Val
+        symEval e = do let (bs, body) = collectBinders e
+                       ats <- mapM (\b -> getBaseType (varType b) >>= \bt -> return (b, bt)) bs
+                       rt  <- getBaseType (exprType body)
+                       let badArgs  = [(b, varType b) | (b, Nothing) <- ats]
+                           goodArgs = [(k, b)         | (b, Just k)  <- ats]
+                       case badArgs of
+                          (_:_) -> do Env{curLoc} <- ask
+                                      die curLoc "Following argument(s) has non-SBV supported types:" [sh b ++ " :: " ++ sh t | (b, t) <- badArgs]
+                          []        -> case rt of
+                                         Nothing -> do Env{curLoc} <- ask
+                                                       die curLoc "Binding has a non-SBV supported result type:" [sh (exprType body)]
+                                         _       -> do let mkVar (k, b) = do v <- S.svMkSymVar Nothing k (Just (sh b))
+                                                                             return ((b, k), Base v)
+                                                       sArgs <- mapM (lift . mkVar) goodArgs
+                                                       local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
+
+        -- Main symbolic evaluator:
         go :: CoreExpr -> ReaderT Env S.Symbolic Val
 
         -- go e | trace ("--> " ++ show (sh e)) False = undefined
@@ -161,19 +167,18 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                            Nothing -> go f
                            Just sf -> return sf
                 ev <- go e
-                case fv of
-                  Base _  -> tbd "Unsupported application" [sh f, sh e]   -- shouldn't happen
-                  Func sf -> return $ sf ev
+                case (fv, ev) of
+                  (Func (k, _) sf, Base sv) -> if S.kindOf sv == k
+                                               then sf sv
+                                               else error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ show (S.kindOf sv, k)
+                  _                    -> tbd "Unsupported higher-order application" [sh f, sh e]   -- shouldn't happen
 
-        -- NB: We do *not* have to worry about shadowing when we enter the body
-        -- of a lambda, as Core variables are guaranteed unique
         go e@(Lam b body) = do
             let t = varType b
             mbK <- getBaseType t
             case mbK of
               Nothing -> tbd "Abstraction with a non-basic binder" [sh e, sh t]
-              Just k  -> do s <- lift $ S.svMkSymVar Nothing k (Just (sh b))
-                            local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) $ go body
+              Just k  -> return $ Func (k, Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) (go body)
 
         go e@(Let _ _)
            = tbd "Unsupported let-binding" [sh e]
