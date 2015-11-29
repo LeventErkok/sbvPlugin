@@ -116,15 +116,23 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         symEval :: CoreExpr -> ReaderT Env S.Symbolic Val
         symEval e = do let (bs, body) = collectBinders e
                        ats <- mapM (\b -> getBaseType (varType b) >>= \bt -> return (b, bt)) bs
-                       rt  <- getBaseType (exprType body)
+                       let bodyType = exprType body
+                       rt  <- getBaseType bodyType
                        let badArgs  = [(b, varType b) | (b, Nothing) <- ats]
                            goodArgs = [(k, b)         | (b, Just k)  <- ats]
+                           isPoly   = not . null . tyVarsOfType
                        case badArgs of
                           (_:_) -> do Env{curLoc} <- ask
-                                      die curLoc "Following argument(s) has non-SBV supported types:" [sh b ++ " :: " ++ sh t | (b, t) <- badArgs]
+                                      let what | length badArgs < 2 = "Following argument has non-SBV supported type"
+                                               | True               = "Following arguments have non-SBV supported types"
+                                          warnPoly t | isPoly t     = " (Non-monomorphic)"
+                                                     | True         = ""
+                                      die curLoc what [sh b ++ " :: " ++ sh t ++ warnPoly t | (b, t) <- badArgs]
                           []        -> case rt of
                                          Nothing -> do Env{curLoc} <- ask
-                                                       die curLoc "Binding has a non-SBV supported result type:" [sh (exprType body)]
+                                                       let what | isPoly bodyType = "Binding has a polymorphic result type"
+                                                                | True            = "Binding has an unsupported result type"
+                                                       die curLoc what [sh bodyType]
                                          _       -> do let mkVar (k, b) = do v <- S.svMkSymVar Nothing k (Just (sh b))
                                                                              return ((b, k), Base v)
                                                        sArgs <- mapM (lift . mkVar) goodArgs
