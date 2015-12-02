@@ -26,6 +26,7 @@ import Data.SBV.Plugin.Data
 
 -- | Interpreter environment
 data Env = Env { curLoc  :: SrcSpan
+               , flags   :: DynFlags
                , baseTCs :: M.Map TyCon         S.Kind
                , envMap  :: M.Map (Var, S.Kind) Val
                , specMap :: M.Map Var           Val
