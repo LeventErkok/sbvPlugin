@@ -97,6 +97,7 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
 
   where res :: S.Symbolic S.SVal
         res = do v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
+                                                      , flags   = dflags        cfg
                                                       , envMap  = knownFuns     cfg
                                                       , baseTCs = knownTCs      cfg
                                                       , specMap = knownSpecials cfg
@@ -124,47 +125,29 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         symEval :: CoreExpr -> ReaderT Env S.Symbolic Val
         symEval e = do let (bs, body) = collectBinders e
                        ats <- mapM (\b -> getBaseType (varType b) >>= \bt -> return (b, bt)) bs
-                       let bodyType = exprType body
-                       rt  <- getBaseType bodyType
-                       let badArgs  = [(b, varType b) | (b, Nothing) <- ats]
-                           goodArgs = [(k, b)         | (b, Just k)  <- ats]
-                           isPoly   = not . null . tyVarsOfType
-                       case badArgs of
-                          (_:_) -> do Env{curLoc} <- ask
-                                      let what | length badArgs < 2 = "Following argument has non-SBV supported type"
-                                               | True               = "Following arguments have non-SBV supported types"
-                                          warnPoly t | isPoly t     = " (Non-monomorphic)"
-                                                     | True         = ""
-                                      die curLoc what [sh b ++ " :: " ++ sh t ++ warnPoly t | (b, t) <- badArgs]
-                          []        -> case rt of
-                                         Nothing -> do Env{curLoc} <- ask
-                                                       let what | isPoly bodyType = "Binding has a polymorphic result type"
-                                                                | True            = "Binding has an unsupported result type"
-                                                       die curLoc what [sh bodyType]
-                                         _       -> do let mkVar (k, b) = do v <- S.svMkSymVar Nothing k (Just (sh b))
-                                                                             return ((b, k), Base v)
-                                                       sArgs <- mapM (lift . mkVar) goodArgs
-                                                       local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
+                       let mkVar ((b, k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
+                                                    return ((b, k), Base v)
+                       sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+                       local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
 
         -- Main symbolic evaluator:
         go :: CoreExpr -> ReaderT Env S.Symbolic Val
 
         -- go e | trace ("--> " ++ show (sh e)) False = undefined
 
-        go e@(Var v) = do mbF <- findSymbolic e
-                          case mbF of
-                            Just sv -> return sv
-                            Nothing -> do -- () <- do Env{envMap, specMap} <- ask; trace (sh (envMap, specMap, e, v)) (return ())
-                                          Env{coreMap} <- ask
-                                          case v `M.lookup` coreMap of
-                                            Just e' -> go e'
-                                            Nothing -> tbd "Not-yet-supported expression" [sh e ++ " :: " ++ sh (varType v)]
+        go e@(Var v) = do Env{envMap, coreMap, specMap} <- ask
+                          k <- getBaseType (exprType e)
+                          case (v, k) `M.lookup` envMap of
+                            Just b  -> return b
+                            Nothing -> case v `M.lookup` coreMap of
+                                          Just b  -> go b
+                                          Nothing -> case v `M.lookup` specMap of
+                                                        Just b  -> return b
+                                                        Nothing -> uninterpret e
 
         go (Lit (LitInteger i t))
-           = do mbK <- getBaseType t
-                case mbK of
-                  Nothing -> tbd "Expression has a constant with a complicated type" [show i ++ " :: " ++ sh t]
-                  Just k  -> return $ Base $ S.svInteger k i
+           = do k <- getBaseType t
+                return $ Base $ S.svInteger k i
 
         go (Lit (MachFloat i))
            = return $ Base $ S.svFloat (fromRational i)
@@ -175,27 +158,27 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         go e@(Lit _)
            = tbd "Unsupported literal" [sh e]
 
+        go e@(App (App (Var v) (Type t)) (Var dict))
+           | isReallyADictionary dict = do Env{envMap} <- ask
+                                           k <- getBaseType t
+                                           case (v, k) `M.lookup` envMap of
+                                              Just b -> return b
+                                              _      -> uninterpret e
         go (App a (Type _))
            = go a
 
         go (App f e)
-           = do fv <- do mbSF <- findSymbolic f
-                         case mbSF of
-                           Nothing -> go f
-                           Just sf -> return sf
-                ev <- go e
-                case (fv, ev) of
-                  (Func (k, _) sf, Base sv) -> if S.kindOf sv == k
-                                               then sf sv
-                                               else error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ show (S.kindOf sv, k)
-                  _ -> tbd "Unsupported higher-order application" [sh f, sh e]   -- shouldn't happen
+           = do func <- go f
+                arg  <- go e
+                case (func, arg) of
+                  (Func (k, _) sf, Base sv) | S.kindOf sv == k     -> sf sv
+                  (Base fv,        Base _)  | S.isUninterpreted fv -> tbd "Uninterpreted function application" [sh f, sh e]
+                  (_,              Func{})                         -> tbd "Unsupported higher-order application" [sh f, sh e]
+                  _                                                -> error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ show [sh f, sh e]
 
-        go e@(Lam b body) = do
-            let t = varType b
-            mbK <- getBaseType t
-            case mbK of
-              Nothing -> tbd "Abstraction with a non-basic binder" [sh e, sh t]
-              Just k  -> return $ Func (k, Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) (go body)
+        go (Lam b body) = do
+            k <- getBaseType (varType b)
+            return $ Func (k, Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) (go body)
 
         go e@(Let _ _)
            = tbd "Unsupported let-binding" [sh e]
@@ -208,14 +191,14 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                 let isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
                     (nonDefs, defs) = partition isDefault alts
-                    walk [(_, [], rhs)]        = go rhs
-                    walk ((p, [], rhs) : rest) = case sce of
+                    walk [(_, _, rhs)]        = go rhs
+                    walk ((p, _, rhs) : rest) = case sce of
                                                    Base a -> do mr <- match a p
                                                                 case mr of
                                                                   Just m  -> choose m (go rhs) (walk rest)
                                                                   Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
                                                    _      -> caseTooComplicated "with-non-base-scrutinee" []
-                    walk _                     = caseTooComplicated "with-pattern-bindings" []
+                    walk []                     = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
                 walk (nonDefs ++ defs)
            where caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
                  caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
@@ -239,8 +222,8 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                                                   Just (Base b) -> return $ Just $ a `S.svEqual` b
                                                   _             -> return Nothing
 
-        go e@(Cast{})
-           = tbd "Unsupported cast-expression" [sh e]
+        go (Cast e _)
+           = go e
 
         go (Tick t e)
            = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
@@ -251,42 +234,29 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         go e@(Coercion{})
            = tbd "Unsupported coercion-expression" [sh e]
 
--- | Return, if known, whatever symbolic function we can for an expression
-findSymbolic :: CoreExpr -> Eval (Maybe Val)
-findSymbolic e = do mb <- getSymFun e
-                    case mb of
-                      Just _  -> return mb
-                      Nothing -> getSpecialFun e
-  where getSymFun :: CoreExpr -> Eval (Maybe Val)
-        getSymFun (Var v) = do Env{envMap} <- ask
-                               let t = exprType e
-                               mbK <- getBaseType t
-                               case mbK of
-                                 Nothing -> return Nothing
-                                 Just k  -> return $ (v, k) `M.lookup` envMap
-        getSymFun (App (App (Var v) (Type t)) (Var dict))
-          | isReallyADictionary dict = do Env{envMap} <- ask
-                                          mbK <- getBaseType t
-                                          case mbK of
-                                            Nothing -> return Nothing
-                                            Just k  -> return $ (v, k) `M.lookup` envMap
-        getSymFun _ = return Nothing
+-- | Uninterpret an expression.
+-- TODO: Only supports base values. Need to extend to functions.
+uninterpret :: CoreExpr -> Eval Val
+uninterpret expr = do Env{flags} <- ask
+                      k <- getBaseType (exprType expr)
+                      return $ Base $ S.svUninterpreted k (showSDoc flags (ppr expr))  Nothing []
 
-        getSpecialFun :: CoreExpr -> Eval (Maybe Val)
-        getSpecialFun (Var v) = do Env{specMap} <- ask
-                                   return $ v `M.lookup` specMap
-        getSpecialFun _       = return Nothing
 
-        isReallyADictionary :: Var -> Bool
-        isReallyADictionary v = case classifyPredType (varType v) of
-                                  ClassPred{} -> True
-                                  EqPred{}    -> True
-                                  TuplePred{} -> True
-                                  IrredPred{} -> False
+-- | Is this variable really a dictionary?
+isReallyADictionary :: Var -> Bool
+isReallyADictionary v = case classifyPredType (varType v) of
+                          ClassPred{} -> True
+                          EqPred{}    -> True
+                          TuplePred{} -> True
+                          IrredPred{} -> False
 
 -- | Convert a Core type to an SBV kind, if known
-getBaseType :: Type -> Eval (Maybe S.Kind)
-getBaseType t = do Env{baseTCs} <- ask
+-- Otherwise, create an uninterpreted kind, and return that.
+getBaseType :: Type -> Eval S.Kind
+getBaseType t = do Env{baseTCs, flags} <- ask
+                   let uninterpreted = S.KUserSort (showSDoc flags (ppr t)) (Left "originating from sbvPlugin")
                    case splitTyConApp_maybe t of
-                     Just (tc, []) -> return $ tc `M.lookup` baseTCs
-                     _             -> return Nothing
+                     Just (tc, []) -> case tc `M.lookup` baseTCs of
+                                         Just k  -> return k
+                                         Nothing -> return uninterpreted
+                     _             -> return uninterpreted
