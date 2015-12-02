@@ -222,6 +222,7 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                                                   Just (Base b) -> return $ Just $ a `S.svEqual` b
                                                   _             -> return Nothing
 
+        -- TODO: This isn't right; we need to thread the type at this point
         go (Cast e _)
            = go e
 
@@ -240,7 +241,6 @@ uninterpret :: CoreExpr -> Eval Val
 uninterpret expr = do Env{flags} <- ask
                       k <- getBaseType (exprType expr)
                       return $ Base $ S.svUninterpreted k (showSDoc flags (ppr expr))  Nothing []
-
 
 -- | Is this variable really a dictionary?
 isReallyADictionary :: Var -> Bool
