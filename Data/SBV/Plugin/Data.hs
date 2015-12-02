@@ -24,6 +24,7 @@ data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | Safety         -- ^ Check for safety
                | QuickCheck     -- ^ Perform quickCheck
                | Uninterpret    -- ^ Uninterpret this binding for proof purposes
+               | Names [String] -- ^ Use these names for the arguments; need not be exhaustive
                | Z3             -- ^ Use Z3
                | Yices          -- ^ Use Yices
                | Boolector      -- ^ Use Boolector
