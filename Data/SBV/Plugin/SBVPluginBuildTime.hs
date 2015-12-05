@@ -2,4 +2,4 @@
 module SBVPluginBuildTime (buildTime) where
 
 buildTime :: String
-buildTime = "Tue Dec  1 22:20:29 PST 2015"
+buildTime = "Fri Dec  4 17:33:18 PST 2015"

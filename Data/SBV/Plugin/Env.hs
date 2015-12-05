@@ -41,6 +41,7 @@ buildTCEnv isz = M.fromList `fmap` mapM grabTyCon basics
                  , (S.KUnbounded,        ''Integer)
                  , (S.KFloat,            ''Float)
                  , (S.KDouble,           ''Double)
+                 , (S.KReal,             ''Rational)
                  , (S.KBounded True isz, ''Int)
                  , (S.KBounded True   8, ''Int8)
                  , (S.KBounded True  16, ''Int16)
@@ -97,8 +98,8 @@ symFuncs =  -- equality is for all kinds
        -- Bit-vectors
        bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
 
-       -- Integer kinds
-       integerKinds = S.KUnbounded : bvKinds
+       -- Those that can be converted from an Integer
+       integerKinds = S.KUnbounded : S.KReal : bvKinds
 
        -- Float kinds
        floatKinds = [S.KFloat, S.KDouble]
