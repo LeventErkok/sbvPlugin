@@ -206,11 +206,13 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tgo _ (App f e)
            = do func <- go f
                 arg  <- go e
+                let ok (S.KUserSort s1 _) (S.KUserSort s2 _) = s1 == s2
+                    ok k1                 k2                 = k1 == k2
                 case (func, arg) of
-                  (Func (k, _) sf, Base sv) | S.kindOf sv == k -> sf sv
-                  (_,              Func{})                     -> tbd "Unsupported higher-order application" [sh f, sh e]
-                  _                                            -> error $ "[SBV] Impossible happened. Got an application with mismatched types: "
-                                                                          ++ sh [(f, func), (e, arg)]
+                  (Func (k, _) sf, Base sv) | S.kindOf sv `ok` k -> sf sv
+                  (_,              Func{})                       -> tbd "Unsupported higher-order application" [sh f, sh e]
+                  _                                              -> error $ "[SBV] Impossible happened. Got an application with mismatched types: "
+                                                                            ++ sh [(f, func), (e, arg)]
 
         tgo _ (Lam b body) = do
             k <- getBaseType (getSrcSpan b) (varType b)
@@ -308,10 +310,10 @@ isReallyADictionary v = case classifyPredType (varType v) of
 -- | Convert a Core type to an SBV kind, if known
 -- Otherwise, create an uninterpreted kind, and return that.
 getBaseType :: SrcSpan -> Type -> Eval S.Kind
-getBaseType _sp t = do
+getBaseType sp t = do
         Env{baseTCs, flags} <- ask
         let nm = mkValidName "type" $ showSDoc flags (ppr t)
-            uninterpreted = S.KUserSort nm (Left "originating from sbvPlugin") --  ++ showSDoc flags (ppr sp))
+            uninterpreted = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
         case grabTCs (splitTyConApp_maybe t) of
           Just k -> case k `M.lookup` baseTCs of
                       Just knd -> return knd
