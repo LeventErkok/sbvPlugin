@@ -21,6 +21,7 @@ import System.Exit hiding (die)
 
 import Data.IORef
 
+import Data.Char  (isAlpha, isAlphaNum)
 import Data.List  (intercalate, partition, nub, sortBy)
 import Data.Maybe (isJust)
 import Data.Ord   (comparing)
@@ -187,12 +188,12 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                       return $ Base $ S.svInteger k i
                   where noLit = tbd "Unsupported literal" [sh e]
 
-        tgo _ (App (App (Var v) (Type t)) (Var dict))
+        tgo tFun (App (App (Var v) (Type t)) (Var dict))
            | isReallyADictionary dict = do Env{envMap} <- ask
                                            k <- getBaseType t
                                            case (v, k) `M.lookup` envMap of
                                               Just b -> return b
-                                              _      -> uninterpret t v
+                                              _      -> uninterpret tFun v
         tgo _ (App a (Type _))
            = go a
 
@@ -269,11 +270,18 @@ uninterpret t v = do let (args, res) = splitFunTys t
                      argKs <- mapM getBaseType args
                      resK  <- getBaseType res
                      Env{flags, uninterpreted} <- ask
-                     let nm  = showSDoc flags (ppr v)
+                     let nm = mkValid $ showSDoc flags (ppr v)
                      liftIO $ modifyIORef uninterpreted ((v, t) :)
                      return $ walk argKs (nm, resK) []
   where walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
         walk (a:as) nmk     args = Func (a, Nothing) $ \p -> return (walk as nmk (p:args))
+        -- not every name is good, sigh
+        mkValid nm | null nm                 = "sbvPluginUninterpreted" -- can't happen
+                   | not (isAlpha (head nm)) = mkValid $ "sbvPlugin_" ++ nm
+                   | True                    = map tr nm
+         where tr c | isAlphaNum c = c
+                    | c `elem` "_" = c
+                    | True         = '_'
 
 -- | Is this variable really a dictionary?
 isReallyADictionary :: Var -> Bool
