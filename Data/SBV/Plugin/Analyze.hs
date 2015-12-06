@@ -30,6 +30,7 @@ import qualified Data.Map as M
 
 import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic   as S
+import qualified Data.SBV.Internals as S
 
 import qualified Control.Exception as C
 
@@ -106,9 +107,14 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 unless (success || null unintFuns) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
-                            shUI (e, t) = putStrLn $ "  [" ++ showSDoc (dflags cfg) (ppr (getSrcSpan e)) ++ "] " ++ sh e ++ " :: " ++ sh t
+                            shUI (e, t) = (showSDoc (dflags cfg) (ppr (getSrcSpan e)), sh e, sh t)
+                            ls   = map shUI unintFuns
+                            len1 = maximum (0 : [length s | (s, _, _) <- ls])
+                            len2 = maximum (0 : [length s | (_, s, _) <- ls])
+                            pad n s = take n (s ++ repeat ' ')
+                            put (a, b, c) = putStrLn $ "  [" ++ pad len1 a ++ "] " ++ pad len2 b ++ " :: " ++ c
                         putStrLn $ "[SBV] Counter-example might be bogus due to uninterpreted constant" ++ plu
-                        mapM_ shUI unintFuns
+                        mapM_ put ls
 
                 return success
           Left success -> return success
@@ -194,8 +200,8 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                            case (v, k) `M.lookup` envMap of
                                               Just b -> return b
                                               _      -> uninterpret tFun v
-        tgo _ (App a (Type _))
-           = go a
+        tgo t (App a (Type _))
+           = tgo t a
 
         tgo _ (App f e)
            = do func <- go f
@@ -266,22 +272,29 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
 -- | Uninterpret an expression
 uninterpret :: Type -> Var -> Eval Val
-uninterpret t v = do let (args, res) = splitFunTys t
-                     argKs <- mapM getBaseType args
-                     resK  <- getBaseType res
-                     Env{flags, uninterpreted} <- ask
-                     let nm = mkValid $ showSDoc flags (ppr v)
-                     liftIO $ modifyIORef uninterpreted ((v, t) :)
-                     return $ walk argKs (nm, resK) []
-  where walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
+uninterpret origT v = do
+          let (args, res) = splitFunTys t
+          argKs <- mapM getBaseType args
+          resK  <- getBaseType res
+          Env{flags, uninterpreted} <- ask
+          let nm = mkValidName "expr" $ showSDoc flags (ppr v)
+          liftIO $ modifyIORef uninterpreted ((v, t) :)
+          return $ walk argKs (nm, resK) []
+  where t = origT
+
+        walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
         walk (a:as) nmk     args = Func (a, Nothing) $ \p -> return (walk as nmk (p:args))
-        -- not every name is good, sigh
-        mkValid nm | null nm                 = "sbvPluginUninterpreted" -- can't happen
-                   | not (isAlpha (head nm)) = mkValid $ "sbvPlugin_" ++ nm
-                   | True                    = map tr nm
-         where tr c | isAlphaNum c = c
-                    | c `elem` "_" = c
-                    | True         = '_'
+
+-- not every name is good, sigh
+mkValidName :: String -> String -> String
+mkValidName origin nm
+  | null nm || nm `elem` S.smtLibReservedNames = mkValidName origin ("sbvPlugin_" ++ origin ++ "_" ++ nm)
+  | isAlpha (head nm) && all isGood (tail nm)  = nm
+  | True                                       = "|" ++ map tr nm ++ "|"
+  where isGood c = isAlphaNum c || c == '_'
+        tr '|'   = '_'
+        tr '\\'  = '_'
+        tr c     = c
 
 -- | Is this variable really a dictionary?
 isReallyADictionary :: Var -> Bool
@@ -295,7 +308,8 @@ isReallyADictionary v = case classifyPredType (varType v) of
 -- Otherwise, create an uninterpreted kind, and return that.
 getBaseType :: Type -> Eval S.Kind
 getBaseType t = do Env{baseTCs, flags} <- ask
-                   let uninterpreted = S.KUserSort (showSDoc flags (ppr t)) (Left "originating from sbvPlugin")
+                   let nm = mkValidName "type" $ showSDoc flags (ppr t)
+                       uninterpreted = S.KUserSort nm (Left "originating from sbvPlugin")
                    case grabTCs (splitTyConApp_maybe t) of
                      Just k -> case k `M.lookup` baseTCs of
                                  Just knd  -> return knd
