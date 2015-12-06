@@ -96,12 +96,13 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
           Left success -> return success
 
   where res :: S.Symbolic S.SVal
-        res = do v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
-                                                      , flags   = dflags        cfg
-                                                      , envMap  = knownFuns     cfg
-                                                      , baseTCs = knownTCs      cfg
-                                                      , specMap = knownSpecials cfg
-                                                      , coreMap = allBinds      cfg
+        res = do v <- runReaderT (symEval topExpr) Env{ curLoc       = topLoc
+                                                      , flags        = dflags        cfg
+                                                      , machWordSize = wordSize      cfg
+                                                      , envMap       = knownFuns     cfg
+                                                      , baseTCs      = knownTCs      cfg
+                                                      , specMap      = knownSpecials cfg
+                                                      , coreMap      = allBinds      cfg
                                                       }
                  case v of
                    Base r -> return r
