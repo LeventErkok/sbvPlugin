@@ -19,19 +19,22 @@ import GhcPlugins
 import Data.Maybe (mapMaybe)
 import qualified Data.Map as M
 
+import Data.IORef
+
 import qualified Data.SBV         as S
 import qualified Data.SBV.Dynamic as S
 
 import Data.SBV.Plugin.Data
 
 -- | Interpreter environment
-data Env = Env { curLoc       :: SrcSpan
-               , flags        :: DynFlags
-               , machWordSize :: Int
-               , baseTCs      :: M.Map (TyCon, [TyCon]) S.Kind
-               , envMap       :: M.Map (Var, S.Kind)    Val
-               , specMap      :: M.Map Var              Val
-               , coreMap      :: M.Map Var              CoreExpr
+data Env = Env { curLoc        :: SrcSpan
+               , flags         :: DynFlags
+               , machWordSize  :: Int
+               , uninterpreted :: IORef [(Var, Type)]
+               , baseTCs       :: M.Map (TyCon, [TyCon]) S.Kind
+               , envMap        :: M.Map (Var, S.Kind)    Val
+               , specMap       :: M.Map Var              Val
+               , coreMap       :: M.Map Var              CoreExpr
                }
 
 -- | The interpreter monad

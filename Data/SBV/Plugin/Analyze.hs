@@ -19,7 +19,12 @@ import GhcPlugins
 import Control.Monad.Reader
 import System.Exit hiding (die)
 
-import Data.List  (intercalate, partition)
+import Data.IORef
+
+import Data.List  (intercalate, partition, nub, sortBy)
+import Data.Maybe (isJust)
+import Data.Ord   (comparing)
+
 import qualified Data.Map as M
 
 import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
@@ -81,7 +86,9 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                             [x, y] -> show x ++ " and " ++ show y
                             xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
         putStrLn $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
-        finalResult <- runProver res
+        rUninterps     <- newIORef []
+        finalResult    <- runProver (res rUninterps)
+        finalUninterps <- readIORef rUninterps
         case finalResult of
           Right (solver, sres@(S.ThmResult smtRes)) -> do
                 let success = case smtRes of
@@ -92,21 +99,31 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                 S.TimeOut{}       -> False   -- conservative
                 putStr $ "[" ++ show solver ++ "] "
                 print sres
+
+                -- If proof failed and there are uninterpreted functions, print a warning:
+                let unintFuns = [p | p@(_, t) <- nub $ sortBy (comparing fst) finalUninterps, isJust (splitFunTy_maybe t)]
+                unless (success || null unintFuns) $ do
+                        let plu | length finalUninterps > 1 = "s:"
+                                | True                      = ":"
+                            shUI (e, t) = putStrLn $ "  [" ++ showSDoc (dflags cfg) (ppr (getSrcSpan e)) ++ "] " ++ sh e ++ " :: " ++ sh t
+                        putStrLn $ "[SBV] Counter-example might be bogus due to uninterpreted constant" ++ plu
+                        mapM_ shUI unintFuns
+
                 return success
           Left success -> return success
 
-  where res :: S.Symbolic S.SVal
-        res = do v <- runReaderT (symEval topExpr) Env{ curLoc       = topLoc
-                                                      , flags        = dflags        cfg
-                                                      , machWordSize = wordSize      cfg
-                                                      , envMap       = knownFuns     cfg
-                                                      , baseTCs      = knownTCs      cfg
-                                                      , specMap      = knownSpecials cfg
-                                                      , coreMap      = allBinds      cfg
-                                                      }
-                 case v of
-                   Base r -> return r
-                   Func{} -> error "Impossible happened. Final result reduced to a non-base value!"
+  where res uis = do v <- runReaderT (symEval topExpr) Env{ curLoc        = topLoc
+                                                          , flags         = dflags        cfg
+                                                          , uninterpreted = uis
+                                                          , machWordSize  = wordSize      cfg
+                                                          , envMap        = knownFuns     cfg
+                                                          , baseTCs       = knownTCs      cfg
+                                                          , specMap       = knownSpecials cfg
+                                                          , coreMap       = allBinds      cfg
+                                                          }
+                     case v of
+                       Base r -> return r
+                       Func{} -> error "Impossible happened. Final result reduced to a non-base value!"
 
         die :: SrcSpan -> String -> [String] -> a
         die loc w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
@@ -142,17 +159,17 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         -- tgo t e | trace ("--> " ++ show (sh (e, t))) False = undefined
 
-        tgo t e@(Var v) = do Env{envMap, coreMap, specMap} <- ask
-                             k <- getBaseType t
-                             case (v, k) `M.lookup` envMap of
-                               Just b  -> return b
-                               Nothing -> case v `M.lookup` coreMap of
-                                             Just b  -> if isUninterpretedBinding v
-                                                        then uninterpret t e
-                                                        else go b
-                                             Nothing -> case v `M.lookup` specMap of
-                                                         Just b  -> return b
-                                                         Nothing -> uninterpret t e
+        tgo t (Var v) = do Env{envMap, coreMap, specMap} <- ask
+                           k <- getBaseType t
+                           case (v, k) `M.lookup` envMap of
+                             Just b  -> return b
+                             Nothing -> case v `M.lookup` coreMap of
+                                           Just b  -> if isUninterpretedBinding v
+                                                      then uninterpret t v
+                                                      else go b
+                                           Nothing -> case v `M.lookup` specMap of
+                                                       Just b  -> return b
+                                                       Nothing -> uninterpret t v
 
         tgo _ e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -170,12 +187,12 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                       return $ Base $ S.svInteger k i
                   where noLit = tbd "Unsupported literal" [sh e]
 
-        tgo _ e@(App (App (Var v) (Type t)) (Var dict))
+        tgo _ (App (App (Var v) (Type t)) (Var dict))
            | isReallyADictionary dict = do Env{envMap} <- ask
                                            k <- getBaseType t
                                            case (v, k) `M.lookup` envMap of
                                               Just b -> return b
-                                              _      -> uninterpret t e
+                                              _      -> uninterpret t v
         tgo _ (App a (Type _))
            = go a
 
@@ -247,15 +264,16 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
            = tbd "Unsupported coercion-expression" [sh e]
 
 -- | Uninterpret an expression
-uninterpret :: Type -> CoreExpr -> Eval Val
-uninterpret t expr = do let (args, res) = splitFunTys t
-                        argKs <- mapM getBaseType args
-                        resK  <- getBaseType res
-                        Env{flags} <- ask
-                        let nm = showSDoc flags (ppr expr)
-                        return $ walk argKs (nm, resK) []
+uninterpret :: Type -> Var -> Eval Val
+uninterpret t v = do let (args, res) = splitFunTys t
+                     argKs <- mapM getBaseType args
+                     resK  <- getBaseType res
+                     Env{flags, uninterpreted} <- ask
+                     let nm  = showSDoc flags (ppr v)
+                     liftIO $ modifyIORef uninterpreted ((v, t) :)
+                     return $ walk argKs (nm, resK) []
   where walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
-        walk (a:as) nmk     args = Func (a, Nothing) $ \v -> return (walk as nmk (v:args))
+        walk (a:as) nmk     args = Func (a, Nothing) $ \p -> return (walk as nmk (p:args))
 
 -- | Is this variable really a dictionary?
 isReallyADictionary :: Var -> Bool
