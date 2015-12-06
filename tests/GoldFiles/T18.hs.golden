@@ -13,11 +13,11 @@ CONSTANTS
 TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
-  [uninterpreted] sbvPlugin___ :: Age -> Age -> SBool
+  [uninterpreted] |==| :: Age -> Age -> SBool
 USER GIVEN CODE SEGMENTS
 AXIOMS
 DEFINE
-  s2 :: SBool = s0 [uninterpreted] sbvPlugin___ s1
+  s2 :: SBool = s0 [uninterpreted] |==| s1
 CONSTRAINTS
 ASSERTIONS
 OUTPUTS
@@ -40,11 +40,11 @@ OUTPUTS
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun sbvPlugin___ (Age Age) Bool)
+(declare-fun |==| (Age Age) Bool)
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
-   (let ((s2 (sbvPlugin___ s0 s1)))
+   (let ((s2 (|==| s0 s1)))
    (not s2)))
 ** Calling: "z3 -nw -in -smt2"
 ** Sending the following model extraction commands:

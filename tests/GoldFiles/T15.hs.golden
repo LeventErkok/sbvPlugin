@@ -12,11 +12,11 @@ CONSTANTS
 TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
-  [uninterpreted] ds_d6YE :: SInt64
+  [uninterpreted] ds_d6XQ :: SInt64
 USER GIVEN CODE SEGMENTS
 AXIOMS
 DEFINE
-  s1 :: SInt64 = [uninterpreted] ds_d6YE
+  s1 :: SInt64 = [uninterpreted] ds_d6XQ
 CONSTRAINTS
 ASSERTIONS
 OUTPUTS
@@ -38,11 +38,11 @@ OUTPUTS
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun ds_d6YE () (_ BitVec 64))
+(declare-fun ds_d6XQ () (_ BitVec 64))
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
-   (let ((s1 ds_d6YE))
+   (let ((s1 ds_d6XQ))
    (not s_1)))
 ** Calling: "z3 -nw -in -smt2"
 ** Z3 output:

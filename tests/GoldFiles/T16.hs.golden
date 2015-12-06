@@ -13,11 +13,11 @@ CONSTANTS
 TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
-  [uninterpreted] ds_d7a9 :: SInt64
+  [uninterpreted] ds_d79l :: SInt64
 USER GIVEN CODE SEGMENTS
 AXIOMS
 DEFINE
-  s1 :: SInt64 = [uninterpreted] ds_d7a9
+  s1 :: SInt64 = [uninterpreted] ds_d79l
   s3 :: SInt64 = s1 + s2
   s4 :: SBool = s1 == s3
 CONSTRAINTS
@@ -42,11 +42,11 @@ OUTPUTS
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun ds_d7a9 () (_ BitVec 64))
+(declare-fun ds_d79l () (_ BitVec 64))
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
-   (let ((s1 ds_d7a9))
+   (let ((s1 ds_d79l))
    (let ((s3 (bvadd s1 s2)))
    (let ((s4 (= s1 s3)))
    (not s4)))))
