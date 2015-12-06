@@ -39,7 +39,7 @@ analyzeBind cfg@Config{sbvAnnotation} = go
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
                  | Safety `elem` opts      = error "SBV: Safety pragma is not implemented yet"
-                 | Uninterpret `elem` opts = error "SBV: Uninterpret pragma is not implemented yet"
+                 | Uninterpret `elem` opts = return ()
                  | True                    = liftIO $ prove cfg opts b (bindSpan b) e
 
 -- | Prove an SBVTheorem
@@ -66,7 +66,7 @@ instance Outputable Val where
 
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-proveIt cfg opts (topLoc, topBind) topExpr = do
+proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
         let verbose = Verbose    `elem` opts
             qCheck  = QuickCheck `elem` opts
@@ -123,7 +123,7 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         -- Given an alleged theorem, first establish it has the right type, and
         -- then go ahead and evaluate it symbolicly after applying it to sufficient
         -- number of symbolic arguments
-        symEval :: CoreExpr -> ReaderT Env S.Symbolic Val
+        symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders e
                        ats <- mapM (\b -> getBaseType (varType b) >>= \bt -> return (b, bt)) bs
                        let mkVar ((b, k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
@@ -131,11 +131,14 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                        sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                        local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
 
-        go :: CoreExpr -> ReaderT Env S.Symbolic Val
+        isUninterpretedBinding :: Var -> Bool
+        isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
+
+        go :: CoreExpr -> Eval Val
         go e = tgo (exprType e) e
 
         -- Main symbolic evaluator:
-        tgo :: Type -> CoreExpr -> ReaderT Env S.Symbolic Val
+        tgo :: Type -> CoreExpr -> Eval Val
 
         -- tgo t e | trace ("--> " ++ show (sh (e, t))) False = undefined
 
@@ -144,10 +147,12 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                              case (v, k) `M.lookup` envMap of
                                Just b  -> return b
                                Nothing -> case v `M.lookup` coreMap of
-                                             Just b  -> go b
+                                             Just b  -> if isUninterpretedBinding v
+                                                        then uninterpret t e
+                                                        else go b
                                              Nothing -> case v `M.lookup` specMap of
-                                                           Just b  -> return b
-                                                           Nothing -> uninterpret t e
+                                                         Just b  -> return b
+                                                         Nothing -> uninterpret t e
 
         tgo _ e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -178,11 +183,10 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
            = do func <- go f
                 arg  <- go e
                 case (func, arg) of
-                  (Func (k, _) sf, Base sv) | S.kindOf sv == k     -> sf sv
-                  (Base fv,        Base _)  | S.isUninterpreted fv -> tbd "Uninterpreted function application" [sh f, sh e]
-                  (_,              Func{})                         -> tbd "Unsupported higher-order application" [sh f, sh e]
-                  _                                                -> error $ "[SBV] Impossible happened. Got an application with mismatched types: "
-                                                                              ++ sh [(f, func), (e, arg)]
+                  (Func (k, _) sf, Base sv) | S.kindOf sv == k -> sf sv
+                  (_,              Func{})                     -> tbd "Unsupported higher-order application" [sh f, sh e]
+                  _                                            -> error $ "[SBV] Impossible happened. Got an application with mismatched types: "
+                                                                          ++ sh [(f, func), (e, arg)]
 
         tgo _ (Lam b body) = do
             k <- getBaseType (varType b)
@@ -242,12 +246,16 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
         tgo _ e@(Coercion{})
            = tbd "Unsupported coercion-expression" [sh e]
 
--- | Uninterpret an expression.
--- TODO: Only supports base values. Need to extend to functions.
+-- | Uninterpret an expression
 uninterpret :: Type -> CoreExpr -> Eval Val
-uninterpret t expr = do Env{flags} <- ask
-                        k <- getBaseType t
-                        return $ Base $ S.svUninterpreted k (showSDoc flags (ppr expr))  Nothing []
+uninterpret t expr = do let (args, res) = splitFunTys t
+                        argKs <- mapM getBaseType args
+                        resK  <- getBaseType res
+                        Env{flags} <- ask
+                        let nm = showSDoc flags (ppr expr)
+                        return $ walk argKs (nm, resK) []
+  where walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
+        walk (a:as) nmk     args = Func (a, Nothing) $ \v -> return (walk as nmk (v:args))
 
 -- | Is this variable really a dictionary?
 isReallyADictionary :: Var -> Bool
