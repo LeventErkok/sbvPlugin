@@ -71,14 +71,16 @@ buildFunEnv = M.fromList `fmap` mapM grabVar symFuncs
                                  return ((f, k), sfn)
 
 -- | Special functions that have a fixed-type
-buildSpecialEnv :: CoreM (M.Map Id Val)
-buildSpecialEnv = M.fromList `fmap`  mapM grabVar basics
+buildSpecialEnv :: Int -> CoreM (M.Map Id Val)
+buildSpecialEnv wsz = M.fromList `fmap`  mapM grabVar basics
    where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
                                f <- lookupId fn
                                return (f, sfn)
 
-         basics = [ ('F#,    Func  (S.KFloat,  Nothing) (return . Base))
-                  , ('D#,    Func  (S.KDouble, Nothing) (return . Base))
+         basics = [ ('F#,    Func  (S.KFloat,  Nothing)            (return . Base))
+                  , ('D#,    Func  (S.KDouble, Nothing)            (return . Base))
+                  , ('I#,    Func  (S.KBounded True  wsz, Nothing) (return . Base))
+                  , ('W#,    Func  (S.KBounded False wsz, Nothing) (return . Base))
                   , ('True,  Base  S.svTrue)
                   , ('False, Base  S.svFalse)
                   , ('(&&),  lift2 S.KBool S.svAnd)
