@@ -24,6 +24,7 @@ import Data.Int
 import Data.Word
 import Data.Bits
 import Data.Maybe (fromMaybe)
+import Data.Ratio
 
 import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
@@ -128,6 +129,7 @@ symFuncs =  -- equality is for all kinds
        binaryOps  = [ ('(+), S.svPlus)
                     , ('(-), S.svMinus)
                     , ('(*), S.svTimes)
+                    , ('(/), S.svDivide)
                     ]
 
        -- Comparisons
