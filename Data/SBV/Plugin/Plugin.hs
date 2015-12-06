@@ -43,12 +43,15 @@ plugin = defaultPlugin {installCoreToDos = install}
           df   <- getDynFlags
           anns <- getAnnotations deserializeWithData guts
 
-          baseTCs      <- buildTCEnv (fromJust (bitSizeMaybe (0::Int)))
+          let wsz = fromJust (bitSizeMaybe (0::Int))
+
+          baseTCs      <- buildTCEnv wsz
           baseEnv      <- buildFunEnv
-          baseSpecials <- buildSpecialEnv
+          baseSpecials <- buildSpecialEnv wsz
 
           let cfg = Config { dflags        = df
                            , opts          = []
+                           , wordSize      = wsz
                            , isGHCi        = hscTarget df == HscInterpreted
                            , knownTCs      = baseTCs
                            , knownFuns     = baseEnv
