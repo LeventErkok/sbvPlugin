@@ -131,63 +131,70 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                        sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                        local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
 
-        -- Main symbolic evaluator:
         go :: CoreExpr -> ReaderT Env S.Symbolic Val
+        go e = tgo (exprType e) e
 
-        -- go e | trace ("--> " ++ show (sh e)) False = undefined
+        -- Main symbolic evaluator:
+        tgo :: Type -> CoreExpr -> ReaderT Env S.Symbolic Val
 
-        go e@(Var v) = do Env{envMap, coreMap, specMap} <- ask
-                          k <- getBaseType (exprType e)
-                          case (v, k) `M.lookup` envMap of
-                            Just b  -> return b
-                            Nothing -> case v `M.lookup` coreMap of
-                                          Just b  -> go b
-                                          Nothing -> case v `M.lookup` specMap of
-                                                        Just b  -> return b
-                                                        Nothing -> uninterpret e
+        -- tgo t e | trace ("--> " ++ show (sh (e, t))) False = undefined
 
-        go (Lit (LitInteger i t))
-           = do k <- getBaseType t
-                return $ Base $ S.svInteger k i
+        tgo t e@(Var v) = do Env{envMap, coreMap, specMap} <- ask
+                             k <- getBaseType t
+                             case (v, k) `M.lookup` envMap of
+                               Just b  -> return b
+                               Nothing -> case v `M.lookup` coreMap of
+                                             Just b  -> go b
+                                             Nothing -> case v `M.lookup` specMap of
+                                                           Just b  -> return b
+                                                           Nothing -> uninterpret t e
 
-        go (Lit (MachFloat i))
-           = return $ Base $ S.svFloat (fromRational i)
+        tgo _ e@(Lit l) = do Env{machWordSize} <- ask
+                             case l of
+                               MachChar{}       -> noLit
+                               MachStr{}        -> noLit
+                               MachNullAddr     -> noLit
+                               MachLabel{}      -> noLit
+                               MachInt      i   -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
+                               MachInt64    i   -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
+                               MachWord     i   -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
+                               MachWord64   i   -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
+                               MachFloat    f   -> return $ Base $ S.svFloat   (fromRational f)
+                               MachDouble   d   -> return $ Base $ S.svDouble  (fromRational d)
+                               LitInteger   i t -> do k <- getBaseType t
+                                                      return $ Base $ S.svInteger k i
+                  where noLit = tbd "Unsupported literal" [sh e]
 
-        go (Lit (MachDouble i))
-           = return $ Base $ S.svDouble (fromRational i)
-
-        go e@(Lit _)
-           = tbd "Unsupported literal" [sh e]
-
-        go e@(App (App (Var v) (Type t)) (Var dict))
+        tgo _ e@(App (App (Var v) (Type t)) (Var dict))
            | isReallyADictionary dict = do Env{envMap} <- ask
                                            k <- getBaseType t
                                            case (v, k) `M.lookup` envMap of
                                               Just b -> return b
-                                              _      -> uninterpret e
-        go (App a (Type _))
+                                              _      -> uninterpret t e
+        tgo _ (App a (Type _))
            = go a
 
-        go (App f e)
+        tgo _ (App f e)
            = do func <- go f
                 arg  <- go e
                 case (func, arg) of
                   (Func (k, _) sf, Base sv) | S.kindOf sv == k     -> sf sv
                   (Base fv,        Base _)  | S.isUninterpreted fv -> tbd "Uninterpreted function application" [sh f, sh e]
                   (_,              Func{})                         -> tbd "Unsupported higher-order application" [sh f, sh e]
-                  _                                                -> error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ show [sh f, sh e]
+                  _                                                -> error $ "[SBV] Impossible happened. Got an application with mismatched types: "
+                                                                              ++ sh [(f, func), (e, arg)]
 
-        go (Lam b body) = do
+        tgo _ (Lam b body) = do
             k <- getBaseType (varType b)
             return $ Func (k, Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) (go body)
 
-        go e@(Let _ _)
+        tgo _ e@(Let _ _)
            = tbd "Unsupported let-binding" [sh e]
 
         -- Case expressions. We take advantage of the core-invariant that each case alternative
         -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
         -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
-        go e@(Case ce _b _t alts)
+        tgo _ e@(Case ce _b _t alts)
            = do sce <- go ce
                 let isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
@@ -223,25 +230,24 @@ proveIt cfg opts (topLoc, topBind) topExpr = do
                                                   Just (Base b) -> return $ Just $ a `S.svEqual` b
                                                   _             -> return Nothing
 
-        -- TODO: This isn't right; we need to thread the type at this point
-        go (Cast e _)
-           = go e
+        tgo t (Cast e _)
+           = tgo t e
 
-        go (Tick t e)
+        tgo _ (Tick t e)
            = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
 
-        go e@(Type{})
+        tgo _ e@(Type{})
            = tbd "Unsupported type-expression" [sh e]
 
-        go e@(Coercion{})
+        tgo _ e@(Coercion{})
            = tbd "Unsupported coercion-expression" [sh e]
 
 -- | Uninterpret an expression.
 -- TODO: Only supports base values. Need to extend to functions.
-uninterpret :: CoreExpr -> Eval Val
-uninterpret expr = do Env{flags} <- ask
-                      k <- getBaseType (exprType expr)
-                      return $ Base $ S.svUninterpreted k (showSDoc flags (ppr expr))  Nothing []
+uninterpret :: Type -> CoreExpr -> Eval Val
+uninterpret t expr = do Env{flags} <- ask
+                        k <- getBaseType t
+                        return $ Base $ S.svUninterpreted k (showSDoc flags (ppr expr))  Nothing []
 
 -- | Is this variable really a dictionary?
 isReallyADictionary :: Var -> Bool
