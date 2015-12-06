@@ -1,0 +1,7 @@
+
+[SBV] tests/T17.hs:13:1 Proving "f", using Z3.
+[Z3] Falsifiable. Counter-example:
+  x = 0 :: Int64
+[SBV] Counter-example might be bogus due to uninterpreted constants:
+  [tests/T17.hs:9:1] g :: Int -> Int
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
