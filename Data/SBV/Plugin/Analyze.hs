@@ -181,21 +181,23 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                        Just b  -> return b
                                                        Nothing -> uninterpret t v
 
-        tgo _ e@(Lit l) = do Env{machWordSize} <- ask
+        tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
-                               MachChar{}       -> noLit
-                               MachStr{}        -> noLit
-                               MachNullAddr     -> noLit
-                               MachLabel{}      -> noLit
-                               MachInt      i   -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
-                               MachInt64    i   -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
-                               MachWord     i   -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
-                               MachWord64   i   -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
-                               MachFloat    f   -> return $ Base $ S.svFloat   (fromRational f)
-                               MachDouble   d   -> return $ Base $ S.svDouble  (fromRational d)
-                               LitInteger   i t -> do k <- getBaseType noSrcSpan t
-                                                      return $ Base $ S.svInteger k i
-                  where noLit = tbd "Unsupported literal" [sh e]
+                               MachChar{}        -> unint
+                               MachStr{}         -> unint
+                               MachNullAddr      -> unint
+                               MachLabel{}       -> unint
+                               MachInt      i    -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
+                               MachInt64    i    -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
+                               MachWord     i    -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
+                               MachWord64   i    -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
+                               MachFloat    f    -> return $ Base $ S.svFloat   (fromRational f)
+                               MachDouble   d    -> return $ Base $ S.svDouble  (fromRational d)
+                               LitInteger   i it -> do k <- getBaseType noSrcSpan it
+                                                       return $ Base $ S.svInteger k i
+                  where unint = do Env{flags} <- ask
+                                   k <- getBaseType noSrcSpan t
+                                   return $ Base $ S.svUninterpreted k (mkValidName "lit" (showSDoc flags (ppr e))) Nothing []
 
         tgo tFun (App (App (Var v) (Type t)) (Var dict))
            | isReallyADictionary dict = do Env{envMap} <- ask
