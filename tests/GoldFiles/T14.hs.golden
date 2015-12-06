@@ -1,8 +1,5 @@
-this is bogus! need to fix this test
 
 [SBV] tests/T14.hs:10:1 Proving "f", using Z3.
-
-[SBV] tests/T14.hs:10:1 Skipping proof. Uninterpreted function application:
-                           == @ Rational $dEq_a4Xg
-                           x
+[Z3] Falsifiable. Counter-example:
+  x = 1.0 :: Real
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
