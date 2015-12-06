@@ -23,7 +23,7 @@ import Data.IORef
 
 import Data.Char  (isAlpha, isAlphaNum)
 import Data.List  (intercalate, partition, nub, sortBy)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, listToMaybe)
 import Data.Ord   (comparing)
 
 import qualified Data.Map as M
@@ -45,9 +45,12 @@ analyzeBind cfg@Config{sbvAnnotation} = go
 
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
+                 | Just s <- hasSkip opts  = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg b topLoc ++ " Skipping " ++ show (showSDoc (dflags cfg) (ppr b)) ++ ": " ++ s
                  | Safety `elem` opts      = error "SBV: Safety pragma is not implemented yet"
                  | Uninterpret `elem` opts = return ()
-                 | True                    = liftIO $ prove cfg opts b (bindSpan b) e
+                 | True                    = liftIO $ prove cfg opts b topLoc e
+                hasSkip opts = listToMaybe [s | Skip s <- opts]
+                topLoc       = bindSpan b
 
 -- | Prove an SBVTheorem
 prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
