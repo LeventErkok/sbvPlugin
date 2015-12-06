@@ -25,12 +25,13 @@ import qualified Data.SBV.Dynamic as S
 import Data.SBV.Plugin.Data
 
 -- | Interpreter environment
-data Env = Env { curLoc  :: SrcSpan
-               , flags   :: DynFlags
-               , baseTCs :: M.Map (TyCon, [TyCon]) S.Kind
-               , envMap  :: M.Map (Var, S.Kind)    Val
-               , specMap :: M.Map Var              Val
-               , coreMap :: M.Map Var              CoreExpr
+data Env = Env { curLoc       :: SrcSpan
+               , flags        :: DynFlags
+               , machWordSize :: Int
+               , baseTCs      :: M.Map (TyCon, [TyCon]) S.Kind
+               , envMap       :: M.Map (Var, S.Kind)    Val
+               , specMap      :: M.Map Var              Val
+               , coreMap      :: M.Map Var              CoreExpr
                }
 
 -- | The interpreter monad
@@ -38,6 +39,7 @@ type Eval a = ReaderT Env S.Symbolic a
 
 -- | Configuration info as we run the plugin
 data Config = Config { dflags        :: DynFlags
+                     , wordSize      :: Int
                      , isGHCi        :: Bool
                      , opts          :: [SBVAnnotation]
                      , knownTCs      :: M.Map (TyCon, [TyCon]) S.Kind
