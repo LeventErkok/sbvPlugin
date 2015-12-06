@@ -27,10 +27,10 @@ import Data.SBV.Plugin.Data
 -- | Interpreter environment
 data Env = Env { curLoc  :: SrcSpan
                , flags   :: DynFlags
-               , baseTCs :: M.Map TyCon         S.Kind
-               , envMap  :: M.Map (Var, S.Kind) Val
-               , specMap :: M.Map Var           Val
-               , coreMap :: M.Map Var           CoreExpr
+               , baseTCs :: M.Map (TyCon, [TyCon]) S.Kind
+               , envMap  :: M.Map (Var, S.Kind)    Val
+               , specMap :: M.Map Var              Val
+               , coreMap :: M.Map Var              CoreExpr
                }
 
 -- | The interpreter monad
@@ -40,8 +40,8 @@ type Eval a = ReaderT Env S.Symbolic a
 data Config = Config { dflags        :: DynFlags
                      , isGHCi        :: Bool
                      , opts          :: [SBVAnnotation]
-                     , knownTCs      :: M.Map TyCon S.Kind
-                     , knownFuns     :: M.Map (Var, S.Kind) Val
+                     , knownTCs      :: M.Map (TyCon, [TyCon]) S.Kind
+                     , knownFuns     :: M.Map (Var, S.Kind)    Val
                      , knownSpecials :: M.Map Var Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
                      , allBinds      :: M.Map Var CoreExpr

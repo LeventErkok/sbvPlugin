@@ -255,8 +255,16 @@ isReallyADictionary v = case classifyPredType (varType v) of
 getBaseType :: Type -> Eval S.Kind
 getBaseType t = do Env{baseTCs, flags} <- ask
                    let uninterpreted = S.KUserSort (showSDoc flags (ppr t)) (Left "originating from sbvPlugin")
-                   case splitTyConApp_maybe t of
-                     Just (tc, []) -> case tc `M.lookup` baseTCs of
-                                         Just k  -> return k
-                                         Nothing -> return uninterpreted
-                     _             -> return uninterpreted
+                   case grabTCs (splitTyConApp_maybe t) of
+                     Just k -> case k `M.lookup` baseTCs of
+                                 Just knd  -> return knd
+                                 Nothing -> return uninterpreted
+                     _        -> return uninterpreted
+  where -- allow one level of nesting
+        grabTCs Nothing          = Nothing
+        grabTCs (Just (top, ts)) = do as <- walk ts []
+                                      return (top, as)
+        walk []     sofar = Just $ reverse sofar
+        walk (a:as) sofar = case splitTyConApp_maybe a of
+                               Just (ac, []) -> walk as (ac:sofar)
+                               _             -> Nothing

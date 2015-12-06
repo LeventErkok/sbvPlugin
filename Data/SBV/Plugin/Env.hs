@@ -31,27 +31,36 @@ import qualified Data.SBV.Dynamic as S
 import Data.SBV.Plugin.Common
 
 -- | Build the initial environment containing types
-buildTCEnv :: Int -> CoreM (M.Map TyCon S.Kind)
-buildTCEnv isz = M.fromList `fmap` mapM grabTyCon basics
-  where grabTyCon (k, x) = do Just fn <- thNameToGhcName x
-                              tc <- lookupTyCon fn
-                              return (tc, k)
+buildTCEnv :: Int -> CoreM (M.Map (TyCon, [TyCon]) S.Kind)
+buildTCEnv isz = do xs <- mapM grabTyCon basics
+                    ys <- mapM grabTyApp apps
+                    return $ M.fromList $ xs ++ ys
 
-        basics = [ (S.KBool,             ''Bool)
-                 , (S.KUnbounded,        ''Integer)
-                 , (S.KFloat,            ''Float)
-                 , (S.KDouble,           ''Double)
-                 , (S.KReal,             ''Rational)
-                 , (S.KBounded True isz, ''Int)
-                 , (S.KBounded True   8, ''Int8)
-                 , (S.KBounded True  16, ''Int16)
-                 , (S.KBounded True  32, ''Int32)
-                 , (S.KBounded True  64, ''Int64)
-                 , (S.KBounded False  8, ''Word8)
-                 , (S.KBounded False 16, ''Word16)
-                 , (S.KBounded False 32, ''Word32)
-                 , (S.KBounded False 64, ''Word64)
+  where grab x = do Just fn <- thNameToGhcName x
+                    lookupTyCon fn
+
+        grabTyCon (x, k) = grabTyApp (x, [], k)
+
+        grabTyApp (x, as, k) = do fn   <- grab x
+                                  args <- mapM grab as
+                                  return ((fn, args), k)
+
+        basics = [ (''Bool,    S.KBool)
+                 , (''Integer, S.KUnbounded)
+                 , (''Float,   S.KFloat)
+                 , (''Double,  S.KDouble)
+                 , (''Int,     S.KBounded True isz)
+                 , (''Int8,    S.KBounded True   8)
+                 , (''Int16,   S.KBounded True  16)
+                 , (''Int32,   S.KBounded True  32)
+                 , (''Int64,   S.KBounded True  64)
+                 , (''Word8,   S.KBounded False  8)
+                 , (''Word16,  S.KBounded False 16)
+                 , (''Word32,  S.KBounded False 32)
+                 , (''Word64,  S.KBounded False 64)
                  ]
+
+        apps =  [ (''Ratio, [''Integer], S.KReal) ]
 
 -- | Build the initial environment containing functions
 buildFunEnv :: CoreM (M.Map (Id, S.Kind) Val)
