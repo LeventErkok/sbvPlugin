@@ -149,7 +149,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- number of symbolic arguments
         symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders e
-                       ats <- mapM (\b -> getBaseType (varType b) >>= \bt -> return (b, bt)) bs
+                       ats <- mapM (\b -> getBaseType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
                        let mkVar ((b, k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
                                                     return ((b, k), Base v)
                        sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
@@ -167,7 +167,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- tgo t e | trace ("--> " ++ show (sh (e, t))) False = undefined
 
         tgo t (Var v) = do Env{envMap, coreMap, specMap} <- ask
-                           k <- getBaseType t
+                           k <- getBaseType (getSrcSpan v) t
                            case (v, k) `M.lookup` envMap of
                              Just b  -> return b
                              Nothing -> case v `M.lookup` coreMap of
@@ -190,13 +190,13 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                MachWord64   i   -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
                                MachFloat    f   -> return $ Base $ S.svFloat   (fromRational f)
                                MachDouble   d   -> return $ Base $ S.svDouble  (fromRational d)
-                               LitInteger   i t -> do k <- getBaseType t
+                               LitInteger   i t -> do k <- getBaseType noSrcSpan t
                                                       return $ Base $ S.svInteger k i
                   where noLit = tbd "Unsupported literal" [sh e]
 
         tgo tFun (App (App (Var v) (Type t)) (Var dict))
            | isReallyADictionary dict = do Env{envMap} <- ask
-                                           k <- getBaseType t
+                                           k <- getBaseType (getSrcSpan v) t
                                            case (v, k) `M.lookup` envMap of
                                               Just b -> return b
                                               _      -> uninterpret tFun v
@@ -213,7 +213,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                                           ++ sh [(f, func), (e, arg)]
 
         tgo _ (Lam b body) = do
-            k <- getBaseType (varType b)
+            k <- getBaseType (getSrcSpan b) (varType b)
             return $ Func (k, Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) (go body)
 
         tgo _ e@(Let _ _)
@@ -274,8 +274,9 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
 uninterpret :: Type -> Var -> Eval Val
 uninterpret origT v = do
           let (args, res) = splitFunTys t
-          argKs <- mapM getBaseType args
-          resK  <- getBaseType res
+              sp          = getSrcSpan v
+          argKs <- mapM (getBaseType sp) args
+          resK  <- getBaseType sp res
           Env{flags, uninterpreted} <- ask
           let nm = mkValidName "expr" $ showSDoc flags (ppr v)
           liftIO $ modifyIORef uninterpreted ((v, t) :)
@@ -306,15 +307,16 @@ isReallyADictionary v = case classifyPredType (varType v) of
 
 -- | Convert a Core type to an SBV kind, if known
 -- Otherwise, create an uninterpreted kind, and return that.
-getBaseType :: Type -> Eval S.Kind
-getBaseType t = do Env{baseTCs, flags} <- ask
-                   let nm = mkValidName "type" $ showSDoc flags (ppr t)
-                       uninterpreted = S.KUserSort nm (Left "originating from sbvPlugin")
-                   case grabTCs (splitTyConApp_maybe t) of
-                     Just k -> case k `M.lookup` baseTCs of
-                                 Just knd  -> return knd
-                                 Nothing -> return uninterpreted
-                     _        -> return uninterpreted
+getBaseType :: SrcSpan -> Type -> Eval S.Kind
+getBaseType _sp t = do
+        Env{baseTCs, flags} <- ask
+        let nm = mkValidName "type" $ showSDoc flags (ppr t)
+            uninterpreted = S.KUserSort nm (Left "originating from sbvPlugin") --  ++ showSDoc flags (ppr sp))
+        case grabTCs (splitTyConApp_maybe t) of
+          Just k -> case k `M.lookup` baseTCs of
+                      Just knd -> return knd
+                      Nothing  -> return uninterpreted
+          _        -> return uninterpreted
   where -- allow one level of nesting
         grabTCs Nothing          = Nothing
         grabTCs (Just (top, ts)) = do as <- walk ts []
