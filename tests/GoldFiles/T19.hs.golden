@@ -31,7 +31,7 @@ OUTPUTS
 (set-option :produce-models true)
 ; has user-defined sorts, no logic specified.
 ; --- uninterpreted sorts ---
-(declare-sort |[Char]| 0)  ; N.B. Uninterpreted: originating from sbvPlugin: <no location info>
+(declare-sort |[Char]| 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T19.hs:9:3
 ; --- literal constants ---
 (define-fun s_2 () Bool false)
 (define-fun s_1 () Bool true)
