@@ -1,8 +1,10 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: Not yet released
+* Latest Hackage released version: 0.1, 2015-12-06
 
-### Version 0.1, Not yet released
+### Version 0.1, 2015-12-06
 
-  * Basic functionality. Initial design exploration.
+  * Basic functionality. Initial design exploration. The plugin
+    is mostly functional, but there are rough edges around
+    the details. Please report any issues you might find!
