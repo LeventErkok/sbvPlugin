@@ -103,6 +103,9 @@ symFuncs =  -- equality is for all kinds
           -- comparisons
        ++ [(op, k, lift2 k sOp) | k <- arithKinds, (op, sOp) <- compOps ]
 
+          -- integer div/rem
+      ++ [(op, k, lift2 k sOp) | k <- integralKinds, (op, sOp) <- [('div, S.svDivide), ('quot, S.svQuot), ('rem, S.svRem)]]
+
          -- bit-vector
       ++ [ (op, k, lift2 k sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
 
@@ -110,8 +113,11 @@ symFuncs =  -- equality is for all kinds
        -- Bit-vectors
        bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
 
+       -- Those that are "integral"ish
+       integralKinds = S.KUnbounded : bvKinds
+
        -- Those that can be converted from an Integer
-       integerKinds = S.KUnbounded : S.KReal : bvKinds
+       integerKinds = S.KReal : integralKinds
 
        -- Float kinds
        floatKinds = [S.KFloat, S.KDouble]
