@@ -231,8 +231,13 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
             k <- getBaseType (getSrcSpan b) (varType b)
             return $ Func (k, Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) (Base s) (envMap env)}) (go body)
 
+        tgo _ (Let (NonRec b e) body) = do
+            k <- getBaseType (getSrcSpan b) (varType b)
+            v <- go e
+            local (\env -> env{envMap = M.insert (b, k) v (envMap env)}) (go body)
+
         tgo _ e@(Let _ _)
-           = tbd "Unsupported let-binding" [sh e]
+           = tbd "Unsupported let-binding with a recursive binder" [sh e]
 
         -- Case expressions. We take advantage of the core-invariant that each case alternative
         -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
