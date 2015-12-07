@@ -91,9 +91,13 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                             [x, y] -> show x ++ " and " ++ show y
                             xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
         putStrLn $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
-        rUninterps     <- newIORef []
-        finalResult    <- runProver (res rUninterps)
-        finalUninterps <- readIORef rUninterps
+        (finalResult, finalUninterps) <- do
+                        rUninterps     <- newIORef []
+                        rUnms          <- newIORef []
+                        rUItys         <- newIORef []
+                        finalResult    <- runProver (res rUninterps rUnms rUItys)
+                        finalUninterps <- readIORef rUninterps
+                        return (finalResult, finalUninterps)
         case finalResult of
           Right (solver, sres@(S.ThmResult smtRes)) -> do
                 let success = case smtRes of
@@ -106,7 +110,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 print sres
 
                 -- If proof failed and there are uninterpreted functions, print a warning:
-                let unintFuns = [p | p@(_, t) <- nub $ sortBy (comparing fst) finalUninterps, isJust (splitFunTy_maybe t)]
+                let unintFuns = [p | (p@(_, t), _) <- nub $ sortBy (comparing (fst . fst)) finalUninterps, isJust (splitFunTy_maybe t)]
                 unless (success || null unintFuns) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
@@ -122,18 +126,21 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 return success
           Left success -> return success
 
-  where res uis = do v <- runReaderT (symEval topExpr) Env{ curLoc        = topLoc
-                                                          , flags         = dflags        cfg
-                                                          , uninterpreted = uis
-                                                          , machWordSize  = wordSize      cfg
-                                                          , envMap        = knownFuns     cfg
-                                                          , baseTCs       = knownTCs      cfg
-                                                          , specMap       = knownSpecials cfg
-                                                          , coreMap       = allBinds      cfg
-                                                          }
-                     case v of
-                       Base r -> return r
-                       Func{} -> error "Impossible happened. Final result reduced to a non-base value!"
+  where res uis unms uitys = do
+               v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
+                                                    , flags          = dflags        cfg
+                                                    , rUninterpreted = uis
+                                                    , rUsedNames     = unms
+                                                    , rUITypes       = uitys
+                                                    , machWordSize   = wordSize      cfg
+                                                    , envMap         = knownFuns     cfg
+                                                    , baseTCs        = knownTCs      cfg
+                                                    , specMap        = knownSpecials cfg
+                                                    , coreMap        = allBinds      cfg
+                                                    }
+               case v of
+                 Base r -> return r
+                 Func{} -> error "Impossible happened. Final result reduced to a non-base value!"
 
         die :: SrcSpan -> String -> [String] -> a
         die loc w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
@@ -196,8 +203,9 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                LitInteger   i it -> do k <- getBaseType noSrcSpan it
                                                        return $ Base $ S.svInteger k i
                   where unint = do Env{flags} <- ask
-                                   k <- getBaseType noSrcSpan t
-                                   return $ Base $ S.svUninterpreted k (mkValidName "lit" (showSDoc flags (ppr e))) Nothing []
+                                   k  <- getBaseType noSrcSpan t
+                                   nm <- mkValidName "lit" (showSDoc flags (ppr e))
+                                   return $ Base $ S.svUninterpreted k nm Nothing []
 
         tgo tFun (App (App (Var v) (Type t)) (Var dict))
            | isReallyADictionary dict = do Env{envMap} <- ask
@@ -279,27 +287,40 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
 -- | Uninterpret an expression
 uninterpret :: Type -> Var -> Eval Val
-uninterpret origT v = do
+uninterpret t v = do
           let (args, res) = splitFunTys t
               sp          = getSrcSpan v
           argKs <- mapM (getBaseType sp) args
           resK  <- getBaseType sp res
-          Env{flags, uninterpreted} <- ask
-          let nm = mkValidName "expr" $ showSDoc flags (ppr v)
-          liftIO $ modifyIORef uninterpreted ((v, t) :)
+          Env{flags, rUninterpreted} <- ask
+          uis <- liftIO $ readIORef rUninterpreted
+          nm <- case (v, t) `lookup` uis of
+                 Just nm -> return nm
+                 Nothing -> do nm <- mkValidName "expr" $ showSDoc flags (ppr v)
+                               liftIO $ modifyIORef rUninterpreted (((v, t), nm) :)
+                               return nm
           return $ walk argKs (nm, resK) []
-  where t = origT
-
-        walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
+  where walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
         walk (a:as) nmk     args = Func (a, Nothing) $ \p -> return (walk as nmk (p:args))
 
 -- not every name is good, sigh
-mkValidName :: String -> String -> String
-mkValidName origin nm
-  | null nm || nm `elem` S.smtLibReservedNames = mkValidName origin ("sbvPlugin_" ++ origin ++ "_" ++ nm)
-  | isAlpha (head nm) && all isGood (tail nm)  = nm
-  | True                                       = "|" ++ map tr nm ++ "|"
-  where isGood c = isAlphaNum c || c == '_'
+mkValidName :: String -> String -> Eval String
+mkValidName origin origName =
+        do Env{rUsedNames} <- ask
+           usedNames <- liftIO $ readIORef rUsedNames
+           let name = if null origName || origName `elem` S.smtLibReservedNames
+                      then "sbvPlugin_" ++ origin ++ "_" ++ origName
+                      else origName
+               nm = genSym usedNames name
+           liftIO $ modifyIORef rUsedNames (nm :)
+           return $ escape nm
+  where genSym bad nm
+          | nm `elem` bad = head [nm' | i <- [(0::Int) ..], let nm' = nm ++ "_" ++ show i, nm' `notElem` bad]
+          | True          = nm
+        escape nm
+          | isAlpha (head nm) && all isGood (tail nm) = nm
+          | True                                      = "|" ++ map tr nm ++ "|"
+        isGood c = isAlphaNum c || c == '_'
         tr '|'   = '_'
         tr '\\'  = '_'
         tr c     = c
@@ -316,14 +337,12 @@ isReallyADictionary v = case classifyPredType (varType v) of
 -- Otherwise, create an uninterpreted kind, and return that.
 getBaseType :: SrcSpan -> Type -> Eval S.Kind
 getBaseType sp t = do
-        Env{baseTCs, flags} <- ask
-        let nm = mkValidName "type" $ showSDoc flags (ppr t)
-            uninterpreted = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
+        Env{baseTCs} <- ask
         case grabTCs (splitTyConApp_maybe t) of
           Just k -> case k `M.lookup` baseTCs of
                       Just knd -> return knd
-                      Nothing  -> return uninterpreted
-          _        -> return uninterpreted
+                      Nothing  -> unknown
+          _        -> unknown
   where -- allow one level of nesting
         grabTCs Nothing          = Nothing
         grabTCs (Just (top, ts)) = do as <- walk ts []
@@ -332,3 +351,12 @@ getBaseType sp t = do
         walk (a:as) sofar = case splitTyConApp_maybe a of
                                Just (ac, []) -> walk as (ac:sofar)
                                _             -> Nothing
+        -- Check if we uninterpreted this before; if so, return it, otherwise create a new one
+        unknown = do Env{flags, rUITypes} <- ask
+                     uiTypes <- liftIO $ readIORef rUITypes
+                     case t `lookup` uiTypes of
+                       Just k  -> return k
+                       Nothing -> do nm <- mkValidName "type" $ showSDoc flags (ppr t)
+                                     let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
+                                     liftIO $ modifyIORef rUITypes ((t, k) :)
+                                     return k

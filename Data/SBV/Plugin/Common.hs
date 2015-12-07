@@ -27,14 +27,16 @@ import qualified Data.SBV.Dynamic as S
 import Data.SBV.Plugin.Data
 
 -- | Interpreter environment
-data Env = Env { curLoc        :: SrcSpan
-               , flags         :: DynFlags
-               , machWordSize  :: Int
-               , uninterpreted :: IORef [(Var, Type)]
-               , baseTCs       :: M.Map (TyCon, [TyCon]) S.Kind
-               , envMap        :: M.Map (Var, S.Kind)    Val
-               , specMap       :: M.Map Var              Val
-               , coreMap       :: M.Map Var              CoreExpr
+data Env = Env { curLoc         :: SrcSpan
+               , flags          :: DynFlags
+               , machWordSize   :: Int
+               , rUninterpreted :: IORef [((Var, Type), String)]
+               , rUsedNames     :: IORef [String]
+               , rUITypes       :: IORef [(Type, S.Kind)]
+               , baseTCs        :: M.Map (TyCon, [TyCon]) S.Kind
+               , envMap         :: M.Map (Var, S.Kind)    Val
+               , specMap        :: M.Map Var              Val
+               , coreMap        :: M.Map Var              CoreExpr
                }
 
 -- | The interpreter monad
