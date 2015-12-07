@@ -37,7 +37,7 @@ import qualified Control.Exception as C
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
 
--- | Dispatch the analyzer recursively over subexpressions
+-- | Dispatch the analyzer over bindings
 analyzeBind :: Config -> CoreBind -> CoreM ()
 analyzeBind cfg@Config{sbvAnnotation} = go
   where go (NonRec b e) = bind (b, e)
