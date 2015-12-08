@@ -1,0 +1,4 @@
+
+[SBV] tests/T26.hs:9:1 Proving "f", using Z3.
+[Z3] Falsifiable
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
