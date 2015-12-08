@@ -1,5 +1,5 @@
 
-[SBV] tests/T17.hs:13:1 Proving "f", using Z3.
+[SBV] tests/T17.hs:14:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   x = 0 :: Int64
 [SBV] Counter-example might be bogus due to uninterpreted constant:
