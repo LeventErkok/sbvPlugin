@@ -8,7 +8,12 @@ TESTSRCS  = $DEPSRCS
 CABAL     = cabal
 SIMPLIFY  = ./buildUtils/simplify
 EXTRAOPTS = "--ghc-options=-Werror -Wall"
-TIME      = /usr/bin/time caffeinate
+
+ifeq ($(UNAME),Darwin)
+  TIME      = /usr/bin/time caffeinate
+else
+  TIME      = /usr/bin/time
+endif
 
 define mkStamp
 	@echo "-- Auto-generated, don't edit"		     >  ${STAMPFILE}
