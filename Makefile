@@ -9,10 +9,10 @@ CABAL     = cabal
 SIMPLIFY  = ./buildUtils/simplify
 EXTRAOPTS = "--ghc-options=-Werror -Wall"
 
-ifeq ($(UNAME),Darwin)
-  TIME      = /usr/bin/time caffeinate
+ifeq ($(shell uname -s),Darwin)
+    TIME = /usr/bin/time caffeinate
 else
-  TIME      = /usr/bin/time
+    TIME = /usr/bin/time
 endif
 
 define mkStamp
