@@ -174,7 +174,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- Main symbolic evaluator:
         tgo :: Type -> CoreExpr -> Eval Val
 
-        -- tgo t e | trace ("--> " ++ show (sh (e, t))) False = undefined
+        -- tgo t e | trace ("--> " ++ sh (e, t)) False = undefined
 
         tgo t (Var v) = do Env{envMap, coreMap, specMap} <- ask
                            k <- getBaseType (getSrcSpan v) t
@@ -236,8 +236,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
             v <- go e
             local (\env -> env{envMap = M.insert (b, k) v (envMap env)}) (go body)
 
-        tgo _ e@(Let _ _)
-           = tbd "Unsupported let-binding with a recursive binder" [sh e]
+        tgo _ (Let (Rec bs) body) = local (\env -> env{coreMap = foldr (uncurry M.insert) (coreMap env) bs}) (go body)
 
         -- Case expressions. We take advantage of the core-invariant that each case alternative
         -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
