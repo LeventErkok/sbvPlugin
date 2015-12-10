@@ -1,7 +1,7 @@
 
 [SBV] tests/T13.hs:9:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
-  i =     2 :: Integer
+  i =     0 :: Integer
   d =   0.0 :: Double
   b = False :: Bool
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
