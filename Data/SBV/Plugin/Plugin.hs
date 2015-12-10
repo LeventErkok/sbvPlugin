@@ -42,7 +42,7 @@ plugin = defaultPlugin {installCoreToDos = install}
        sbvPass = CoreDoPluginPass "SBV based analysis" pass
 
        pass :: ModGuts -> CoreM ModGuts
-       pass guts@(ModGuts {mg_binds}) = do
+       pass guts@ModGuts{mg_binds} = do
 
           df   <- getDynFlags
           anns <- getAnnotations deserializeWithData guts

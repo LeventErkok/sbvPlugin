@@ -283,10 +283,10 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tgo _ (Tick t e)
            = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
 
-        tgo _ e@(Type{})
+        tgo _ e@Type{}
            = tbd "Unsupported type-expression" [sh e]
 
-        tgo _ e@(Coercion{})
+        tgo _ e@Coercion{}
            = tbd "Unsupported coercion-expression" [sh e]
 
 -- | Uninterpret an expression
