@@ -21,7 +21,7 @@ import System.Exit hiding (die)
 
 import Data.IORef
 
-import Data.Char  (isAlpha, isAlphaNum)
+import Data.Char  (isAlpha, isAlphaNum, toLower)
 import Data.List  (intercalate, partition, nub, sortBy)
 import Data.Maybe (isJust, listToMaybe)
 import Data.Ord   (comparing)
@@ -204,7 +204,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                        return $ Base $ S.svInteger k i
                   where unint = do Env{flags} <- ask
                                    k  <- getBaseType noSrcSpan t
-                                   nm <- mkValidName "lit" (showSDoc flags (ppr e))
+                                   nm <- mkValidName (showSDoc flags (ppr e))
                                    return $ Base $ S.svUninterpreted k nm Nothing []
 
         tgo tFun (App (App (Var v) (Type t)) (Var dict))
@@ -300,7 +300,7 @@ uninterpret t v = do
           uis <- liftIO $ readIORef rUninterpreted
           nm <- case (v, t) `lookup` uis of
                  Just nm -> return nm
-                 Nothing -> do nm <- mkValidName "expr" $ showSDoc flags (ppr v)
+                 Nothing -> do nm <- mkValidName $ showSDoc flags (ppr v)
                                liftIO $ modifyIORef rUninterpreted (((v, t), nm) :)
                                return nm
           return $ walk argKs (nm, resK) []
@@ -308,19 +308,16 @@ uninterpret t v = do
         walk (a:as) nmk     args = Func (a, Nothing) $ \p -> return (walk as nmk (p:args))
 
 -- not every name is good, sigh
-mkValidName :: String -> String -> Eval String
-mkValidName origin origName =
+mkValidName :: String -> Eval String
+mkValidName name =
         do Env{rUsedNames} <- ask
            usedNames <- liftIO $ readIORef rUsedNames
-           let name = if null origName || origName `elem` S.smtLibReservedNames
-                      then "sbvPlugin_" ++ origin ++ "_" ++ origName
-                      else origName
-               nm = genSym usedNames name
+           let nm = genSym (usedNames ++ S.smtLibReservedNames) name
            liftIO $ modifyIORef rUsedNames (nm :)
            return $ escape nm
   where genSym bad nm
-          | nm `elem` bad = head [nm' | i <- [(0::Int) ..], let nm' = nm ++ "_" ++ show i, nm' `notElem` bad]
-          | True          = nm
+          | map toLower nm `elem` bad = head [nm' | i <- [(0::Int) ..], let nm' = nm ++ "_" ++ show i, nm' `notElem` bad]
+          | True                      = nm
         escape nm
           | isAlpha (head nm) && all isGood (tail nm) = nm
           | True                                      = "|" ++ map tr nm ++ "|"
@@ -360,7 +357,7 @@ getBaseType sp t = do
                      uiTypes <- liftIO $ readIORef rUITypes
                      case t `lookup` uiTypes of
                        Just k  -> return k
-                       Nothing -> do nm <- mkValidName "type" $ showSDoc flags (ppr t)
+                       Nothing -> do nm <- mkValidName $ showSDoc flags (ppr t)
                                      let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
                                      liftIO $ modifyIORef rUITypes ((t, k) :)
                                      return k
