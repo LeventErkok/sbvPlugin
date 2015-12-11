@@ -46,7 +46,6 @@ analyzeBind cfg@Config{sbvAnnotation} = go
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
                  | Just s <- hasSkip opts  = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg b topLoc ++ " Skipping " ++ show (showSDoc (dflags cfg) (ppr b)) ++ ": " ++ s
-                 | Safety `elem` opts      = error "SBV: Safety pragma is not implemented yet"
                  | Uninterpret `elem` opts = return ()
                  | True                    = liftIO $ prove cfg opts b topLoc e
                 hasSkip opts = listToMaybe [s | Skip s <- opts]
@@ -126,7 +125,9 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 return success
           Left success -> return success
 
-  where res uis unms uitys = do
+  where debug = Debug `elem` opts
+
+        res uis unms uitys = do
                v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
                                                     , flags          = dflags        cfg
                                                     , rUninterpreted = uis
@@ -174,7 +175,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- Main symbolic evaluator:
         tgo :: Type -> CoreExpr -> Eval Val
 
-        -- tgo t e | trace ("--> " ++ sh (e, t)) False = undefined
+        tgo t e | debug && trace ("--> " ++ sh (e, t)) False = undefined
 
         tgo t (Var v) = do Env{envMap, coreMap, specMap} <- ask
                            k <- getBaseType (getSrcSpan v) t

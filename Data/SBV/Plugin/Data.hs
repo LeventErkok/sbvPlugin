@@ -22,7 +22,7 @@ import Data.Data  (Data, Typeable)
 data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | Skip String    -- ^ Skip the proof. Can be handy for properties that we currently do not want to focus on.
                | Verbose        -- ^ Produce verbose output, good for debugging
-               | Safety         -- ^ Check for safety
+               | Debug          -- ^ Produce really verbose output, use only when things go really wrong!
                | QuickCheck     -- ^ Perform quickCheck
                | Uninterpret    -- ^ Uninterpret this binding for proof purposes
                | Names [String] -- ^ Use these names for the arguments; need not be exhaustive
