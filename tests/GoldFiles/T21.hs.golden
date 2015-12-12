@@ -4,17 +4,17 @@
 ** Generated symbolic trace:
 SORTS
   Char
-  String_0
+  |String|
 INPUTS
   s0 :: Char, aliasing "c"
-  s1 :: String_0, aliasing "s"
+  s1 :: |String|, aliasing "s"
 CONSTANTS
   s_2 = False :: Bool
   s_1 = True :: Bool
 TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
-  [uninterpreted] |==_0| :: String_0 -> String_0 -> SBool
+  [uninterpreted] |==_0| :: |String| -> |String| -> SBool
   [uninterpreted] |==| :: Char -> Char -> SBool
 USER GIVEN CODE SEGMENTS
 AXIOMS
@@ -34,18 +34,18 @@ OUTPUTS
 ; has user-defined sorts, no logic specified.
 ; --- uninterpreted sorts ---
 (declare-sort Char 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:3
-(declare-sort String_0 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:5
+(declare-sort |String| 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:5
 ; --- literal constants ---
 (define-fun s_2 () Bool false)
 (define-fun s_1 () Bool true)
 ; --- skolem constants ---
 (declare-fun s0 () Char) ; tracks user variable "c"
-(declare-fun s1 () String_0) ; tracks user variable "s"
+(declare-fun s1 () |String|) ; tracks user variable "s"
 ; --- constant tables ---
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun |==_0| (String_0 String_0) Bool)
+(declare-fun |==_0| (|String| |String|) Bool)
 (declare-fun |==| (Char Char) Bool)
 ; --- user given axioms ---
 ; --- formula ---
@@ -61,11 +61,11 @@ OUTPUTS
 ** Z3 output:
 sat
 ((s0 Char!val!0))
-((s1 String_0!val!0))
+((s1 String!val!0))
 ** Done..
 [Z3] Falsifiable. Counter-example:
-  c =     Char!val!0 :: Char
-  s = String_0!val!0 :: String_0
+  c =   Char!val!0 :: Char
+  s = String!val!0 :: |String|
 [SBV] Counter-example might be bogus due to uninterpreted constants:
   [<no location info>] == :: String -> String -> Bool
   [<no location info>] == :: Char -> Char -> Bool
