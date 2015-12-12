@@ -30,13 +30,12 @@ import Data.SBV.Plugin.Data
 data Env = Env { curLoc         :: SrcSpan
                , flags          :: DynFlags
                , machWordSize   :: Int
-               , rUninterpreted :: IORef [((Var, Type), String)]
+               , rUninterpreted :: IORef [((Var, Type), (String, Val))]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]
                , baseTCs        :: M.Map (TyCon, [TyCon]) S.Kind
-               , envMap         :: M.Map (Var, S.Kind)    Val
-               , specMap        :: M.Map Var              Val
-               , coreMap        :: M.Map Var              CoreExpr
+               , envMap         :: M.Map (Var, SKind) Val
+               , coreMap        :: M.Map Var CoreExpr
                }
 
 -- | The interpreter monad
@@ -48,8 +47,7 @@ data Config = Config { dflags        :: DynFlags
                      , isGHCi        :: Bool
                      , opts          :: [SBVAnnotation]
                      , knownTCs      :: M.Map (TyCon, [TyCon]) S.Kind
-                     , knownFuns     :: M.Map (Var, S.Kind)    Val
-                     , knownSpecials :: M.Map Var Val
+                     , knownFuns     :: M.Map (Var, SKind) Val
                      , sbvAnnotation :: Var -> [SBVAnnotation]
                      , allBinds      :: M.Map Var CoreExpr
                      }
@@ -69,9 +67,15 @@ pickSolvers slvrs
                   , (ABC,       S.abc)
                   ]
 
+-- | The kinds used by the plugin
+data SKind = KBase S.Kind
+           | KFun  S.Kind SKind
+           deriving (Eq, Ord)
+
 -- | The values kept track of by the interpreter
 data Val = Base S.SVal
-         | Func (S.Kind, Maybe String) (S.SVal -> Eval Val)
+         | Typ  S.Kind
+         | Func (Maybe String) (Val -> Eval Val)
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan -> SrcSpan

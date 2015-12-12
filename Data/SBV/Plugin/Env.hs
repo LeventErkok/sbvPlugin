@@ -12,9 +12,10 @@
 {-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Data.SBV.Plugin.Env (buildFunEnv, buildTCEnv, buildSpecialEnv) where
+module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv) where
 
 import GhcPlugins
+import GHC.Prim
 import GHC.Types
 
 import qualified Data.Map            as M
@@ -33,7 +34,7 @@ import Data.SBV.Plugin.Common
 
 -- | Build the initial environment containing types
 buildTCEnv :: Int -> CoreM (M.Map (TyCon, [TyCon]) S.Kind)
-buildTCEnv isz = do xs <- mapM grabTyCon basics
+buildTCEnv wsz = do xs <- mapM grabTyCon basics
                     ys <- mapM grabTyApp apps
                     return $ M.fromList $ xs ++ ys
 
@@ -46,68 +47,64 @@ buildTCEnv isz = do xs <- mapM grabTyCon basics
                                   args <- mapM grab as
                                   return ((fn, args), k)
 
-        basics = [ (''Bool,    S.KBool)
-                 , (''Integer, S.KUnbounded)
-                 , (''Float,   S.KFloat)
-                 , (''Double,  S.KDouble)
-                 , (''Int,     S.KBounded True isz)
-                 , (''Int8,    S.KBounded True   8)
-                 , (''Int16,   S.KBounded True  16)
-                 , (''Int32,   S.KBounded True  32)
-                 , (''Int64,   S.KBounded True  64)
-                 , (''Word8,   S.KBounded False  8)
-                 , (''Word16,  S.KBounded False 16)
-                 , (''Word32,  S.KBounded False 32)
-                 , (''Word64,  S.KBounded False 64)
-                 ]
+        basics = concat [ [(t, S.KBool)              | t <- [''Bool              ]]
+                        , [(t, S.KUnbounded)         | t <- [''Integer           ]]
+                        , [(t, S.KFloat)             | t <- [''Float,   ''Float# ]]
+                        , [(t, S.KDouble)            | t <- [''Double,  ''Double#]]
+                        , [(t, S.KBounded True  wsz) | t <- [''Int,     ''Int#   ]]
+                        , [(t, S.KBounded True    8) | t <- [''Int8              ]]
+                        , [(t, S.KBounded True   16) | t <- [''Int16             ]]
+                        , [(t, S.KBounded True   32) | t <- [''Int32,   ''Int32# ]]
+                        , [(t, S.KBounded True   64) | t <- [''Int64,   ''Int64# ]]
+                        , [(t, S.KBounded False wsz) | t <- [''Word,    ''Word#  ]]
+                        , [(t, S.KBounded False   8) | t <- [''Word8             ]]
+                        , [(t, S.KBounded False  16) | t <- [''Word16            ]]
+                        , [(t, S.KBounded False  32) | t <- [''Word32,  ''Word32#]]
+                        , [(t, S.KBounded False  64) | t <- [''Word64,  ''Word64#]]
+                        ]
 
         apps =  [ (''Ratio, [''Integer], S.KReal) ]
 
 -- | Build the initial environment containing functions
-buildFunEnv :: CoreM (M.Map (Id, S.Kind) Val)
-buildFunEnv = M.fromList `fmap` mapM grabVar symFuncs
+buildFunEnv :: Int -> CoreM (M.Map (Id, SKind) Val)
+buildFunEnv wsz = M.fromList `fmap` mapM grabVar (basicFuncs wsz ++ symFuncs)
   where grabVar (n, k, sfn) = do Just fn <- thNameToGhcName n
                                  f <- lookupId fn
                                  return ((f, k), sfn)
 
--- | Special functions that have a fixed-type
-buildSpecialEnv :: Int -> CoreM (M.Map Id Val)
-buildSpecialEnv wsz = M.fromList `fmap`  mapM grabVar basics
-   where grabVar (n, sfn) = do Just fn <- thNameToGhcName n
-                               f <- lookupId fn
-                               return (f, sfn)
-
-         basics = [ ('F#,    Func  (S.KFloat,  Nothing)            (return . Base))
-                  , ('D#,    Func  (S.KDouble, Nothing)            (return . Base))
-                  , ('I#,    Func  (S.KBounded True  wsz, Nothing) (return . Base))
-                  , ('W#,    Func  (S.KBounded False wsz, Nothing) (return . Base))
-                  , ('True,  Base  S.svTrue)
-                  , ('False, Base  S.svFalse)
-                  , ('(&&),  lift2 S.KBool S.svAnd)
-                  , ('(||),  lift2 S.KBool S.svOr)
-                  , ('not,   lift1 S.KBool S.svNot)
-                  ]
+-- | Basic conversions, only on one kind
+basicFuncs :: Int -> [(TH.Name, SKind, Val)]
+basicFuncs wsz = [ ('F#,    tlift1 S.KFloat,               Func  Nothing return)
+                 , ('D#,    tlift1 S.KDouble,              Func  Nothing return)
+                 , ('I#,    tlift1 $ S.KBounded True  wsz, Func  Nothing return)
+                 , ('W#,    tlift1 $ S.KBounded False wsz, Func  Nothing return)
+                 , ('True,  KBase S.KBool,                 Base  S.svTrue)
+                 , ('False, KBase S.KBool,                 Base  S.svFalse)
+                 , ('(&&),  tlift2 S.KBool,                lift2 S.svAnd)
+                 , ('(||),  tlift2 S.KBool,                lift2 S.svOr)
+                 , ('not,   tlift1 S.KBool,                lift1 S.svNot)
+                 ]
 
 -- | Symbolic functions supported by the plugin; those from a class.
-symFuncs :: [(TH.Name, S.Kind, Val)]
+symFuncs :: [(TH.Name, SKind, Val)]
 symFuncs =  -- equality is for all kinds
-          [(op, k, lift2 k sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
+          [(op, tlift2Bool k, lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
 
           -- arithmetic
-       ++ [(op, k, lift1 k sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
-       ++ [(op, k, lift2 k sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
+       ++ [(op, tlift1 k, lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
+       ++ [(op, tlift2 k, lift2 sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
 
           -- literal conversions from Integer
-       ++ [(op, k, lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
+       ++ [(op, KFun S.KUnbounded (KBase k), lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
 
           -- comparisons
-       ++ [(op, k, lift2 k sOp) | k <- arithKinds, (op, sOp) <- compOps ]
+       ++ [(op, tlift2Bool k, lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
 
           -- integer div/rem
-      ++ [(op, k, lift2 k sOp) | k <- integralKinds, (op, sOp) <- [('div, S.svDivide), ('quot, S.svQuot), ('rem, S.svRem)]]
+      ++ [(op, tlift2 k, lift2 sOp) | k <- integralKinds, (op, sOp) <- [('div, S.svDivide), ('quot, S.svQuot), ('rem, S.svRem)]]
 
          -- bit-vector
-      ++ [ (op, k, lift2 k sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
+      ++ [ (op, tlift2 k, lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
 
  where
        -- Bit-vectors
@@ -153,14 +150,38 @@ symFuncs =  -- equality is for all kinds
                   , ('xor,   S.svXOr)
                   ]
 
--- | Lift a unary SBV function to the plugin value space
-lift1 :: S.Kind -> (S.SVal -> S.SVal) -> Val
-lift1 k f = Func (k, Nothing) $ return . Base . f
+-- | Lift a binary type, with result bool
+tlift2Bool :: S.Kind -> SKind
+tlift2Bool k = KFun k (KFun k (KBase S.KBool))
 
--- | Lift a unary SBV function that takes and integer value to the plugin value space
+-- | Lift a binary type
+tlift2 :: S.Kind -> SKind
+tlift2 k = KFun k (KFun k (KBase k))
+
+-- | Lift a unary type
+tlift1 :: S.Kind -> SKind
+tlift1 k = KFun k (KBase k)
+
+-- | Lift a unary SBV function that via kind/integer
 lift1Int :: (Integer -> S.SVal) -> Val
-lift1Int f = Func (S.KUnbounded, Nothing) $ \i -> return $ Base (f (fromMaybe (error ("Cannot extract an integer from value: " ++ show i)) (S.svAsInteger i)))
+lift1Int f = Func Nothing g
+   where g (Base i) = return $ Base $ f (fromMaybe (error ("Cannot extract an integer from value: " ++ show i)) (S.svAsInteger i))
+         g _        = error "Impossible happened: lift1Int received non-base argument!"
+
+-- | Lift a unary SBV function to the plugin value space
+lift1 :: (S.SVal -> S.SVal) -> Val
+lift1 f = Func Nothing g
+  where g (Typ _)  = return $ Func Nothing h
+        g v        = h v
+        h (Base a) = return $ Base $ f a
+        h _        = error "Impossible happened: lift1 received non-base argument!"
 
 -- | Lift a two argument SBV function to our the plugin value space
-lift2 :: S.Kind -> (S.SVal -> S.SVal -> S.SVal) -> Val
-lift2 k f = Func (k, Nothing) $ \a -> return $ Func (k, Nothing) $ \b -> return (Base (f a b))
+lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
+lift2 f = Func Nothing g
+   where g (Typ  _)   = return $ Func Nothing h
+         g v          = h v
+         h   (Base a) = return $ Func Nothing (k a)
+         h _          = error "Impossible happened: lift2 received non-base argument (h)!"
+         k a (Base b) = return $ Base $ f a b
+         k _ _        = error "Impossible happened: lift2 received non-base argument (k)!"

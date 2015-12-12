@@ -49,9 +49,8 @@ plugin = defaultPlugin {installCoreToDos = install}
 
           let wsz = fromJust (bitSizeMaybe (0::Int))
 
-          baseTCs      <- buildTCEnv wsz
-          baseEnv      <- buildFunEnv
-          baseSpecials <- buildSpecialEnv wsz
+          baseTCs <- buildTCEnv  wsz
+          baseEnv <- buildFunEnv wsz
 
           let cfg = Config { dflags        = df
                            , opts          = []
@@ -59,7 +58,6 @@ plugin = defaultPlugin {installCoreToDos = install}
                            , isGHCi        = hscTarget df == HscInterpreted
                            , knownTCs      = baseTCs
                            , knownFuns     = baseEnv
-                           , knownSpecials = baseSpecials
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
                            , allBinds      = M.fromList (flattenBinds mg_binds)
                            }
