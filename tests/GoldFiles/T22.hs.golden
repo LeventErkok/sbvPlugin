@@ -3,22 +3,22 @@
 ** Starting symbolic simulation..
 ** Generated symbolic trace:
 SORTS
-  |String|
+  sbvString
 INPUTS
-  s0 :: |String|, aliasing "s"
+  s0 :: sbvString, aliasing "s"
 CONSTANTS
   s_2 = False :: Bool
   s_1 = True :: Bool
 TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
-  [uninterpreted] reverse :: |String| -> |String|
-  [uninterpreted] |==| :: |String| -> |String| -> SBool
+  [uninterpreted] reverse :: sbvString -> sbvString
+  [uninterpreted] |==| :: sbvString -> sbvString -> SBool
 USER GIVEN CODE SEGMENTS
 AXIOMS
 DEFINE
-  s1 :: |String| = [uninterpreted] reverse s0
-  s2 :: |String| = [uninterpreted] reverse s1
+  s1 :: sbvString = [uninterpreted] reverse s0
+  s2 :: sbvString = [uninterpreted] reverse s1
   s3 :: SBool = s2 [uninterpreted] |==| s0
 CONSTRAINTS
 ASSERTIONS
@@ -31,18 +31,18 @@ OUTPUTS
 (set-option :produce-models true)
 ; has user-defined sorts, no logic specified.
 ; --- uninterpreted sorts ---
-(declare-sort |String| 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T22.hs:9:3
+(declare-sort sbvString 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T22.hs:9:3
 ; --- literal constants ---
 (define-fun s_2 () Bool false)
 (define-fun s_1 () Bool true)
 ; --- skolem constants ---
-(declare-fun s0 () |String|) ; tracks user variable "s"
+(declare-fun s0 () sbvString) ; tracks user variable "s"
 ; --- constant tables ---
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun reverse (|String|) |String|)
-(declare-fun |==| (|String| |String|) Bool)
+(declare-fun reverse (sbvString) sbvString)
+(declare-fun |==| (sbvString sbvString) Bool)
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
@@ -55,10 +55,10 @@ OUTPUTS
 (get-value (s0))
 ** Z3 output:
 sat
-((s0 String!val!0))
+((s0 sbvString!val!0))
 ** Done..
 [Z3] Falsifiable. Counter-example:
-  s = String!val!0 :: |String|
+  s = sbvString!val!0 :: sbvString
 [SBV] Counter-example might be bogus due to uninterpreted constants:
   [<no location info>] ==      :: [Char] -> [Char] -> Bool
   [<no location info>] reverse :: [Char] -> [Char]

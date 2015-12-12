@@ -21,7 +21,7 @@ import System.Exit hiding (die)
 
 import Data.IORef
 
-import Data.Char  (isAlpha, isAlphaNum, toLower)
+import Data.Char  (isAlpha, isAlphaNum, toLower, isUpper)
 import Data.List  (intercalate, partition, nub, sortBy)
 import Data.Maybe (isJust, listToMaybe)
 import Data.Ord   (comparing)
@@ -329,17 +329,21 @@ mkValidName :: String -> Eval String
 mkValidName name =
         do Env{rUsedNames} <- ask
            usedNames <- liftIO $ readIORef rUsedNames
-           let unm = genSym usedNames name
+           let unm = unSMT $ genSym usedNames name
            liftIO $ modifyIORef rUsedNames (unm :)
            return $ escape unm
   where genSym bad nm
           | nm `elem` bad = head [nm' | i <- [(0::Int) ..], let nm' = nm ++ "_" ++ show i, nm' `notElem` bad]
           | True          = nm
-        escape nm
-          | isAlpha (head nm) && all isGood (tail nm) && map toLower nm `notElem` S.smtLibReservedNames
-          = nm
+        unSMT nm
+          | map toLower nm `elem` S.smtLibReservedNames
+          = if not (null nm) && isUpper (head nm)
+            then "sbv"  ++ nm
+            else "sbv_" ++ nm
           | True
-          = "|" ++ map tr nm ++ "|"
+          = nm
+        escape nm | isAlpha (head nm) && all isGood (tail nm) = nm
+                  | True                                      = "|" ++ map tr nm ++ "|"
         isGood c = isAlphaNum c || c == '_'
         tr '|'   = '_'
         tr '\\'  = '_'
