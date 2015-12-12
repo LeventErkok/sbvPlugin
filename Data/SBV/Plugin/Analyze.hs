@@ -242,9 +242,9 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 return $ Func (Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, KBase k) s (envMap env)}) (go body)
 
         tgo _ (Let (NonRec b e) body) = do
-            k <- getBaseType (getSrcSpan b) (varType b)
+            k <- getType (getSrcSpan b) (varType b)
             v <- go e
-            local (\env -> env{envMap = M.insert (b, KBase k) v (envMap env)}) (go body)
+            local (\env -> env{envMap = M.insert (b, k) v (envMap env)}) (go body)
 
         tgo _ (Let (Rec bs) body) = local (\env -> env{coreMap = foldr (uncurry M.insert) (coreMap env) bs}) (go body)
 
