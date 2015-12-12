@@ -21,10 +21,10 @@ import System.Exit hiding (die)
 
 import Data.IORef
 
-import Data.Char  (isAlpha, isAlphaNum, toLower, isUpper)
-import Data.List  (intercalate, partition, nub, sortBy)
-import Data.Maybe (isJust, listToMaybe)
-import Data.Ord   (comparing)
+import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
+import Data.List     (intercalate, partition, nub, sortBy, nubBy)
+import Data.Maybe    (isJust, listToMaybe)
+import Data.Ord      (comparing)
 
 import qualified Data.Map as M
 
@@ -193,7 +193,9 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                            Just b  -> if isUninterpretedBinding v
                                                       then uninterpret t v
                                                       else go b
-                                           Nothing -> debugTrace ("Uninterpreting: " ++ sh (v, k, envMap)) $ uninterpret t v
+                                           Nothing -> let same ((a, _), _) ((b, _), _) = a == b
+                                                      in debugTrace ("Uninterpreting: " ++ sh (v, k, map fst (nubBy same (M.toList envMap))))
+                                                                $ uninterpret t v
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -387,7 +389,10 @@ getBaseType sp t = do
 
 -- | Convert a Core type to an SBV Type, retaining functions
 getType :: SrcSpan -> Type -> Eval SKind
-getType sp t = do let (args, res) = splitFunTys t
+getType sp t = do let (tvs, t')   = splitForAllTys t
+                      (args, res) = splitFunTys t'
                   argKs <- mapM (getBaseType sp) args
                   resK  <- getBaseType sp res
-                  return $ foldr KFun (KBase resK) argKs
+                  return $ wrap tvs $ foldr KFun (KBase resK) argKs
+ where wrap ts f    = foldr (KFun . mkUserSort) f ts
+       mkUserSort v = S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin")
