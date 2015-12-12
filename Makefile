@@ -27,7 +27,7 @@ define mkTags
 	@find . -name \*.\*hs | xargs fast-tags
 endef
 
-.PHONY: all install test sdist clean docs gold stamp hlint tags
+.PHONY: all install test vtest sdist clean docs gold stamp hlint tags
 
 all: install
 
@@ -47,6 +47,10 @@ test: install
 	$(TIME) $(CABAL) test
 	@rm -rf tests/GoldFiles/*.current
 
+vtest: install
+	$(TIME) ./dist/build/sbvPluginTests/sbvPluginTests
+	@rm -rf tests/GoldFiles/*.current
+
 sdist: install
 	@(set -o pipefail; $(CABAL) sdist | $(SIMPLIFY))
 
@@ -59,7 +63,7 @@ clean:
 docs:
 	@(set -o pipefail; $(CABAL) haddock --haddock-option=--no-warnings --hyperlink-source 2>&1 | $(SIMPLIFY))
 
-release: clean install sdist hlint docs test
+release: clean install sdist hlint docs vtest
 	@echo "*** SBVPlugin is ready for release!"
 
 hlint: 
