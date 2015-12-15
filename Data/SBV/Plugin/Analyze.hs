@@ -250,7 +250,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- Case expressions. We take advantage of the core-invariant that each case alternative
         -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
         -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
-        tgo _ e@(Case ce caseBinder _t alts)
+        tgo _ e@(Case ce caseBinder caseType alts)
            = do sce <- go ce
                 let isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
@@ -263,7 +263,8 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                                   Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
                                                    _      -> caseTooComplicated "with-non-base-scrutinee" []
                     walk []                     = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
-                walk (nonDefs ++ defs)
+                k <- getBaseType (getSrcSpan caseBinder) caseType
+                local (\env -> env{envMap = M.insert (caseBinder, KBase k) sce (envMap env)}) $ walk (nonDefs ++ defs)
            where caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
                  caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
                  choose t tb fb = case S.svAsBool t of
