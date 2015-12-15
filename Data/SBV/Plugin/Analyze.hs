@@ -255,14 +255,17 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 let isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
                     (nonDefs, defs)           = partition isDefault alts
-                    walk [(_, _, rhs)]        = go rhs
-                    walk ((p, _, rhs) : rest) = case sce of
-                                                   Base a -> do mr <- match (bindSpan caseBinder) a p
-                                                                case mr of
-                                                                  Just m  -> choose m (go rhs) (walk rest)
-                                                                  Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
-                                                   _      -> caseTooComplicated "with-non-base-scrutinee" []
-                    walk []                     = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
+                    walk ((p, _, rhs) : rest) =
+                        case sce of
+                          Base a -> do mr  <- match (bindSpan caseBinder) a p
+                                       case mr of
+                                         Just (m, bs) -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs}) (go rhs)
+                                                            if null rest
+                                                               then result
+                                                               else choose m result (walk rest)
+                                         Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
+                          _      -> caseTooComplicated "with-non-base-scrutinee" []
+                    walk []                   = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
                 k <- getBaseType (getSrcSpan caseBinder) caseType
                 local (\env -> env{envMap = M.insert (caseBinder, KBase k) sce (envMap env)}) $ walk (nonDefs ++ defs)
            where caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
@@ -275,18 +278,18 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                         _                -> caseTooComplicated "with-non-base-alternatives" []
                                      Just True  -> tb
                                      Just False -> fb
-                 match :: SrcSpan -> S.SVal -> AltCon -> Eval (Maybe S.SVal)
+                 match :: SrcSpan -> S.SVal -> AltCon -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
                  match sp a c = case c of
-                                  DEFAULT    -> return $ Just S.svTrue
+                                  DEFAULT    -> return $ Just (S.svTrue, [])
                                   LitAlt  l  -> do le <- go (Lit l)
                                                    case le of
-                                                     Base b -> return $ Just $ a `S.svEqual` b
+                                                     Base b -> return $ Just (a `S.svEqual` b, [])
                                                      Typ{}  -> return Nothing
                                                      Func{} -> return Nothing
                                   DataAlt dc -> do Env{envMap} <- ask
                                                    k <- getBaseType sp (dataConRepType dc)
                                                    case (dataConWorkId dc, KBase k) `M.lookup` envMap of
-                                                     Just (Base b) -> return $ Just $ a `S.svEqual` b
+                                                     Just (Base b) -> return $ Just (a `S.svEqual` b, [])
                                                      _             -> return Nothing
 
         tgo t (Cast e _)
