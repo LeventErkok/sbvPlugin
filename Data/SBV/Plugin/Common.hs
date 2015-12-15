@@ -9,6 +9,8 @@
 -- Common data-structures/utilities
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Data.SBV.Plugin.Common where
 
 import Control.Monad.Reader
@@ -33,7 +35,7 @@ data Env = Env { curLoc         :: SrcSpan
                , rUninterpreted :: IORef [((Var, Type), (String, Val))]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]
-               , baseTCs        :: M.Map (TyCon, [TyCon]) S.Kind
+               , tcMap          :: M.Map (TyCon, [TyCon]) S.Kind
                , envMap         :: M.Map (Var, SKind) Val
                , destMap        :: M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)]))
                , coreMap        :: M.Map Var CoreExpr
@@ -43,15 +45,10 @@ data Env = Env { curLoc         :: SrcSpan
 type Eval a = ReaderT Env S.Symbolic a
 
 -- | Configuration info as we run the plugin
-data Config = Config { dflags        :: DynFlags
-                     , wordSize      :: Int
-                     , isGHCi        :: Bool
+data Config = Config { isGHCi        :: Bool
                      , opts          :: [SBVAnnotation]
-                     , knownTCs      :: M.Map (TyCon, [TyCon]) S.Kind
-                     , knownFuns     :: M.Map (Var, SKind) Val
-                     , knownDests    :: M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)]))
                      , sbvAnnotation :: Var -> [SBVAnnotation]
-                     , allBinds      :: M.Map Var CoreExpr
+                     , cfgEnv        :: Env
                      }
 
 -- | Given the user options, determine which solver(s) to use
@@ -91,4 +88,4 @@ bindSpan = nameSrcSpan . varName
 
 -- | Show a GHC span in user-friendly form.
 showSpan :: Config -> Var -> SrcSpan -> String
-showSpan cfg b s = showSDoc (dflags cfg) $ if isGoodSrcSpan s then ppr s else ppr b
+showSpan Config{cfgEnv} b s = showSDoc (flags cfgEnv) $ if isGoodSrcSpan s then ppr s else ppr b

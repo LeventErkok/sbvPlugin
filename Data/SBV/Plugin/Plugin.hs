@@ -21,6 +21,8 @@ import Data.List  (sortBy)
 import Data.Ord   (comparing)
 import Data.Bits  (bitSizeMaybe)
 
+import Data.IORef
+
 import qualified Data.Map as M
 
 import Data.SBV.Plugin.Common
@@ -53,15 +55,24 @@ plugin = defaultPlugin {installCoreToDos = install}
           baseEnv   <- buildFunEnv wsz
           baseDests <- buildDests  wsz
 
-          let cfg = Config { dflags        = df
+          rUninterpreted <- liftIO $ newIORef []
+          rUsedNames     <- liftIO $ newIORef []
+          rUITypes       <- liftIO $ newIORef []
+
+          let cfg = Config { isGHCi        = hscTarget df == HscInterpreted
                            , opts          = []
-                           , wordSize      = wsz
-                           , isGHCi        = hscTarget df == HscInterpreted
-                           , knownTCs      = baseTCs
-                           , knownFuns     = baseEnv
-                           , knownDests    = baseDests
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
-                           , allBinds      = M.fromList (flattenBinds mg_binds)
+                           , cfgEnv        = Env { curLoc         = noSrcSpan
+                                                 , flags          = df
+                                                 , machWordSize   = wsz
+                                                 , rUninterpreted = rUninterpreted
+                                                 , rUsedNames     = rUsedNames
+                                                 , rUITypes       = rUITypes
+                                                 , tcMap          = baseTCs
+                                                 , envMap         = baseEnv
+                                                 , destMap        = baseDests
+                                                 , coreMap        = M.fromList (flattenBinds mg_binds)
+                                                 }
                            }
 
           let bindLoc (NonRec b _)     = bindSpan b

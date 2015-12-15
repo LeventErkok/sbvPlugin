@@ -39,13 +39,13 @@ import Data.SBV.Plugin.Data
 
 -- | Dispatch the analyzer over bindings
 analyzeBind :: Config -> CoreBind -> CoreM ()
-analyzeBind cfg@Config{sbvAnnotation} = go
+analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
   where go (NonRec b e) = bind (b, e)
         go (Rec binds)  = mapM_ bind binds
 
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
-                 | Just s <- hasSkip opts  = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg b topLoc ++ " Skipping " ++ show (showSDoc (dflags cfg) (ppr b)) ++ ": " ++ s
+                 | Just s <- hasSkip opts  = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg b topLoc ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
                  | Uninterpret `elem` opts = return ()
                  | True                    = liftIO $ prove cfg opts b topLoc e
                 hasSkip opts = listToMaybe [s | Skip s <- opts]
@@ -80,7 +80,7 @@ instance Outputable Val where
 
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
+proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         solverConfigs <- pickSolvers opts
         let verbose = Verbose    `elem` opts
             qCheck  = QuickCheck `elem` opts
@@ -96,11 +96,8 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                             xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
         putStrLn $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
         (finalResult, finalUninterps) <- do
-                        rUninterps     <- newIORef []
-                        rUnms          <- newIORef []
-                        rUItys         <- newIORef []
-                        finalResult    <- runProver (res rUninterps rUnms rUItys)
-                        finalUninterps <- readIORef rUninterps
+                        finalResult    <- runProver (res cfgEnv)
+                        finalUninterps <- readIORef (rUninterpreted cfgEnv)
                         return (finalResult, finalUninterps)
         case finalResult of
           Right (solver, sres@(S.ThmResult smtRes)) -> do
@@ -118,7 +115,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 unless (success || null unintFuns) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
-                            shUI (e, t) = (showSDoc (dflags cfg) (ppr (getSrcSpan e)), sh e, sh t)
+                            shUI (e, t) = (showSDoc (flags cfgEnv) (ppr (getSrcSpan e)), sh e, sh t)
                             ls   = map shUI unintFuns
                             len1 = maximum (0 : [length s | (s, _, _) <- ls])
                             len2 = maximum (0 : [length s | (_, s, _) <- ls])
@@ -132,18 +129,8 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
   where debug = Debug `elem` opts
 
-        res uis unms uitys = do
-               v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
-                                                    , flags          = dflags     cfg
-                                                    , rUninterpreted = uis
-                                                    , rUsedNames     = unms
-                                                    , rUITypes       = uitys
-                                                    , machWordSize   = wordSize   cfg
-                                                    , envMap         = knownFuns  cfg
-                                                    , destMap        = knownDests cfg
-                                                    , baseTCs        = knownTCs   cfg
-                                                    , coreMap        = allBinds   cfg
-                                                    }
+        res initEnv = do
+               v <- runReaderT (symEval topExpr) initEnv{curLoc = topLoc}
                case v of
                  Base r -> return r
                  _      -> error "Impossible happened. Final result reduced to a non-base value!"
@@ -158,7 +145,7 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tbd w ws = do Env{curLoc} <- ask
                       die curLoc w ws
 
-        sh o = showSDoc (dflags cfg) (ppr o)
+        sh o = showSDoc (flags cfgEnv) (ppr o)
 
         -- Given an alleged theorem, first establish it has the right type, and
         -- then go ahead and evaluate it symbolicly after applying it to sufficient
@@ -368,9 +355,9 @@ isReallyADictionary v = case classifyPredType (varType v) of
 -- Otherwise, create an uninterpreted kind, and return that.
 getBaseType :: SrcSpan -> Type -> Eval S.Kind
 getBaseType sp t = do
-        Env{baseTCs} <- ask
+        Env{tcMap} <- ask
         case grabTCs (splitTyConApp_maybe t) of
-          Just k -> case k `M.lookup` baseTCs of
+          Just k -> case k `M.lookup` tcMap of
                       Just knd -> return knd
                       Nothing  -> unknown
           _        -> unknown
