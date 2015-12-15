@@ -12,7 +12,7 @@
 {-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv) where
+module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests) where
 
 import GhcPlugins
 import GHC.Prim
@@ -67,10 +67,7 @@ buildTCEnv wsz = do xs <- mapM grabTyCon basics
 
 -- | Build the initial environment containing functions
 buildFunEnv :: Int -> CoreM (M.Map (Id, SKind) Val)
-buildFunEnv wsz = M.fromList `fmap` mapM grabVar (basicFuncs wsz ++ symFuncs)
-  where grabVar (n, k, sfn) = do Just fn <- thNameToGhcName n
-                                 f <- lookupId fn
-                                 return ((f, k), sfn)
+buildFunEnv wsz = M.fromList `fmap` mapM thToGHC (basicFuncs wsz ++ symFuncs)
 
 -- | Basic conversions, only on one kind
 basicFuncs :: Int -> [(TH.Name, SKind, Val)]
@@ -150,6 +147,20 @@ symFuncs =  -- equality is for all kinds
                   , ('xor,   S.svXOr)
                   ]
 
+
+-- | Destructors
+buildDests :: Int -> CoreM (M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)])))
+buildDests wsz = M.fromList `fmap` mapM thToGHC dests
+  where dests = [ unbox 'W# (S.KBounded False wsz)
+                , unbox 'I# (S.KBounded True  wsz)
+                , unbox 'F# S.KFloat
+                , unbox 'D# S.KDouble
+                ]
+
+        unbox a k     = (a, tlift1 k, dest1 k)
+        dest1 k a [b] = (S.svTrue, [((b, KBase k), Base a)])
+        dest1 _ a bs  = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ show a ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
+
 -- | Lift a binary type, with result bool
 tlift2Bool :: S.Kind -> SKind
 tlift2Bool k = KFun k (KFun k (KBase S.KBool))
@@ -185,3 +196,10 @@ lift2 f = Func Nothing g
          h _          = error "Impossible happened: lift2 received non-base argument (h)!"
          k a (Base b) = return $ Base $ f a b
          k _ _        = error "Impossible happened: lift2 received non-base argument (k)!"
+
+thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
+thToGHC (n, k, sfn) = do mbFN <- thNameToGhcName n
+                         case mbFN of
+                           Just fn  -> do f <- lookupId fn
+                                          return ((f, k), sfn)
+                           Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n

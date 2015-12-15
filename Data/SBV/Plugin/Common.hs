@@ -35,6 +35,7 @@ data Env = Env { curLoc         :: SrcSpan
                , rUITypes       :: IORef [(Type, S.Kind)]
                , baseTCs        :: M.Map (TyCon, [TyCon]) S.Kind
                , envMap         :: M.Map (Var, SKind) Val
+               , destMap        :: M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)]))
                , coreMap        :: M.Map Var CoreExpr
                }
 
@@ -48,6 +49,7 @@ data Config = Config { dflags        :: DynFlags
                      , opts          :: [SBVAnnotation]
                      , knownTCs      :: M.Map (TyCon, [TyCon]) S.Kind
                      , knownFuns     :: M.Map (Var, SKind) Val
+                     , knownDests    :: M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)]))
                      , sbvAnnotation :: Var -> [SBVAnnotation]
                      , allBinds      :: M.Map Var CoreExpr
                      }

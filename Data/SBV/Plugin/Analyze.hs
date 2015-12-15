@@ -134,14 +134,15 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         res uis unms uitys = do
                v <- runReaderT (symEval topExpr) Env{ curLoc  = topLoc
-                                                    , flags          = dflags    cfg
+                                                    , flags          = dflags     cfg
                                                     , rUninterpreted = uis
                                                     , rUsedNames     = unms
                                                     , rUITypes       = uitys
-                                                    , machWordSize   = wordSize  cfg
-                                                    , envMap         = knownFuns cfg
-                                                    , baseTCs        = knownTCs  cfg
-                                                    , coreMap        = allBinds  cfg
+                                                    , machWordSize   = wordSize   cfg
+                                                    , envMap         = knownFuns  cfg
+                                                    , destMap        = knownDests cfg
+                                                    , baseTCs        = knownTCs   cfg
+                                                    , coreMap        = allBinds   cfg
                                                     }
                case v of
                  Base r -> return r
@@ -254,15 +255,15 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
            = do sce <- go ce
                 let isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
-                    (nonDefs, defs)           = partition isDefault alts
-                    walk ((p, _, rhs) : rest) =
+                    (defs, nonDefs)           = partition isDefault alts
+                    walk ((p, bs, rhs) : rest) =
                         case sce of
-                          Base a -> do mr  <- match (bindSpan caseBinder) a p
+                          Base a -> do mr <- match (bindSpan caseBinder) a p bs
                                        case mr of
-                                         Just (m, bs) -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs}) (go rhs)
-                                                            if null rest
-                                                               then result
-                                                               else choose m result (walk rest)
+                                         Just (m, bs') -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
+                                                             if null rest
+                                                                then result
+                                                                else choose m result (walk rest)
                                          Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
                           _      -> caseTooComplicated "with-non-base-scrutinee" []
                     walk []                   = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
@@ -278,19 +279,22 @@ proveIt cfg@Config{sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                         _                -> caseTooComplicated "with-non-base-alternatives" []
                                      Just True  -> tb
                                      Just False -> fb
-                 match :: SrcSpan -> S.SVal -> AltCon -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
-                 match sp a c = case c of
-                                  DEFAULT    -> return $ Just (S.svTrue, [])
-                                  LitAlt  l  -> do le <- go (Lit l)
-                                                   case le of
-                                                     Base b -> return $ Just (a `S.svEqual` b, [])
-                                                     Typ{}  -> return Nothing
-                                                     Func{} -> return Nothing
-                                  DataAlt dc -> do Env{envMap} <- ask
-                                                   k <- getBaseType sp (dataConRepType dc)
-                                                   case (dataConWorkId dc, KBase k) `M.lookup` envMap of
-                                                     Just (Base b) -> return $ Just (a `S.svEqual` b, [])
-                                                     _             -> return Nothing
+                 match :: SrcSpan -> S.SVal -> AltCon -> [Var] -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
+                 match sp a c bs = case c of
+                                     DEFAULT    -> return $ Just (S.svTrue, [])
+                                     LitAlt  l  -> do le <- go (Lit l)
+                                                      case le of
+                                                        Base b -> return $ Just (a `S.svEqual` b, [])
+                                                        Typ{}  -> return Nothing
+                                                        Func{} -> return Nothing
+                                     DataAlt dc -> do Env{envMap, destMap} <- ask
+                                                      k <- getType sp (dataConRepType dc)
+                                                      let wid = dataConWorkId dc
+                                                      case (wid, k) `M.lookup` envMap of
+                                                        Just (Base b) -> return $ Just (a `S.svEqual` b, [])
+                                                        _             -> case (wid, k) `M.lookup` destMap of
+                                                                           Nothing -> return Nothing
+                                                                           Just f  -> return $ Just $ f a bs
 
         tgo t (Cast e _)
            = tgo t e
