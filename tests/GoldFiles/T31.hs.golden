@@ -1,0 +1,19 @@
+
+[SBV] tests/T31.hs:9:1 Proving "f", using Z3.
+
+[SBV] tests/T31.hs:9:1 Skipping proof. Non-boolean property declaration:
+                          Found    : Int -> Int
+                          Returning: Int
+                          Expected : Bool result
+
+[SBV] tests/T31.hs:13:1 Proving "g", using Z3.
+
+[SBV] tests/T31.hs:13:1 Skipping proof. Non-boolean property declaration:
+                           Found    : Char
+                           Expected : Bool
+
+[SBV] tests/T31.hs:17:1 Proving "h", using Z3.
+
+[SBV] tests/T31.hs:17:1 Skipping proof. Non-boolean property declaration:
+                           Found    : Double
+                           Expected : Bool

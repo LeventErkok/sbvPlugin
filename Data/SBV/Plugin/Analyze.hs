@@ -152,11 +152,18 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- number of symbolic arguments
         symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders e
-                       ats <- mapM (\b -> getBaseType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                       let mkVar ((b, k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
-                                                    return ((b, KBase k), Base v)
-                       sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
-                       local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
+                       Env{curLoc} <- ask
+                       finalType <- getBaseType curLoc (exprType body)
+                       case finalType of
+                         S.KBool -> do ats <- mapM (\b -> getBaseType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
+                                       let mkVar ((b, k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
+                                                                    return ((b, KBase k), Base v)
+                                       sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+                                       local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
+                         _       -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
+                                                                                          , ["Returning: " ++ sh (exprType body) | not (null bs)]
+                                                                                          , ["Expected : Bool" ++ if null bs then "" else " result"]
+                                                                                          ])
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
