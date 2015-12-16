@@ -233,7 +233,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         tgo _ (Lam b body) = do
                 k <- getBaseType (getSrcSpan b) (varType b)
-                return $ Func (Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, KBase k) s (envMap env)}) (go body)
+                Env{envMap} <- ask
+                return $ Func (Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, KBase k) s envMap}) (go body)
 
         tgo _ (Let (NonRec b e) body) = local (\env -> env{coreMap = M.insert b e (coreMap env)}) (go body)
 
