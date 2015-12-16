@@ -66,7 +66,7 @@ buildTCEnv wsz = do xs <- mapM grabTyCon basics
 
 -- | Build the initial environment containing functions
 buildFunEnv :: Int -> CoreM (M.Map (Id, SKind) Val)
-buildFunEnv wsz = M.fromList `fmap` mapM thToGHC (basicFuncs wsz ++ symFuncs)
+buildFunEnv wsz = M.fromList `fmap` mapM thToGHC (basicFuncs wsz ++ symFuncs wsz)
 
 -- | Basic conversions, only on one kind
 basicFuncs :: Int -> [(TH.Name, SKind, Val)]
@@ -82,8 +82,8 @@ basicFuncs wsz = [ ('F#,    tlift1 S.KFloat,               Func  Nothing return)
                  ]
 
 -- | Symbolic functions supported by the plugin; those from a class.
-symFuncs :: [(TH.Name, SKind, Val)]
-symFuncs =  -- equality is for all kinds
+symFuncs :: Int -> [(TH.Name, SKind, Val)]
+symFuncs wsz =  -- equality is for all kinds
           [(op, tlift2Bool k, lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
 
           -- arithmetic
@@ -100,7 +100,8 @@ symFuncs =  -- equality is for all kinds
       ++ [(op, tlift2 k, lift2 sOp) | k <- integralKinds, (op, sOp) <- [('div, S.svDivide), ('quot, S.svQuot), ('rem, S.svRem)]]
 
          -- bit-vector
-      ++ [ (op, tlift2 k, lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps]
+      ++ [ (op, tlift2 k,          lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps   ]
+      ++ [ (op, tlift2ShRot wsz k, lift2 sOp) | k <- bvKinds, (op, sOp) <- bvShiftRots]
 
  where
        -- Bit-vectors
@@ -122,15 +123,18 @@ symFuncs =  -- equality is for all kinds
        allKinds   = S.KBool : arithKinds
 
        -- Unary arithmetic ops
-       unaryOps   = [ ('abs,    S.svAbs)
-                    , ('negate, S.svUNeg)
+       unaryOps   = [ ('abs,        S.svAbs)
+                    , ('negate,     S.svUNeg)
+                    , ('complement, S.svNot)
                     ]
 
        -- Binary arithmetic ops
-       binaryOps  = [ ('(+), S.svPlus)
-                    , ('(-), S.svMinus)
-                    , ('(*), S.svTimes)
-                    , ('(/), S.svDivide)
+       binaryOps  = [ ('(+),        S.svPlus)
+                    , ('(-),        S.svMinus)
+                    , ('(*),        S.svTimes)
+                    , ('(/),        S.svDivide)
+                    , ('quot,       S.svQuot)
+                    , ('rem,        S.svRem)
                     ]
 
        -- Comparisons
@@ -141,10 +145,17 @@ symFuncs =  -- equality is for all kinds
                  ]
 
        -- Binary bit-vector ops
-       bvBinOps = [ ('(.&.), S.svAnd)
-                  , ('(.|.), S.svOr)
-                  , ('xor,   S.svXOr)
+       bvBinOps = [ ('(.&.),   S.svAnd)
+                  , ('(.|.),   S.svOr)
+                  , ('xor,     S.svXOr)
                   ]
+
+       -- Shift/rotates, where second argument is an int
+       bvShiftRots = [ ('shiftL,  S.svShiftLeft)
+                     , ('shiftR,  S.svShiftRight)
+                     , ('rotateL, S.svRotateLeft)
+                     , ('rotateR, S.svRotateRight)
+                     ]
 
 
 -- | Destructors
@@ -179,6 +190,10 @@ tlift2Bool k = KFun k (KFun k (KBase S.KBool))
 -- | Lift a binary type
 tlift2 :: S.Kind -> SKind
 tlift2 k = KFun k (KFun k (KBase k))
+
+-- | Lift a binary type, where second argument is Int
+tlift2ShRot :: Int -> S.Kind -> SKind
+tlift2ShRot wsz k = KFun k (KFun (S.KBounded True wsz) (KBase k))
 
 -- | Lift a unary type
 tlift1 :: S.Kind -> SKind
