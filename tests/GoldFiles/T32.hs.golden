@@ -1,0 +1,4 @@
+
+[SBV] tests/T32.hs:11:1 Proving "f", using Z3.
+sShiftLeft: shift amount should be unsigned
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
