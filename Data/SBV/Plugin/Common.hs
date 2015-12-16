@@ -36,6 +36,7 @@ data Env = Env { curLoc         :: SrcSpan
                , rUninterpreted :: IORef [((Var, Type), (String, Val))]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]
+               , isEquality     :: Var -> Maybe Val
                , tcMap          :: M.Map (TyCon, [TyCon]) S.Kind
                , envMap         :: M.Map (Var, SKind) Val
                , destMap        :: M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)]))

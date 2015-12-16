@@ -55,6 +55,7 @@ plugin = defaultPlugin {installCoreToDos = install}
           baseEnv       <- buildFunEnv wsz
           baseDests     <- buildDests  wsz
           uninteresting <- uninterestingTypes
+          isEquality    <- buildEquality
 
           rUninterpreted <- liftIO $ newIORef []
           rUsedNames     <- liftIO $ newIORef []
@@ -70,6 +71,7 @@ plugin = defaultPlugin {installCoreToDos = install}
                                                  , rUninterpreted = rUninterpreted
                                                  , rUsedNames     = rUsedNames
                                                  , rUITypes       = rUITypes
+                                                 , isEquality     = isEquality
                                                  , tcMap          = baseTCs
                                                  , envMap         = baseEnv
                                                  , destMap        = baseDests

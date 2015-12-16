@@ -13,11 +13,10 @@ CONSTANTS
 TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
-  [uninterpreted] |==| :: Age -> Age -> SBool
 USER GIVEN CODE SEGMENTS
 AXIOMS
 DEFINE
-  s2 :: SBool = s0 [uninterpreted] |==| s1
+  s2 :: SBool = s0 == s1
 CONSTRAINTS
 ASSERTIONS
 OUTPUTS
@@ -40,11 +39,10 @@ OUTPUTS
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun |==| (Age Age) Bool)
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
-   (let ((s2 (|==| s0 s1)))
+   (let ((s2 (= s0 s1)))
    (not s2)))
 ** Calling: "z3 -nw -in -smt2"
 ** Sending the following model extraction commands:
@@ -58,6 +56,4 @@ sat
 [Z3] Falsifiable. Counter-example:
   a = Age!val!0 :: Age
   b = Age!val!1 :: Age
-[SBV] Counter-example might be bogus due to uninterpreted constant:
-  [<no location info>] == :: Age -> Age -> Bool
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

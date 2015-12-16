@@ -2,30 +2,7 @@
 [SBV] tests/T21.hs:9:1 Proving "f", using Z3.
 ** Starting symbolic simulation..
 ** Generated symbolic trace:
-SORTS
-  sbvChar
-  sbvString
-INPUTS
-  s0 :: sbvChar, aliasing "c"
-  s1 :: sbvString, aliasing "s"
-CONSTANTS
-  s_2 = False :: Bool
-  s_1 = True :: Bool
-TABLES
-ARRAYS
-UNINTERPRETED CONSTANTS
-  [uninterpreted] |==_0| :: sbvString -> sbvString -> SBool
-  [uninterpreted] |==| :: sbvChar -> sbvChar -> SBool
-USER GIVEN CODE SEGMENTS
-AXIOMS
-DEFINE
-  s2 :: SBool = s0 [uninterpreted] |==| s0
-  s3 :: SBool = s1 [uninterpreted] |==_0| s1
-  s4 :: SBool = s2 & s3
-CONSTRAINTS
-ASSERTIONS
-OUTPUTS
-  s4
+True :: Bool
 ** Translating to SMT-Lib..
 ** Checking Theoremhood..
 ** Generated SMTLib program:
@@ -45,28 +22,12 @@ OUTPUTS
 ; --- skolemized tables ---
 ; --- arrays ---
 ; --- uninterpreted constants ---
-(declare-fun |==_0| (sbvString sbvString) Bool)
-(declare-fun |==| (sbvChar sbvChar) Bool)
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
-   (let ((s2 (|==| s0 s0)))
-   (let ((s3 (|==_0| s1 s1)))
-   (let ((s4 (and s2 s3)))
-   (not s4)))))
+   (not s_1))
 ** Calling: "z3 -nw -in -smt2"
-** Sending the following model extraction commands:
-(get-value (s0))
-(get-value (s1))
 ** Z3 output:
-sat
-((s0 sbvChar!val!0))
-((s1 sbvString!val!0))
+unsat
 ** Done..
-[Z3] Falsifiable. Counter-example:
-  c =   sbvChar!val!0 :: sbvChar
-  s = sbvString!val!0 :: sbvString
-[SBV] Counter-example might be bogus due to uninterpreted constants:
-  [<no location info>] == :: String -> String -> Bool
-  [<no location info>] == :: Char -> Char -> Bool
-[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
+[Z3] Q.E.D.

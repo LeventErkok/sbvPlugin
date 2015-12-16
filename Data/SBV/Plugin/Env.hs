@@ -12,7 +12,7 @@
 {-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, uninterestingTypes) where
+module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildEquality, uninterestingTypes) where
 
 import GhcPlugins
 import GHC.Prim
@@ -38,8 +38,7 @@ buildTCEnv wsz = do xs <- mapM grabTyCon basics
                     ys <- mapM grabTyApp apps
                     return $ M.fromList $ xs ++ ys
 
-  where grab x = do Just fn <- thNameToGhcName x
-                    lookupTyCon fn
+  where grab = grabTH lookupTyCon
 
         grabTyCon (x, k) = grabTyApp (x, [], k)
 
@@ -164,11 +163,14 @@ buildDests wsz = M.fromList `fmap` mapM thToGHC dests
 -- | These types show up during uninterpretation, but are not really "interesting" as they
 -- are singly inhabited.
 uninterestingTypes :: CoreM [Type]
-uninterestingTypes = mapM grabName ['void#]
-  where grabName n = do mbN <- thNameToGhcName n
-                        case mbN of
-                          Just gn -> varType `fmap` lookupId gn
-                          Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n
+uninterestingTypes = map varType `fmap` mapM (grabTH lookupId) ['void#]
+
+-- | Equality is special, as it uniformly applies to uninterpreted types.
+buildEquality :: CoreM (Var -> Maybe Val)
+buildEquality = do eq  <- grabTH lookupId '(==)
+                   neq <- grabTH lookupId '(/=)
+                   let choose = [(eq, lift2 S.svEqual), (neq, lift2 S.svNotEqual)]
+                   return (`lookup` choose)
 
 -- | Lift a binary type, with result bool
 tlift2Bool :: S.Kind -> SKind
@@ -207,8 +209,11 @@ lift2 f = Func Nothing g
          k _ _        = error "Impossible happened: lift2 received non-base argument (k)!"
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
-thToGHC (n, k, sfn) = do mbN <- thNameToGhcName n
-                         case mbN of
-                           Just gn  -> do f <- lookupId gn
-                                          return ((f, k), sfn)
-                           Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n
+thToGHC (n, k, sfn) = do f <- grabTH lookupId n
+                         return ((f, k), sfn)
+
+grabTH :: (Name -> CoreM b) -> TH.Name -> CoreM b
+grabTH f n = do mbN <- thNameToGhcName n
+                case mbN of
+                  Just gn -> f gn
+                  Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n

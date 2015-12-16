@@ -215,7 +215,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                            k <- getBaseType (getSrcSpan v) t
                                            case (v, KBase k) `M.lookup` envMap of
                                               Just b  -> return b
-                                              Nothing -> tgo tFun (Var v)
+                                              Nothing -> -- Exception: If k is uninterpreted, then we allow equality:
+                                                         do Env{isEquality} <- ask
+                                                            case isEquality v of
+                                                              Just f  -> return f
+                                                              Nothing -> tgo tFun (Var v)
 
         tgo t (App a (Type _))
             = tgo t a

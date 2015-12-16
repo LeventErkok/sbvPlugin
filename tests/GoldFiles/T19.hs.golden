@@ -13,13 +13,12 @@ TABLES
 ARRAYS
 UNINTERPRETED CONSTANTS
   [uninterpreted] reverse :: |[Char]| -> |[Char]|
-  [uninterpreted] |==| :: |[Char]| -> |[Char]| -> SBool
 USER GIVEN CODE SEGMENTS
 AXIOMS
 DEFINE
   s1 :: |[Char]| = [uninterpreted] reverse s0
   s2 :: |[Char]| = [uninterpreted] reverse s1
-  s3 :: SBool = s2 [uninterpreted] |==| s0
+  s3 :: SBool = s0 == s2
 CONSTRAINTS
 ASSERTIONS
 OUTPUTS
@@ -42,13 +41,12 @@ OUTPUTS
 ; --- arrays ---
 ; --- uninterpreted constants ---
 (declare-fun reverse (|[Char]|) |[Char]|)
-(declare-fun |==| (|[Char]| |[Char]|) Bool)
 ; --- user given axioms ---
 ; --- formula ---
 (assert ; no quantifiers
    (let ((s1 (reverse s0)))
    (let ((s2 (reverse s1)))
-   (let ((s3 (|==| s2 s0)))
+   (let ((s3 (= s0 s2)))
    (not s3)))))
 ** Calling: "z3 -nw -in -smt2"
 ** Sending the following model extraction commands:
@@ -59,7 +57,6 @@ sat
 ** Done..
 [Z3] Falsifiable. Counter-example:
   s = |[Char]!val!0| :: |[Char]|
-[SBV] Counter-example might be bogus due to uninterpreted constants:
-  [<no location info>] ==      :: [Char] -> [Char] -> Bool
+[SBV] Counter-example might be bogus due to uninterpreted constant:
   [<no location info>] reverse :: [Char] -> [Char]
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
