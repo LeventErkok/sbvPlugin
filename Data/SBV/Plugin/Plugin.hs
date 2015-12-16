@@ -51,9 +51,10 @@ plugin = defaultPlugin {installCoreToDos = install}
 
           let wsz = fromJust (bitSizeMaybe (0::Int))
 
-          baseTCs   <- buildTCEnv  wsz
-          baseEnv   <- buildFunEnv wsz
-          baseDests <- buildDests  wsz
+          baseTCs       <- buildTCEnv  wsz
+          baseEnv       <- buildFunEnv wsz
+          baseDests     <- buildDests  wsz
+          uninteresting <- uninterestingTypes
 
           rUninterpreted <- liftIO $ newIORef []
           rUsedNames     <- liftIO $ newIORef []
@@ -65,6 +66,7 @@ plugin = defaultPlugin {installCoreToDos = install}
                            , cfgEnv        = Env { curLoc         = noSrcSpan
                                                  , flags          = df
                                                  , machWordSize   = wsz
+                                                 , uninteresting  = uninteresting
                                                  , rUninterpreted = rUninterpreted
                                                  , rUsedNames     = rUsedNames
                                                  , rUITypes       = rUITypes

@@ -12,7 +12,7 @@
 {-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests) where
+module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, uninterestingTypes) where
 
 import GhcPlugins
 import GHC.Prim
@@ -161,6 +161,15 @@ buildDests wsz = M.fromList `fmap` mapM thToGHC dests
         dest1 k a [b] = (S.svTrue, [((b, KBase k), Base a)])
         dest1 _ a bs  = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ show a ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
 
+-- | These types show up during uninterpretation, but are not really "interesting" as they
+-- are singly inhabited.
+uninterestingTypes :: CoreM [Type]
+uninterestingTypes = mapM grabName ['void#]
+  where grabName n = do mbN <- thNameToGhcName n
+                        case mbN of
+                          Just gn -> varType `fmap` lookupId gn
+                          Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n
+
 -- | Lift a binary type, with result bool
 tlift2Bool :: S.Kind -> SKind
 tlift2Bool k = KFun k (KFun k (KBase S.KBool))
@@ -198,8 +207,8 @@ lift2 f = Func Nothing g
          k _ _        = error "Impossible happened: lift2 received non-base argument (k)!"
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
-thToGHC (n, k, sfn) = do mbFN <- thNameToGhcName n
-                         case mbFN of
-                           Just fn  -> do f <- lookupId fn
+thToGHC (n, k, sfn) = do mbN <- thNameToGhcName n
+                         case mbN of
+                           Just gn  -> do f <- lookupId gn
                                           return ((f, k), sfn)
                            Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n

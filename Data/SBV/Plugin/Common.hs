@@ -32,6 +32,7 @@ import Data.SBV.Plugin.Data
 data Env = Env { curLoc         :: SrcSpan
                , flags          :: DynFlags
                , machWordSize   :: Int
+               , uninteresting  :: [Type]
                , rUninterpreted :: IORef [((Var, Type), (String, Val))]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]

@@ -23,7 +23,7 @@ import Data.IORef
 
 import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
 import Data.List     (intercalate, partition, nub, sortBy, nubBy)
-import Data.Maybe    (isJust, listToMaybe)
+import Data.Maybe    (listToMaybe)
 import Data.Ord      (comparing)
 
 import qualified Data.Map as M
@@ -110,13 +110,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 putStr $ "[" ++ show solver ++ "] "
                 print sres
 
-                -- If proof failed and there are uninterpreted functions, print a warning:
-                let unintFuns = [p | p@(_, t) <- nub $ sortBy (comparing fst) [vt | (vt, _) <- finalUninterps], isJust (splitFunTy_maybe t)]
-                unless (success || null unintFuns) $ do
+                -- If proof failed and there are uninterpreted values, print a warning; except for "uninteresting" types
+                let unintVals = filter ((`notElem` uninteresting cfgEnv) . snd) $ nub $ sortBy (comparing fst) [vt | (vt, _) <- finalUninterps]
+                unless (success || null unintVals) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
                             shUI (e, t) = (showSDoc (flags cfgEnv) (ppr (getSrcSpan e)), sh e, sh t)
-                            ls   = map shUI unintFuns
+                            ls   = map shUI unintVals
                             len1 = maximum (0 : [length s | (s, _, _) <- ls])
                             len2 = maximum (0 : [length s | (_, s, _) <- ls])
                             pad n s = take n (s ++ repeat ' ')

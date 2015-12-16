@@ -2,4 +2,6 @@
 [SBV] tests/T16.hs:11:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   age = Age!val!0 :: Age
+[SBV] Counter-example might be bogus due to uninterpreted constant:
+  [<no location info>] ds_d6aD :: Int
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
