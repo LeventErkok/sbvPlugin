@@ -9,8 +9,7 @@
 -- Walk the GHC Core, proving theorems/checking safety as they are found
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Data.SBV.Plugin.Analyze (analyzeBind) where
 
@@ -65,18 +64,6 @@ safely a = a `C.catch` bad
   where bad :: C.SomeException -> IO Bool
         bad e = do print e
                    return False
-
-instance Outputable SKind where
-   ppr (KBase k)   = text (show k)
-   ppr (KFun  k r) = text (show k) <+> text "->" <+> ppr r
-
-instance Outputable S.Kind where
-   ppr = text . show
-
-instance Outputable Val where
-   ppr (Base s)   = text (show s)
-   ppr (Typ  k)   = text (show k)
-   ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
@@ -133,7 +120,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                v <- runReaderT (symEval topExpr) initEnv{curLoc = topLoc}
                case v of
                  Base r -> return r
-                 _      -> error "Impossible happened. Final result reduced to a non-base value!"
+                 r      -> error $ "Impossible happened. Final result reduced to a non-base value: " ++ showSDocUnsafe (ppr r)
 
         die :: SrcSpan -> String -> [String] -> a
         die loc w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es

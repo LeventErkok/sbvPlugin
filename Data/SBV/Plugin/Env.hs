@@ -211,17 +211,17 @@ lift1 f = Func Nothing g
   where g (Typ _)  = return $ Func Nothing h
         g v        = h v
         h (Base a) = return $ Base $ f a
-        h _        = error "Impossible happened: lift1 received non-base argument!"
+        h v        = error  $ "Impossible happened: lift1 received non-base argument: " ++ showSDocUnsafe (ppr v)
 
 -- | Lift a two argument SBV function to our the plugin value space
 lift2 :: (S.SVal -> S.SVal -> S.SVal) -> Val
 lift2 f = Func Nothing g
    where g (Typ  _)   = return $ Func Nothing h
          g v          = h v
-         h   (Base a) = return $ Func Nothing (k a)
-         h _          = error "Impossible happened: lift2 received non-base argument (h)!"
+         h (Base a)   = return $ Func Nothing (k a)
+         h v          = error  $ "Impossible happened: lift2 received non-base argument (h): " ++ showSDocUnsafe (ppr v)
          k a (Base b) = return $ Base $ f a b
-         k _ _        = error "Impossible happened: lift2 received non-base argument (k)!"
+         k _ v        = error  $ "Impossible happened: lift2 received non-base argument (k): " ++ showSDocUnsafe (ppr v)
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n

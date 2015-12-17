@@ -9,7 +9,8 @@
 -- Common data-structures/utilities
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns       #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.SBV.Plugin.Common where
 
@@ -77,6 +78,18 @@ data SKind = KBase S.Kind
 data Val = Base S.SVal
          | Typ  S.Kind
          | Func (Maybe String) (Val -> Eval Val)
+
+instance Outputable SKind where
+   ppr (KBase k)   = text (show k)
+   ppr (KFun  k r) = text (show k) <+> text "->" <+> ppr r
+
+instance Outputable S.Kind where
+   ppr = text . show
+
+instance Outputable Val where
+   ppr (Base s)   = text (show s)
+   ppr (Typ  k)   = text (show k)
+   ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan -> SrcSpan
