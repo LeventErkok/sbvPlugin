@@ -198,6 +198,12 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                    nm <- mkValidName (showSDoc flags (ppr e))
                                    return $ Base $ S.svUninterpreted k nm Nothing []
 
+        tgo tFun (App (App l@(Lam _ (Lam _ _)) (Type t)) (Var d))
+            = tgo tFun (etaReduce2 l t d)
+
+        tgo tFun (App l@(Lam _ _) (Type t))
+            = tgo tFun (etaReduce1 l t)
+
         -- This case is actually a variant of "Var v" above; We just need to
         -- reach in and figure out if the variable/dict combination we have is
         -- something we "natively" understand. This is a bit brittle; since we're
@@ -205,18 +211,28 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- having some sort of a "mapping" from Core dictionaries to our own, but I
         -- haven't quite figured out how to get my hands onto dictionaries from TH
         tgo tFun (App (App (Var v) (Type t)) (Var dict))
-           | isReallyADictionary dict = do Env{envMap} <- ask
-                                           k <- getBaseType (getSrcSpan v) t
-                                           case (v, KBase k) `M.lookup` envMap of
-                                              Just b  -> return b
-                                              Nothing -> -- Exception: If k is uninterpreted, then we allow equality:
-                                                         do Env{isEquality} <- ask
-                                                            case isEquality v of
-                                                              Just f  -> return f
-                                                              Nothing -> tgo tFun (Var v)
+           | isReallyADictionary dict = do
+                Env{envMap} <- ask
+                k <- getBaseType (getSrcSpan v) t
+                case (v, KBase k) `M.lookup` envMap of
+                   Just b  -> return b
+                   Nothing -> -- Exception: If k is uninterpreted, then we allow equality:
+                              do Env{isEquality} <- ask
+                                 case isEquality v of
+                                   Just f  -> return f
+                                   Nothing -> do
+                                     Env{coreMap} <- ask
+                                     case v `M.lookup` coreMap of
+                                       Just e  -> go (etaReduce2 e t dict)
+                                       Nothing -> tgo tFun (Var v)
 
-        tgo t (App a (Type _))
-            = tgo t a
+        -- Variant of the above, when there's no dictionary. We need not worry about the
+        -- special environment here, since none of our functions will have this form
+        tgo tFun (App (Var v) (Type t)) = do
+                Env{coreMap} <- ask
+                case v `M.lookup` coreMap of
+                  Just e  -> go (etaReduce1 e t)
+                  Nothing -> tgo tFun (Var v)
 
         tgo _ (App f e)
            = do func <- go f
@@ -282,11 +298,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                                            Nothing -> return Nothing
                                                                            Just f  -> return $ Just $ f a bs
 
-        tgo t (Cast e _)
-           = tgo t e
+        tgo t (Cast e c)
+           = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
 
         tgo _ (Tick t e)
-           = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
+           = debugTrace ("Going thru a Tick: " ++ sh t) $ local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
 
         tgo _ (Type t)
            = do Env{curLoc} <- ask
@@ -295,6 +311,20 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         tgo _ e@Coercion{}
            = tbd "Unsupported coercion-expression" [sh e]
+
+        -- | Eta-reduce a core expr; var+dict variant
+        etaReduce2 :: CoreExpr -> Type -> Var -> CoreExpr
+        etaReduce2 (Lam vt (Lam vd b)) t d  =
+                let s = extendIdSubst (extendTvSubst emptySubst vt t) vd (Var d)
+                in substExpr (ppr "sbv.etaReduce2") s b
+        etaReduce2 e t d = error $ "SBV.etaReduce2: Impossible happened: Cannot reduce in type app: " ++ sh (e, t, d)
+
+        -- | Eta-reduce a core expr; var only variant
+        etaReduce1 :: CoreExpr -> Type -> CoreExpr
+        etaReduce1 (Lam vt b) t =
+                let s = extendTvSubst emptySubst vt t
+                in substExpr (ppr "sbv.etaReduce1") s b
+        etaReduce1 e t = error $ "SBV.etaReduce1: Impossible happened: Cannot reduce in type app: " ++ sh (e, t)
 
 -- | Uninterpret an expression
 uninterpret :: Type -> Var -> Eval Val
@@ -312,8 +342,11 @@ uninterpret t v = do
                                  let fVal = wrap tvs $ walk argKs (nm, resK) []
                                  liftIO $ modifyIORef rUninterpreted (((v, t), (nm, fVal)) :)
                                  return fVal
-  where walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
-        walk (_:as) nmk     args = Func Nothing $ \(Base p) -> return (walk as nmk (p:args))
+  where walk :: [S.Kind] -> (String, S.Kind) -> [S.SVal] -> Val
+        walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
+        walk (_:as) nmk     args = Func Nothing $ \a -> case a of
+                                                          Base p -> return (walk as nmk (p:args))
+                                                          _      -> return (walk as nmk args)
         wrap []     f = f
         wrap (_:ts) f = Func Nothing $ \(Typ _) -> return (wrap ts f)
 

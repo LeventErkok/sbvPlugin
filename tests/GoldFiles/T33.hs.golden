@@ -1,0 +1,7 @@
+
+[SBV] tests/T33.hs:9:1 Proving "f", using Z3.
+[Z3] Falsifiable. Counter-example:
+  x = 0 :: Int64
+
+[SBV] tests/T33.hs:15:1 Proving "g", using Z3.
+[Z3] Q.E.D.
