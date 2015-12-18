@@ -79,13 +79,16 @@ data Val = Base S.SVal
          | Typ  S.Kind
          | Func (Maybe String) (Val -> Eval Val)
 
+-- | Outputable instance for SKind
 instance Outputable SKind where
    ppr (KBase k)   = text (show k)
    ppr (KFun  k r) = text (show k) <+> text "->" <+> ppr r
 
+-- | Outputable instance for S.Kind
 instance Outputable S.Kind where
    ppr = text . show
 
+-- | Outputable instance for Val
 instance Outputable Val where
    ppr (Base s)   = text (show s)
    ppr (Typ  k)   = text (show k)
