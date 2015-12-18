@@ -315,14 +315,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- | Eta-reduce a core expr; var+dict variant
         etaReduce2 :: CoreExpr -> Type -> Var -> CoreExpr
         etaReduce2 (Lam vt (Lam vd b)) t d  =
-                let s = extendIdSubst (extendTvSubst emptySubst vt t) vd (Var d)
+                let s = extendSubst (extendSubst emptySubst vt (Type t)) vd (Var d)
                 in substExpr (ppr "sbv.etaReduce2") s b
         etaReduce2 e t d = error $ "SBV.etaReduce2: Impossible happened: Cannot reduce in type app: " ++ sh (e, t, d)
 
         -- | Eta-reduce a core expr; var only variant
         etaReduce1 :: CoreExpr -> Type -> CoreExpr
         etaReduce1 (Lam vt b) t =
-                let s = extendTvSubst emptySubst vt t
+                let s = extendSubst emptySubst vt (Type t)
                 in substExpr (ppr "sbv.etaReduce1") s b
         etaReduce1 e t = error $ "SBV.etaReduce1: Impossible happened: Cannot reduce in type app: " ++ sh (e, t)
 
