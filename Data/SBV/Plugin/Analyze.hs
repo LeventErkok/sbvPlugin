@@ -21,7 +21,7 @@ import System.Exit hiding (die)
 import Data.IORef
 
 import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
-import Data.List     (intercalate, partition, nub, sortBy, nubBy)
+import Data.List     (intercalate, partition, nub, sort, sortBy)
 import Data.Maybe    (listToMaybe)
 import Data.Ord      (comparing)
 
@@ -175,9 +175,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                            Just b  -> if isUninterpretedBinding v
                                                       then uninterpret t v
                                                       else go b
-                                           Nothing -> let same ((a, _), _) ((b, _), _) = a == b
-                                                      in debugTrace ("Uninterpreting: " ++ sh (v, k, map fst (nubBy same (M.toList envMap))))
-                                                                $ uninterpret t v
+                                           Nothing -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
+                                                           $ uninterpret t v
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
