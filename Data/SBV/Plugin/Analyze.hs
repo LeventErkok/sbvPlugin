@@ -199,8 +199,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                    return $ Base $ S.svUninterpreted k nm Nothing []
 
         tgo tFun orig@App{} = do
-             reduced <- etaReduce orig
-             () <- debugTrace ("Eta reduce:\n" ++ sh (orig, reduced)) $ return ()
+             reduced <- betaReduce orig
+             () <- debugTrace ("Beta reduce:\n" ++ sh (orig, reduced)) $ return ()
              case reduced of
                (App (App (Var v) (Type t)) (Var dict)) | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
@@ -303,9 +303,9 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         isEtaReducable (Type _)  = True
         isEtaReducable _         = False
 
-        etaReduce :: CoreExpr -> Eval CoreExpr
-        etaReduce (App f a) = do
-                rf <- etaReduce f
+        betaReduce :: CoreExpr -> Eval CoreExpr
+        betaReduce (App f a) = do
+                rf <- betaReduce f
                 if not (isEtaReducable a)
                    then return (App rf a)
                    else do let chaseVars :: CoreExpr -> Eval CoreExpr
@@ -317,9 +317,9 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                chaseVars x          = return x
                            func <- chaseVars rf
                            case func of
-                             Lam x b -> etaReduce $ substExpr (ppr "SBV.etaReduce") (extendSubstList emptySubst [(x, a)]) b
+                             Lam x b -> betaReduce $ substExpr (ppr "SBV.betaReduce") (extendSubstList emptySubst [(x, a)]) b
                              _       -> return (App rf a)
-        etaReduce e = return e
+        betaReduce e = return e
 
 -- | Uninterpret an expression
 uninterpret :: Type -> Var -> Eval Val
