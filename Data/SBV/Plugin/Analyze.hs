@@ -198,48 +198,35 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                    nm <- mkValidName (showSDoc flags (ppr e))
                                    return $ Base $ S.svUninterpreted k nm Nothing []
 
-        tgo tFun (App (App l@(Lam _ (Lam _ _)) (Type t)) (Var d))
-            = tgo tFun (etaReduce2 l t d)
-
-        tgo tFun (App l@(Lam _ _) (Type t))
-            = tgo tFun (etaReduce1 l t)
-
-        -- This case is actually a variant of "Var v" above; We just need to
-        -- reach in and figure out if the variable/dict combination we have is
-        -- something we "natively" understand. This is a bit brittle; since we're
-        -- actually mostly "ignoring" the dictionary. The real solution would involve
-        -- having some sort of a "mapping" from Core dictionaries to our own, but I
-        -- haven't quite figured out how to get my hands onto dictionaries from TH
-        tgo tFun (App (App (Var v) (Type t)) (Var dict))
-           | isReallyADictionary dict = do
-                Env{envMap} <- ask
-                k <- getBaseType (getSrcSpan v) t
-                case (v, KBase k) `M.lookup` envMap of
-                   Just b  -> return b
-                   Nothing -> -- Exception: If k is uninterpreted, then we allow equality:
-                              do Env{isEquality} <- ask
-                                 case isEquality v of
-                                   Just f  -> return f
-                                   Nothing -> do
-                                     Env{coreMap} <- ask
-                                     case v `M.lookup` coreMap of
-                                       Just e  -> go (etaReduce2 e t dict)
-                                       Nothing -> tgo tFun (Var v)
-
-        -- Variant of the above, when there's no dictionary. We need not worry about the
-        -- special environment here, since none of our functions will have this form
-        tgo tFun (App (Var v) (Type t)) = do
-                Env{coreMap} <- ask
-                case v `M.lookup` coreMap of
-                  Just e  -> go (etaReduce1 e t)
-                  Nothing -> tgo tFun (Var v)
-
-        tgo _ (App f e)
-           = do func <- go f
-                arg  <- go e
-                case (func, arg) of
-                  (Func _ sf, sv) -> sf sv
-                  _               -> error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ sh [(f, func), (e, arg)]
+        tgo tFun orig@App{} = do
+             reduced <- etaReduce orig
+             () <- debugTrace ("Eta reduce:\n" ++ sh (orig, reduced)) $ return ()
+             case reduced of
+               (App (App (Var v) (Type t)) (Var dict)) | isReallyADictionary dict -> do
+                                Env{envMap} <- ask
+                                k <- getBaseType (getSrcSpan v) t
+                                case (v, KBase k) `M.lookup` envMap of
+                                  Just b  -> return b
+                                  Nothing -> -- Exception: If k is uninterpreted, then we allow equality:
+                                        do Env{isEquality} <- ask
+                                           case isEquality v of
+                                             Just f  -> return f
+                                             Nothing -> do
+                                                Env{coreMap} <- ask
+                                                case v `M.lookup` coreMap of
+                                                  Just e  -> tgo tFun (App (App e (Type t)) (Var dict))
+                                                  Nothing -> tgo tFun (Var v)
+               (App (Var v) (Type t)) -> do
+                         Env{coreMap} <- ask
+                         case v `M.lookup` coreMap of
+                           Just e  -> tgo tFun (App e (Type t))
+                           Nothing -> tgo tFun (Var v)
+               App f e  -> do func <- go f
+                              arg  <- go e
+                              case (func, arg) of
+                                 (Func _ sf, sv) -> sf sv
+                                 _               -> error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ sh [(f, func), (e, arg)]
+               e        -> go e
 
         tgo _ (Lam b body) = do
                 k <- getBaseType (getSrcSpan b) (varType b)
@@ -312,19 +299,27 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tgo _ e@Coercion{}
            = tbd "Unsupported coercion-expression" [sh e]
 
-        -- | Eta-reduce a core expr; var+dict variant
-        etaReduce2 :: CoreExpr -> Type -> Var -> CoreExpr
-        etaReduce2 (Lam vt (Lam vd b)) t d  =
-                let s = extendSubst (extendSubst emptySubst vt (Type t)) vd (Var d)
-                in substExpr (ppr "sbv.etaReduce2") s b
-        etaReduce2 e t d = error $ "SBV.etaReduce2: Impossible happened: Cannot reduce in type app: " ++ sh (e, t, d)
+        isEtaReducable (Var  a)  = isTyVar a || isReallyADictionary a
+        isEtaReducable (Type _)  = True
+        isEtaReducable _         = False
 
-        -- | Eta-reduce a core expr; var only variant
-        etaReduce1 :: CoreExpr -> Type -> CoreExpr
-        etaReduce1 (Lam vt b) t =
-                let s = extendSubst emptySubst vt (Type t)
-                in substExpr (ppr "sbv.etaReduce1") s b
-        etaReduce1 e t = error $ "SBV.etaReduce1: Impossible happened: Cannot reduce in type app: " ++ sh (e, t)
+        etaReduce :: CoreExpr -> Eval CoreExpr
+        etaReduce (App f a) = do
+                rf <- etaReduce f
+                if not (isEtaReducable a)
+                   then return (App rf a)
+                   else do let chaseVars :: CoreExpr -> Eval CoreExpr
+                               chaseVars (Var x)    = do Env{coreMap} <- ask
+                                                         case x `M.lookup` coreMap of
+                                                           Nothing -> return (Var x)
+                                                           Just b  -> chaseVars b
+                               chaseVars (Tick _ x) = chaseVars x
+                               chaseVars x          = return x
+                           func <- chaseVars rf
+                           case func of
+                             Lam x b -> etaReduce $ substExpr (ppr "SBV.etaReduce") (extendSubstList emptySubst [(x, a)]) b
+                             _       -> return (App rf a)
+        etaReduce e = return e
 
 -- | Uninterpret an expression
 uninterpret :: Type -> Var -> Eval Val
