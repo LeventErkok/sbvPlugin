@@ -138,7 +138,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- then go ahead and evaluate it symbolicly after applying it to sufficient
         -- number of symbolic arguments
         symEval :: CoreExpr -> Eval Val
-        symEval e = do let (bs, body) = collectBinders e
+        symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
                        Env{curLoc} <- ask
                        finalType <- getBaseType curLoc (exprType body)
                        case finalType of
@@ -151,6 +151,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                                                           , ["Returning: " ++ sh (exprType body) | not (null bs)]
                                                                                           , ["Expected : Bool" ++ if null bs then "" else " result"]
                                                                                           ])
+          where pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
+                pushLetLambda o                  = o
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
