@@ -159,7 +159,7 @@ symFuncs wsz =  -- equality is for all kinds
 
 
 -- | Destructors
-buildDests :: Int -> CoreM (M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)])))
+buildDests :: Int -> CoreM (M.Map (Var, SKind) (S.SVal -> [Var] -> [((Var, SKind), Val)]))
 buildDests wsz = M.fromList `fmap` mapM thToGHC dests
   where dests = [ unbox 'W# (S.KBounded False wsz)
                 , unbox 'I# (S.KBounded True  wsz)
@@ -168,7 +168,7 @@ buildDests wsz = M.fromList `fmap` mapM thToGHC dests
                 ]
 
         unbox a k     = (a, tlift1 k, dest1 k)
-        dest1 k a [b] = (S.svTrue, [((b, KBase k), Base a)])
+        dest1 k a [b] = [((b, KBase k), Base a)]
         dest1 _ a bs  = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ show a ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
 
 -- | These types show up during uninterpretation, but are not really "interesting" as they

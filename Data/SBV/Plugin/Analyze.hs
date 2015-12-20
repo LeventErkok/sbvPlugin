@@ -291,13 +291,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                      DataAlt dc -> do Env{envMap, destMap} <- ask
                                                       k <- getType sp (dataConRepType dc)
                                                       let wid = dataConWorkId dc
+                                                      -- The following lookup in env essentially gets True/False constructors (or other base-values if we add them)
                                                       case (wid, k) `M.lookup` envMap of
                                                         Just (Base b) -> return $ Just (a `eqVal` Base b, [])
                                                         _             -> case (wid, k) `M.lookup` destMap of
-                                                                           Nothing -> return Nothing
-                                                                           Just f  -> case a of
-                                                                                        Base av -> return $ Just $ f av bs
-                                                                                        _       -> return Nothing
+                                                                            Nothing -> return Nothing
+                                                                            Just f  -> case a of
+                                                                                            Base av -> return $ Just (S.svTrue, f av bs)
+                                                                                            _       -> return Nothing
 
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
