@@ -83,7 +83,7 @@ data SKind = KBase S.Kind
 
 -- | The values kept track of by the interpreter
 data Val = Base S.SVal
-         | Typ  S.Kind
+         | Typ  SKind
          | Tup  [Val]
          | Func (Maybe String) (Val -> Eval Val)
 
@@ -100,7 +100,7 @@ instance Outputable S.Kind where
 -- | Outputable instance for Val
 instance Outputable Val where
    ppr (Base s)   = text (show s)
-   ppr (Typ  k)   = text (show k)
+   ppr (Typ  k)   = ppr k
    ppr (Tup vs)   = parens $ sep $ punctuate (text ",") (map ppr vs)
    ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 

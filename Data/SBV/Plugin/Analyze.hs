@@ -140,17 +140,18 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
                        Env{curLoc} <- ask
-                       finalType <- getBaseType curLoc (exprType body)
+                       finalType <- getType curLoc (exprType body)
                        case finalType of
-                         S.KBool -> do ats <- mapM (\b -> getBaseType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                       let mkVar ((b, k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
-                                                                    return ((b, KBase k), Base v)
-                                       sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
-                                       local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
-                         _       -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
-                                                                                          , ["Returning: " ++ sh (exprType body) | not (null bs)]
-                                                                                          , ["Expected : Bool" ++ if null bs then "" else " result"]
-                                                                                          ])
+                         KBase S.KBool -> do ats <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
+                                             let mkVar ((b, KBase k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
+                                                                                return ((b, KBase k), Base v)
+                                                 mkVar i = error $ "Don't know how to make an input argument of complicated kind: " ++ sh i
+                                             sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+                                             local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
+                         _             -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
+                                                                                                , ["Returning: " ++ sh (exprType body) | not (null bs)]
+                                                                                                , ["Expected : Bool" ++ if null bs then "" else " result"]
+                                                                                                ])
           where pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
                 pushLetLambda o                  = o
 
@@ -193,12 +194,17 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                MachWord64   i    -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
                                MachFloat    f    -> return $ Base $ S.svFloat   (fromRational f)
                                MachDouble   d    -> return $ Base $ S.svDouble  (fromRational d)
-                               LitInteger   i it -> do k <- getBaseType noSrcSpan it
-                                                       return $ Base $ S.svInteger k i
+                               LitInteger   i it -> do k <- getType noSrcSpan it
+                                                       case k of
+                                                         KBase b -> return $ Base $ S.svInteger b i
+                                                         _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
                   where unint = do Env{flags} <- ask
-                                   k  <- getBaseType noSrcSpan t
+                                   k  <- getType noSrcSpan t
                                    nm <- mkValidName (showSDoc flags (ppr e))
-                                   return $ Base $ S.svUninterpreted k nm Nothing []
+                                   case k of
+                                     KBase b -> return $ Base $ S.svUninterpreted b nm Nothing []
+                                     _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
+                                   
 
         tgo tFun orig@App{} = do
              reduced <- betaReduce orig
@@ -220,8 +226,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                Nothing -> case reduced of
                             App (App (Var v) (Type t)) (Var dict) | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
-                                k <- getBaseType (getSrcSpan v) t
-                                case (v, KBase k) `M.lookup` envMap of
+                                k <- getType (getSrcSpan v) t
+                                case (v, k) `M.lookup` envMap of
                                   Just b  -> return b
                                   Nothing -> do Env{coreMap} <- ask
                                                 case v `M.lookup` coreMap of
@@ -246,9 +252,9 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                             e   -> go e
 
         tgo _ (Lam b body) = do
-                k <- getBaseType (getSrcSpan b) (varType b)
+                k <- getType (getSrcSpan b) (varType b)
                 Env{envMap} <- ask
-                return $ Func (Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, KBase k) s envMap}) (go body)
+                return $ Func (Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) s envMap}) (go body)
 
         tgo _ (Let (NonRec b e) body) = local (\env -> env{coreMap = M.insert b e (coreMap env)}) (go body)
 
@@ -271,8 +277,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                      else choose m result (walk rest)
                               Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
                     walk []                   = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
-                k <- getBaseType (getSrcSpan caseBinder) caseType
-                local (\env -> env{envMap = M.insert (caseBinder, KBase k) sce (envMap env)}) $ walk (nonDefs ++ defs)
+                k <- getType (getSrcSpan caseBinder) caseType
+                local (\env -> env{envMap = M.insert (caseBinder, k) sce (envMap env)}) $ walk (nonDefs ++ defs)
            where caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
                  caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
                  choose t tb fb = case S.svAsBool t of
@@ -296,7 +302,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                         Just (Base b) -> return $ Just (a `eqVal` Base b, [])
                                                         _             -> case wid `M.lookup` destMap of
                                                                             Nothing -> return Nothing
-                                                                            Just f  -> do bts <- mapM (\b -> getBaseType (getSrcSpan b) (varType b) >>= \bt -> return (b, KBase bt)) bs
+                                                                            Just f  -> do bts <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
                                                                                           return $ Just (S.svTrue, f a bts)
 
         tgo t (Cast e c)
@@ -306,7 +312,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         tgo _ (Type t)
            = do Env{curLoc} <- ask
-                k <- getBaseType curLoc t
+                k <- getType curLoc t
                 return (Typ k)
 
         tgo _ e@Coercion{}
@@ -346,14 +352,16 @@ uninterpret t v = do
              Nothing       -> do let (tvs,  t')  = splitForAllTys t
                                      (args, res) = splitFunTys t'
                                      sp          = getSrcSpan v
-                                 argKs <- mapM (getBaseType sp) args
-                                 resK  <- getBaseType sp res
+                                 argKs <- mapM (getType sp) args
+                                 resK  <- getType sp res
                                  nm <- mkValidName $ showSDoc flags (ppr v)
                                  let fVal = wrap tvs $ walk argKs (nm, resK) []
                                  liftIO $ modifyIORef rUninterpreted (((v, t), (nm, fVal)) :)
                                  return fVal
-  where walk :: [S.Kind] -> (String, S.Kind) -> [S.SVal] -> Val
-        walk []     (nm, k) args = Base $ S.svUninterpreted k nm Nothing (reverse args)
+  where walk :: [SKind] -> (String, SKind) -> [S.SVal] -> Val
+        walk []     (nm, k) args = case k of
+                                     KBase b -> Base $ S.svUninterpreted b nm Nothing (reverse args)
+                                     _       -> error $ "Not yet supported uninterpreted type with non-base type: " ++ showSDocUnsafe (ppr k)
         walk (_:as) nmk     args = Func Nothing $ \a -> case a of
                                                           Base p -> return (walk as nmk (p:args))
                                                           _      -> return (walk as nmk args)
@@ -393,40 +401,40 @@ isReallyADictionary v = case classifyPredType (varType v) of
                           TuplePred{} -> True
                           IrredPred{} -> False
 
--- | Convert a Core type to an SBV kind, if known
--- Otherwise, create an uninterpreted kind, and return that.
-getBaseType :: SrcSpan -> Type -> Eval S.Kind
-getBaseType sp t = do
-        Env{tcMap} <- ask
-        case grabTCs (splitTyConApp_maybe t) of
-          Just k -> case k `M.lookup` tcMap of
-                      Just knd -> return knd
-                      Nothing  -> unknown
-          _        -> unknown
-  where -- allow one level of nesting, essentially to support Haskell's 'Ratio Integer' to map to 'SReal'
-        grabTCs Nothing          = Nothing
-        grabTCs (Just (top, ts)) = do as <- walk ts []
-                                      return (top, as)
-        walk []     sofar = Just $ reverse sofar
-        walk (a:as) sofar = case splitTyConApp_maybe a of
-                               Just (ac, []) -> walk as (ac:sofar)
-                               _             -> Nothing
-        -- Check if we uninterpreted this before; if so, return it, otherwise create a new one
-        unknown = do Env{flags, rUITypes} <- ask
-                     uiTypes <- liftIO $ readIORef rUITypes
-                     case t `lookup` uiTypes of
-                       Just k  -> return k
-                       Nothing -> do nm <- mkValidName $ showSDoc flags (ppr t)
-                                     let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
-                                     liftIO $ modifyIORef rUITypes ((t, k) :)
-                                     return k
-
 -- | Convert a Core type to an SBV Type, retaining functions
 getType :: SrcSpan -> Type -> Eval SKind
 getType sp t = do let (tvs, t')   = splitForAllTys t
                       (args, res) = splitFunTys t'
                   argKs <- mapM (getType sp) args
-                  resK  <- getBaseType sp res
+                  resK  <- getBaseType res
                   return $ wrap tvs $ foldr KFun (KBase resK) argKs
  where wrap ts f    = foldr (KFun . mkUserSort) f ts
        mkUserSort v = KBase (S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
+
+       -- | Convert a Core type to an SBV kind, if known
+       -- Otherwise, create an uninterpreted kind, and return that.
+       getBaseType :: Type -> Eval S.Kind
+       getBaseType bt = do
+               Env{tcMap} <- ask
+               case grabTCs (splitTyConApp_maybe bt) of
+                 Just k -> case k `M.lookup` tcMap of
+                             Just knd -> return knd
+                             Nothing  -> unknown
+                 _        -> unknown
+         where -- allow one level of nesting, essentially to support Haskell's 'Ratio Integer' to map to 'SReal'
+               grabTCs Nothing          = Nothing
+               grabTCs (Just (top, ts)) = do as <- walk ts []
+                                             return (top, as)
+               walk []     sofar = Just $ reverse sofar
+               walk (a:as) sofar = case splitTyConApp_maybe a of
+                                      Just (ac, []) -> walk as (ac:sofar)
+                                      _             -> Nothing
+               -- Check if we uninterpreted this before; if so, return it, otherwise create a new one
+               unknown = do Env{flags, rUITypes} <- ask
+                            uiTypes <- liftIO $ readIORef rUITypes
+                            case bt `lookup` uiTypes of
+                              Just k  -> return k
+                              Nothing -> do nm <- mkValidName $ showSDoc flags (ppr bt)
+                                            let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
+                                            liftIO $ modifyIORef rUITypes ((bt, k) :)
+                                            return k
