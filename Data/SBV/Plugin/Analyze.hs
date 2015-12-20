@@ -263,15 +263,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                     isDefault _               = False
                     (defs, nonDefs)           = partition isDefault alts
                     walk ((p, bs, rhs) : rest) =
-                        case sce of
-                          Base a -> do mr <- match (bindSpan caseBinder) a p bs
-                                       case mr of
-                                         Just (m, bs') -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
-                                                             if null rest
-                                                                then result
-                                                                else choose m result (walk rest)
-                                         Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
-                          _      -> caseTooComplicated "with-non-base-scrutinee" []
+                         do mr <- match (bindSpan caseBinder) sce p bs
+                            case mr of
+                              Just (m, bs') -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
+                                                  if null rest
+                                                     then result
+                                                     else choose m result (walk rest)
+                              Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
                     walk []                   = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
                 k <- getBaseType (getSrcSpan caseBinder) caseType
                 local (\env -> env{envMap = M.insert (caseBinder, KBase k) sce (envMap env)}) $ walk (nonDefs ++ defs)
@@ -285,23 +283,23 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                         _                -> caseTooComplicated "with-non-base-alternatives" []
                                      Just True  -> tb
                                      Just False -> fb
-                 match :: SrcSpan -> S.SVal -> AltCon -> [Var] -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
+                 match :: SrcSpan -> Val -> AltCon -> [Var] -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
                  match sp a c bs = case c of
                                      DEFAULT    -> return $ Just (S.svTrue, [])
                                      LitAlt  l  -> do le <- go (Lit l)
-                                                      case le of
-                                                        Base b -> return $ Just (a `S.svEqual` b, [])
-                                                        Tup{}  -> return Nothing
-                                                        Typ{}  -> return Nothing
-                                                        Func{} -> return Nothing
+                                                      case (a, le) of
+                                                        (Base av, Base b) -> return $ Just (av `S.svEqual` b, [])
+                                                        _                 -> return Nothing
                                      DataAlt dc -> do Env{envMap, destMap} <- ask
                                                       k <- getType sp (dataConRepType dc)
                                                       let wid = dataConWorkId dc
                                                       case (wid, k) `M.lookup` envMap of
-                                                        Just (Base b) -> return $ Just (a `S.svEqual` b, [])
+                                                        Just (Base b) -> return $ Just (a `eqVal` Base b, [])
                                                         _             -> case (wid, k) `M.lookup` destMap of
                                                                            Nothing -> return Nothing
-                                                                           Just f  -> return $ Just $ f a bs
+                                                                           Just f  -> case a of
+                                                                                        Base av -> return $ Just $ f av bs
+                                                                                        _       -> return Nothing
 
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
