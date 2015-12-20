@@ -235,15 +235,11 @@ lift2 f = Func Nothing g
          k a (Base b) = return $ Base $ f a b
          k _ v        = error  $ "Impossible happened: lift2 received non-base argument (k): " ++ showSDocUnsafe (ppr v)
 
-
 -- | Lifting an equality is special; since it acts uniformly over tuples.
 liftEq :: (S.SVal -> S.SVal -> S.SVal) -> Val
 liftEq baseEq = Func Nothing g
    where g (Typ  _) = return $ Func Nothing g
-         g v1       = return $ Func Nothing $ \v2 -> return $ Base $ k v1 v2
-         k (Base a)  (Base b)                          = a `baseEq` b
-         k (Tup as)  (Tup bs) | length as == length bs = foldr S.svAnd S.svTrue (zipWith k as bs)
-         k v1 v2                                       = error  $ "Impossible happened: liftEq received incompatible arguments: " ++ showSDocUnsafe (ppr (v1, v2))
+         g v1       = return $ Func Nothing $ \v2 -> return $ Base $ liftEqVal baseEq v1 v2
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n

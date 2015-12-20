@@ -102,6 +102,17 @@ instance Outputable Val where
    ppr (Tup vs)   = parens $ sep $ punctuate (text ",") (map ppr vs)
    ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 
+-- | Structural lifting of a boolean function (eq/neq) over Val
+liftEqVal :: (S.SVal -> S.SVal -> S.SVal) -> Val -> Val -> S.SVal
+liftEqVal baseEq v1 v2 = k v1 v2
+  where k (Base a)  (Base b)                          = a `baseEq` b
+        k (Tup as)  (Tup bs) | length as == length bs = foldr S.svAnd S.svTrue (zipWith k as bs)
+        k _         _                                 = error  $ "Impossible happened: liftEq received unexpected arguments: " ++ showSDocUnsafe (ppr (v1, v2))
+
+-- | Symbolic equality over variables
+eqVal :: Val -> Val -> S.SVal
+eqVal = liftEqVal S.svEqual
+
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan -> SrcSpan
 tickSpan (ProfNote cc _ _) _ = cc_loc cc
