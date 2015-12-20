@@ -296,9 +296,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                         Just (Base b) -> return $ Just (a `eqVal` Base b, [])
                                                         _             -> case (wid, k) `M.lookup` destMap of
                                                                             Nothing -> return Nothing
-                                                                            Just f  -> case a of
-                                                                                            Base av -> return $ Just (S.svTrue, f av bs)
-                                                                                            _       -> return Nothing
+                                                                            Just f  -> return $ Just (S.svTrue, f a bs)
 
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
