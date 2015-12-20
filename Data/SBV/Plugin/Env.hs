@@ -12,7 +12,7 @@
 {-# LANGUAGE MagicHash       #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildEquality, uninterestingTypes) where
+module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildSpecials, uninterestingTypes) where
 
 import GhcPlugins
 import GHC.Prim
@@ -176,12 +176,24 @@ buildDests wsz = M.fromList `fmap` mapM thToGHC dests
 uninterestingTypes :: CoreM [Type]
 uninterestingTypes = map varType `fmap` mapM (grabTH lookupId) ['void#]
 
--- | Equality is special, as it uniformly applies to uninterpreted types.
-buildEquality :: CoreM (Var -> Maybe Val)
-buildEquality = do eq  <- grabTH lookupId '(==)
-                   neq <- grabTH lookupId '(/=)
-                   let choose = [(eq, lift2 S.svEqual), (neq, lift2 S.svNotEqual)]
-                   return (`lookup` choose)
+-- | Certain things are just too special, as they uniformly apply to uninterpreted types.
+buildSpecials :: CoreM Specials
+buildSpecials = do isEq  <- do eq  <- grabTH lookupId '(==)
+                               neq <- grabTH lookupId '(/=)
+                               let choose = [(eq, liftEq S.svEqual), (neq, liftEq S.svNotEqual)]
+                               return (`lookup` choose)
+                   isTup <- do let supported = [2 .. 7]
+                                   mkMany n  = Func Nothing g
+                                     where g (Typ _) = return $ Func Nothing g
+                                           g v       = h (n-1) [v]
+                                           h 0 sofar = return $ Tup (reverse sofar)
+                                           h i sofar = return $ Func Nothing $ \v -> h (i-1) (v:sofar)
+                               ts <- mapM (grabTH lookupId . TH.tupleDataName) supported
+                               let choose = zip ts (map mkMany supported)
+                               return (`lookup` choose)
+                   return Specials{ isEquality = isEq
+                                  , isTuple    = isTup
+                                  }
 
 -- | Lift a binary type, with result bool
 tlift2Bool :: S.Kind -> SKind
@@ -222,6 +234,16 @@ lift2 f = Func Nothing g
          h v          = error  $ "Impossible happened: lift2 received non-base argument (h): " ++ showSDocUnsafe (ppr v)
          k a (Base b) = return $ Base $ f a b
          k _ v        = error  $ "Impossible happened: lift2 received non-base argument (k): " ++ showSDocUnsafe (ppr v)
+
+
+-- | Lifting an equality is special; since it acts uniformly over tuples.
+liftEq :: (S.SVal -> S.SVal -> S.SVal) -> Val
+liftEq baseEq = Func Nothing g
+   where g (Typ  _) = return $ Func Nothing g
+         g v1       = return $ Func Nothing $ \v2 -> return $ Base $ k v1 v2
+         k (Base a)  (Base b)                          = a `baseEq` b
+         k (Tup as)  (Tup bs) | length as == length bs = foldr S.svAnd S.svTrue (zipWith k as bs)
+         k v1 v2                                       = error  $ "Impossible happened: liftEq received incompatible arguments: " ++ showSDocUnsafe (ppr (v1, v2))
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n

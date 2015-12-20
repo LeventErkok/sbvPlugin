@@ -29,6 +29,11 @@ import qualified Data.SBV.Dynamic as S
 
 import Data.SBV.Plugin.Data
 
+-- | Certain "very-polymorphic" things are just special
+data Specials = Specials { isEquality :: Var -> Maybe Val
+                         , isTuple    :: Var -> Maybe Val
+                         }
+
 -- | Interpreter environment
 data Env = Env { curLoc         :: SrcSpan
                , flags          :: DynFlags
@@ -37,12 +42,13 @@ data Env = Env { curLoc         :: SrcSpan
                , rUninterpreted :: IORef [((Var, Type), (String, Val))]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]
-               , isEquality     :: Var -> Maybe Val
+               , specials       :: Specials
                , tcMap          :: M.Map (TyCon, [TyCon]) S.Kind
                , envMap         :: M.Map (Var, SKind) Val
                , destMap        :: M.Map (Var, SKind) (S.SVal -> [Var] -> (S.SVal, [((Var, SKind), Val)]))
                , coreMap        :: M.Map Var CoreExpr
                }
+
 
 -- | The interpreter monad
 type Eval a = ReaderT Env S.Symbolic a
@@ -77,6 +83,7 @@ data SKind = KBase S.Kind
 -- | The values kept track of by the interpreter
 data Val = Base S.SVal
          | Typ  S.Kind
+         | Tup  [Val]
          | Func (Maybe String) (Val -> Eval Val)
 
 -- | Outputable instance for SKind
@@ -92,6 +99,7 @@ instance Outputable S.Kind where
 instance Outputable Val where
    ppr (Base s)   = text (show s)
    ppr (Typ  k)   = text (show k)
+   ppr (Tup vs)   = parens $ sep $ punctuate (text ",") (map ppr vs)
    ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.

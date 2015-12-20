@@ -179,7 +179,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                       then uninterpret t v
                                                       else go b
                                            Nothing -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
-                                                           $ uninterpret t v
+                                                               $ uninterpret t v
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -202,35 +202,48 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         tgo tFun orig@App{} = do
              reduced <- betaReduce orig
-             case reduced of
-               App (App (Var v) (Type t)) (Var dict) | isReallyADictionary dict -> do
+
+             Env{specials} <- ask
+
+             -- handle specials: Equality and tuples
+             let isEq (App (App (Var v) (Type _)) (Var dict)) | isReallyADictionary dict, Just f <- isEquality specials v = Just f
+                 isEq _                                                                                                   = Nothing
+
+                 isTup (Var v)          = isTuple specials v
+                 isTup (App f (Type _)) = isTup f
+                 isTup _                = Nothing
+
+                 isSpecial e = isEq e `mplus` isTup e
+
+             case isSpecial reduced of
+               Just f  -> debugTrace ("Special located: " ++ sh (orig, f)) return f
+               Nothing -> case reduced of
+                            App (App (Var v) (Type t)) (Var dict) | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
                                 k <- getBaseType (getSrcSpan v) t
                                 case (v, KBase k) `M.lookup` envMap of
                                   Just b  -> return b
-                                  Nothing -> -- Exception: If k is uninterpreted, then we allow equality:
-                                        do Env{isEquality} <- ask
-                                           case isEquality v of
-                                             Just f  -> return f
-                                             Nothing -> do
-                                                Env{coreMap} <- ask
+                                  Nothing -> do Env{coreMap} <- ask
                                                 case v `M.lookup` coreMap of
                                                   Just e  -> tgo tFun (App (App e (Type t)) (Var dict))
                                                   Nothing -> tgo tFun (Var v)
-               App (Var v) (Type t) -> do
-                         Env{coreMap} <- ask
-                         case v `M.lookup` coreMap of
-                           Just e  -> tgo tFun (App e (Type t))
-                           Nothing -> tgo tFun (Var v)
 
-               App (Let (Rec bs) f) a -> go (Let (Rec bs) (App f a))
+                            App (Var v) (Type t) -> do
+                                Env{coreMap} <- ask
+                                case v `M.lookup` coreMap of
+                                  Just e  -> tgo tFun (App e (Type t))
+                                  Nothing -> tgo tFun (Var v)
 
-               App f e  -> do func <- go f
-                              arg  <- go e
-                              case (func, arg) of
-                                 (Func _ sf, sv) -> sf sv
-                                 _               -> error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ sh [(f, func), (e, arg)]
-               e        -> go e
+                            App (Let (Rec bs) f) a -> go (Let (Rec bs) (App f a))
+
+                            App f e  -> do
+                                func <- go f
+                                arg  <- go e
+                                case (func, arg) of
+                                   (Func _ sf, sv) -> sf sv
+                                   _               -> error $ "[SBV] Impossible happened. Got an application with mismatched types: " ++ sh [(f, func), (e, arg)]
+
+                            e   -> go e
 
         tgo _ (Lam b body) = do
                 k <- getBaseType (getSrcSpan b) (varType b)
@@ -278,6 +291,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                      LitAlt  l  -> do le <- go (Lit l)
                                                       case le of
                                                         Base b -> return $ Just (a `S.svEqual` b, [])
+                                                        Tup{}  -> return Nothing
                                                         Typ{}  -> return Nothing
                                                         Func{} -> return Nothing
                                      DataAlt dc -> do Env{envMap, destMap} <- ask

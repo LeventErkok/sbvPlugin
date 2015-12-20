@@ -1,0 +1,6 @@
+
+[SBV] tests/T35.hs:9:1 Proving "f", using Z3.
+[Z3] Falsifiable. Counter-example:
+  x = -1 :: Int64
+  y =  0 :: Int64
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
