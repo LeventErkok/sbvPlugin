@@ -286,10 +286,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                  match :: SrcSpan -> Val -> AltCon -> [Var] -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
                  match sp a c bs = case c of
                                      DEFAULT    -> return $ Just (S.svTrue, [])
-                                     LitAlt  l  -> do le <- go (Lit l)
-                                                      case (a, le) of
-                                                        (Base av, Base b) -> return $ Just (av `S.svEqual` b, [])
-                                                        _                 -> return Nothing
+                                     LitAlt  l  -> do b <- go (Lit l)
+                                                      return $ Just (a `eqVal` b, [])
                                      DataAlt dc -> do Env{envMap, destMap} <- ask
                                                       k <- getType sp (dataConRepType dc)
                                                       let wid = dataConWorkId dc
