@@ -45,7 +45,7 @@ data Env = Env { curLoc         :: SrcSpan
                , specials       :: Specials
                , tcMap          :: M.Map (TyCon, [TyCon]) S.Kind
                , envMap         :: M.Map (Var, SKind) Val
-               , destMap        :: M.Map (Var, SKind) (Val -> [Var] -> [((Var, SKind), Val)])
+               , destMap        :: M.Map Var          (Val -> [(Var, SKind)] -> [((Var, SKind), Val)])
                , coreMap        :: M.Map Var CoreExpr
                }
 

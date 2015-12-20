@@ -294,9 +294,10 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                       -- The following lookup in env essentially gets True/False constructors (or other base-values if we add them)
                                                       case (wid, k) `M.lookup` envMap of
                                                         Just (Base b) -> return $ Just (a `eqVal` Base b, [])
-                                                        _             -> case (wid, k) `M.lookup` destMap of
+                                                        _             -> case wid `M.lookup` destMap of
                                                                             Nothing -> return Nothing
-                                                                            Just f  -> return $ Just (S.svTrue, f a bs)
+                                                                            Just f  -> do bts <- mapM (\b -> getBaseType (getSrcSpan b) (varType b) >>= \bt -> return (b, KBase bt)) bs
+                                                                                          return $ Just (S.svTrue, f a bts)
 
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e

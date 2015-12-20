@@ -1,4 +1,4 @@
----------------------------------------------------------------------------
+--------------------------------------------------------------------------
 -- |
 -- Module      :  Data.SBV.Plugin.Env
 -- Copyright   :  (c) Levent Erkok
@@ -31,6 +31,11 @@ import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
 import qualified Data.SBV.Dynamic as S
 
 import Data.SBV.Plugin.Common
+
+
+-- | What tuple-sizes we support? We go upto 15, but would be easy to change if necessary
+supportTupleSizes :: [Int]
+supportTupleSizes = [2 .. 15]
 
 -- | Build the initial environment containing types
 buildTCEnv :: Int -> CoreM (M.Map (TyCon, [TyCon]) S.Kind)
@@ -159,17 +164,34 @@ symFuncs wsz =  -- equality is for all kinds
 
 
 -- | Destructors
-buildDests :: Int -> CoreM (M.Map (Var, SKind) (Val -> [Var] -> [((Var, SKind), Val)]))
-buildDests wsz = M.fromList `fmap` mapM thToGHC dests
-  where dests = [ unbox 'W# (S.KBounded False wsz)
-                , unbox 'I# (S.KBounded True  wsz)
-                , unbox 'F# S.KFloat
-                , unbox 'D# S.KDouble
-                ]
+buildDests :: CoreM (M.Map Var (Val -> [(Var, SKind)] -> [((Var, SKind), Val)]))
+buildDests = M.fromList `fmap` mapM cvt dests -- (dests ++ map mkTup supportTupleSizes)
+  where dests =    [ unbox 'W#
+                   , unbox 'I#
+                   , unbox 'F#
+                   , unbox 'D#
+                   ]
 
-        unbox a k     = (a, tlift1 k, dest1 k)
-        dest1 k a [b] = [((b, KBase k), a)]
-        dest1 _ a bs  = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ showSDocUnsafe (ppr a) ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
+        cvt :: (TH.Name, b) -> CoreM (Id, b)
+        cvt (n, sfn) = do f <- grabTH lookupId n
+                          return (f, sfn)
+
+        {-
+        mkTup n = let d <- grabTH lookupId (TH.tupleDataName n)
+                      unboxN n d
+                   isTup <- do let mkTup n = Func Nothing g
+                                     where g (Typ _) = return $ Func Nothing g
+                                           g v       = h (n-1) [v]
+                                           h 0 sofar = return $ Tup (reverse sofar)
+                                           h i sofar = return $ Func Nothing $ \v -> h (i-1) (v:sofar)
+                               ts <- mapM (grabTH lookupId . TH.tupleDataName) supportTupleSizes
+                               let choose = zip ts (map mkTup supportTupleSizes)
+                               return (`lookup` choose)
+                               -}
+
+        unbox a      = (a, dest1)
+        dest1 a [bk] = [(bk, a)]
+        dest1 a bs   = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ showSDocUnsafe (ppr a) ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
 
 -- | These types show up during uninterpretation, but are not really "interesting" as they
 -- are singly inhabited.
@@ -182,14 +204,13 @@ buildSpecials = do isEq  <- do eq  <- grabTH lookupId '(==)
                                neq <- grabTH lookupId '(/=)
                                let choose = [(eq, liftEq S.svEqual), (neq, liftEq S.svNotEqual)]
                                return (`lookup` choose)
-                   isTup <- do let supported = [2 .. 7]
-                                   mkMany n  = Func Nothing g
+                   isTup <- do let mkTup n = Func Nothing g
                                      where g (Typ _) = return $ Func Nothing g
                                            g v       = h (n-1) [v]
                                            h 0 sofar = return $ Tup (reverse sofar)
                                            h i sofar = return $ Func Nothing $ \v -> h (i-1) (v:sofar)
-                               ts <- mapM (grabTH lookupId . TH.tupleDataName) supported
-                               let choose = zip ts (map mkMany supported)
+                               ts <- mapM (grabTH lookupId . TH.tupleDataName) supportTupleSizes
+                               let choose = zip ts (map mkTup supportTupleSizes)
                                return (`lookup` choose)
                    return Specials{ isEquality = isEq
                                   , isTuple    = isTup

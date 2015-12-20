@@ -53,7 +53,7 @@ plugin = defaultPlugin {installCoreToDos = install}
 
           baseTCs       <- buildTCEnv  wsz
           baseEnv       <- buildFunEnv wsz
-          baseDests     <- buildDests  wsz
+          baseDests     <- buildDests
           uninteresting <- uninterestingTypes
           specials      <- buildSpecials
 
