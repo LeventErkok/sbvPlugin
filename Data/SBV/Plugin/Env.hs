@@ -165,33 +165,30 @@ symFuncs wsz =  -- equality is for all kinds
 
 -- | Destructors
 buildDests :: CoreM (M.Map Var (Val -> [(Var, SKind)] -> [((Var, SKind), Val)]))
-buildDests = M.fromList `fmap` mapM cvt dests -- (dests ++ map mkTup supportTupleSizes)
-  where dests =    [ unbox 'W#
-                   , unbox 'I#
-                   , unbox 'F#
-                   , unbox 'D#
-                   ]
+buildDests = do simple <- mapM mkSingle dests
+                tups   <- mapM mkTuple  supportTupleSizes
+                return $ M.fromList (simple ++ tups)
+  where
+        dests = [ ('W#, dest1)
+                , ('I#, dest1)
+                , ('F#, dest1)
+                , ('D#, dest1)
+                ]
 
-        cvt :: (TH.Name, b) -> CoreM (Id, b)
-        cvt (n, sfn) = do f <- grabTH lookupId n
-                          return (f, sfn)
-
-        {-
-        mkTup n = let d <- grabTH lookupId (TH.tupleDataName n)
-                      unboxN n d
-                   isTup <- do let mkTup n = Func Nothing g
-                                     where g (Typ _) = return $ Func Nothing g
-                                           g v       = h (n-1) [v]
-                                           h 0 sofar = return $ Tup (reverse sofar)
-                                           h i sofar = return $ Func Nothing $ \v -> h (i-1) (v:sofar)
-                               ts <- mapM (grabTH lookupId . TH.tupleDataName) supportTupleSizes
-                               let choose = zip ts (map mkTup supportTupleSizes)
-                               return (`lookup` choose)
-                               -}
-
-        unbox a      = (a, dest1)
         dest1 a [bk] = [(bk, a)]
         dest1 a bs   = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ showSDocUnsafe (ppr a) ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
+
+        mkSingle :: (TH.Name, b) -> CoreM (Id, b)
+        mkSingle (n, sfn) = do f <- grabTH lookupId n
+                               return (f, sfn)
+
+        mkTuple n = do d <- grabTH lookupId (TH.tupleDataName n)
+                       let dest (Tup xs) bs
+                             | length xs == n && length bs == n
+                             = zip bs xs
+                           dest a b = error $ "Impossible: Tuple-case mismatch: " ++ showSDocUnsafe (ppr (n, a, b))
+                       return (d, dest)
+
 
 -- | These types show up during uninterpretation, but are not really "interesting" as they
 -- are singly inhabited.
