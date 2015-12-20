@@ -158,7 +158,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
 
         go :: CoreExpr -> Eval Val
-        go e = tgo (exprType e) e
+        go (Tick t e) = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
+        go e          = tgo (exprType e) e
 
         debugTrace s w
           | debug = trace ("--> " ++ s) w
@@ -201,7 +202,6 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
         tgo tFun orig@App{} = do
              reduced <- betaReduce orig
-             () <- debugTrace ("Beta reduce:\n" ++ sh (orig, reduced)) $ return ()
              case reduced of
                App (App (Var v) (Type t)) (Var dict) | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
@@ -292,8 +292,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
 
-        tgo _ (Tick t e)
-           = debugTrace ("Going thru a Tick: " ++ sh t) $ local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
+        tgo _ (Tick t e) = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
 
         tgo _ (Type t)
            = do Env{curLoc} <- ask
@@ -308,7 +307,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         isEtaReducable _         = False
 
         betaReduce :: CoreExpr -> Eval CoreExpr
-        betaReduce (App f a) = do
+        betaReduce orig@(App f a) = do
                 rf <- betaReduce f
                 if not (isEtaReducable a)
                    then return (App rf a)
@@ -321,7 +320,9 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                chaseVars x          = return x
                            func <- chaseVars rf
                            case func of
-                             Lam x b -> betaReduce $ substExpr (ppr "SBV.betaReduce") (extendSubstList emptySubst [(x, a)]) b
+                             Lam x b -> do reduced <- betaReduce $ substExpr (ppr "SBV.betaReduce") (extendSubstList emptySubst [(x, a)]) b
+                                           () <- debugTrace ("Beta reduce:\n" ++ sh (orig, reduced)) $ return ()
+                                           return reduced
                              _       -> return (App rf a)
         betaReduce e = return e
 
