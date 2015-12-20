@@ -403,7 +403,7 @@ getBaseType sp t = do
                       Just knd -> return knd
                       Nothing  -> unknown
           _        -> unknown
-  where -- allow one level of nesting
+  where -- allow one level of nesting, essentially to support Haskell's 'Ratio Integer' to map to 'SReal'
         grabTCs Nothing          = Nothing
         grabTCs (Just (top, ts)) = do as <- walk ts []
                                       return (top, as)
