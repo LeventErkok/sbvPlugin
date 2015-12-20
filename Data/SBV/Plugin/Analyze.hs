@@ -401,15 +401,21 @@ isReallyADictionary v = case classifyPredType (varType v) of
                           TuplePred{} -> True
                           IrredPred{} -> False
 
--- | Convert a Core type to an SBV Type, retaining functions
+-- | Convert a Core type to an SBV Type, retaining functions and tuples
 getType :: SrcSpan -> Type -> Eval SKind
-getType sp t = do let (tvs, t')   = splitForAllTys t
-                      (args, res) = splitFunTys t'
-                  argKs <- mapM (getType sp) args
-                  resK  <- getBaseType res
-                  return $ wrap tvs $ foldr KFun (KBase resK) argKs
+getType sp typ = do let (tvs, typ')   = splitForAllTys typ
+                        (args, res) = splitFunTys typ'
+                    argKs <- mapM (getType sp) args
+                    resK  <- getTupOrBase res
+                    return $ wrap tvs $ foldr KFun resK argKs
  where wrap ts f    = foldr (KFun . mkUserSort) f ts
        mkUserSort v = KBase (S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
+
+       -- | Either extract tuples or bases
+       getTupOrBase :: Type -> Eval SKind
+       getTupOrBase t = case splitTyConApp_maybe t of
+                          Just (k, ts) | isTupleTyCon k -> KTup  `fmap` mapM (getType sp) ts
+                          _                             -> KBase `fmap` getBaseType t
 
        -- | Convert a Core type to an SBV kind, if known
        -- Otherwise, create an uninterpreted kind, and return that.
