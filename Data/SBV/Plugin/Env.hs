@@ -75,38 +75,38 @@ buildFunEnv wsz = M.fromList `fmap` mapM thToGHC (basicFuncs wsz ++ symFuncs wsz
 
 -- | Basic conversions, only on one kind
 basicFuncs :: Int -> [(TH.Name, SKind, Val)]
-basicFuncs wsz = [ ('F#,    tlift1 S.KFloat,               Func  Nothing return)
-                 , ('D#,    tlift1 S.KDouble,              Func  Nothing return)
-                 , ('I#,    tlift1 $ S.KBounded True  wsz, Func  Nothing return)
-                 , ('W#,    tlift1 $ S.KBounded False wsz, Func  Nothing return)
-                 , ('True,  KBase S.KBool,                 Base  S.svTrue)
-                 , ('False, KBase S.KBool,                 Base  S.svFalse)
-                 , ('(&&),  tlift2 S.KBool,                lift2 S.svAnd)
-                 , ('(||),  tlift2 S.KBool,                lift2 S.svOr)
-                 , ('not,   tlift1 S.KBool,                lift1 S.svNot)
+basicFuncs wsz = [ ('F#,    tlift1 (KBase S.KFloat),               Func  Nothing return)
+                 , ('D#,    tlift1 (KBase S.KDouble),              Func  Nothing return)
+                 , ('I#,    tlift1 (KBase (S.KBounded True  wsz)), Func  Nothing return)
+                 , ('W#,    tlift1 (KBase (S.KBounded False wsz)), Func  Nothing return)
+                 , ('True,  KBase S.KBool,                         Base  S.svTrue)
+                 , ('False, KBase S.KBool,                         Base  S.svFalse)
+                 , ('(&&),  tlift2 (KBase S.KBool),                lift2 S.svAnd)
+                 , ('(||),  tlift2 (KBase S.KBool),                lift2 S.svOr)
+                 , ('not,   tlift1 (KBase S.KBool),                lift1 S.svNot)
                  ]
 
 -- | Symbolic functions supported by the plugin; those from a class.
 symFuncs :: Int -> [(TH.Name, SKind, Val)]
 symFuncs wsz =  -- equality is for all kinds
-          [(op, tlift2Bool k, lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
+          [(op, tlift2Bool (KBase k), lift2 sOp) | k <- allKinds, (op, sOp) <- [('(==), S.svEqual), ('(/=), S.svNotEqual)]]
 
           -- arithmetic
-       ++ [(op, tlift1 k, lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
-       ++ [(op, tlift2 k, lift2 sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
+       ++ [(op, tlift1 (KBase k), lift1 sOp) | k <- arithKinds, (op, sOp) <- unaryOps]
+       ++ [(op, tlift2 (KBase k), lift2 sOp) | k <- arithKinds, (op, sOp) <- binaryOps]
 
           -- literal conversions from Integer
-       ++ [(op, KFun S.KUnbounded (KBase k), lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
+       ++ [(op, KFun (KBase S.KUnbounded) (KBase k), lift1Int sOp) | k <- integerKinds, (op, sOp) <- [('fromInteger, S.svInteger k)]]
 
           -- comparisons
-       ++ [(op, tlift2Bool k, lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
+       ++ [(op, tlift2Bool (KBase k), lift2 sOp) | k <- arithKinds, (op, sOp) <- compOps ]
 
           -- integer div/rem
-      ++ [(op, tlift2 k, lift2 sOp) | k <- integralKinds, (op, sOp) <- [('div, S.svDivide), ('quot, S.svQuot), ('rem, S.svRem)]]
+      ++ [(op, tlift2 (KBase k), lift2 sOp) | k <- integralKinds, (op, sOp) <- [('div, S.svDivide), ('quot, S.svQuot), ('rem, S.svRem)]]
 
          -- bit-vector
-      ++ [ (op, tlift2 k,          lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps   ]
-      ++ [ (op, tlift2ShRot wsz k, lift2 sOp) | k <- bvKinds, (op, sOp) <- bvShiftRots]
+      ++ [ (op, tlift2 (KBase k),          lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps   ]
+      ++ [ (op, tlift2ShRot wsz (KBase k), lift2 sOp) | k <- bvKinds, (op, sOp) <- bvShiftRots]
 
  where
        -- Bit-vectors
@@ -214,20 +214,20 @@ buildSpecials = do isEq  <- do eq  <- grabTH lookupId '(==)
                                   }
 
 -- | Lift a binary type, with result bool
-tlift2Bool :: S.Kind -> SKind
+tlift2Bool :: SKind -> SKind
 tlift2Bool k = KFun k (KFun k (KBase S.KBool))
 
+-- | Lift a unary type
+tlift1 :: SKind -> SKind
+tlift1 k = KFun k k
+
 -- | Lift a binary type
-tlift2 :: S.Kind -> SKind
-tlift2 k = KFun k (KFun k (KBase k))
+tlift2 :: SKind -> SKind
+tlift2 k = KFun k (tlift1 k)
 
 -- | Lift a binary type, where second argument is Int
-tlift2ShRot :: Int -> S.Kind -> SKind
-tlift2ShRot wsz k = KFun k (KFun (S.KBounded True wsz) (KBase k))
-
--- | Lift a unary type
-tlift1 :: S.Kind -> SKind
-tlift1 k = KFun k (KBase k)
+tlift2ShRot :: Int -> SKind -> SKind
+tlift2ShRot wsz k = KFun k (KFun (KBase (S.KBounded True wsz)) k)
 
 -- | Lift a unary SBV function that via kind/integer
 lift1Int :: (Integer -> S.SVal) -> Val

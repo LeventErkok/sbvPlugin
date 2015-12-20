@@ -77,7 +77,8 @@ pickSolvers slvrs
 
 -- | The kinds used by the plugin
 data SKind = KBase S.Kind
-           | KFun  S.Kind SKind
+           | KTup  [SKind]
+           | KFun  SKind SKind
            deriving (Eq, Ord)
 
 -- | The values kept track of by the interpreter
@@ -89,7 +90,8 @@ data Val = Base S.SVal
 -- | Outputable instance for SKind
 instance Outputable SKind where
    ppr (KBase k)   = text (show k)
-   ppr (KFun  k r) = text (show k) <+> text "->" <+> ppr r
+   ppr (KTup  ks)  = parens $ sep (punctuate (text ",") (map ppr ks))
+   ppr (KFun  k r) = parens (ppr k) <+> text "->" <+> ppr r
 
 -- | Outputable instance for S.Kind
 instance Outputable S.Kind where

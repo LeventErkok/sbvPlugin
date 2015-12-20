@@ -425,8 +425,8 @@ getBaseType sp t = do
 getType :: SrcSpan -> Type -> Eval SKind
 getType sp t = do let (tvs, t')   = splitForAllTys t
                       (args, res) = splitFunTys t'
-                  argKs <- mapM (getBaseType sp) args
+                  argKs <- mapM (getType sp) args
                   resK  <- getBaseType sp res
                   return $ wrap tvs $ foldr KFun (KBase resK) argKs
  where wrap ts f    = foldr (KFun . mkUserSort) f ts
-       mkUserSort v = S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin")
+       mkUserSort v = KBase (S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
