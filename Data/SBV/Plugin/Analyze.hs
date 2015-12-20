@@ -201,7 +201,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
              reduced <- betaReduce orig
              () <- debugTrace ("Beta reduce:\n" ++ sh (orig, reduced)) $ return ()
              case reduced of
-               (App (App (Var v) (Type t)) (Var dict)) | isReallyADictionary dict -> do
+               App (App (Var v) (Type t)) (Var dict) | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
                                 k <- getBaseType (getSrcSpan v) t
                                 case (v, KBase k) `M.lookup` envMap of
@@ -215,11 +215,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                 case v `M.lookup` coreMap of
                                                   Just e  -> tgo tFun (App (App e (Type t)) (Var dict))
                                                   Nothing -> tgo tFun (Var v)
-               (App (Var v) (Type t)) -> do
+               App (Var v) (Type t) -> do
                          Env{coreMap} <- ask
                          case v `M.lookup` coreMap of
                            Just e  -> tgo tFun (App e (Type t))
                            Nothing -> tgo tFun (Var v)
+
+               App (Let (Rec bs) f) a -> go (Let (Rec bs) (App f a))
+
                App f e  -> do func <- go f
                               arg  <- go e
                               case (func, arg) of
