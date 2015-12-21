@@ -4,9 +4,14 @@ module T19 where
 
 import Data.SBV.Plugin
 
-{-# ANN f theorem {options=[Verbose, ListSize 5]} #-}
-f :: [Char] -> Bool
-f s = reverse (reverse s) == s
+{-# ANN f theorem {options=[ListSize 5]} #-}
+f :: String -> Bool
+f s = rev (rev s) == s
+  where rev [a, b, c, d, e] = [e, d, c, b, a]
+        rev xs              = xs
 
-{-# ANN f ("HLint: ignore Use String"    :: String) #-}
-{-# ANN f ("HLint: ignore Avoid reverse" :: String) #-}
+{-# ANN g theorem {options=[ListSize 6, IgnoreFailure]} #-}
+g :: String -> Bool
+g s = f s
+
+{-# ANN g ("HLint: ignore Eta reduce" :: String) #-}
