@@ -144,7 +144,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                        finalType <- getType curLoc (exprType body)
                        case finalType of
                          KBase S.KBool -> do argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize curLoc k (fromMaybe (sh b) mbN)
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize curLoc (idType b) k (fromMaybe (sh b) mbN)
                                                                           return ((b, k), sv)
                                              sArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                                              local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
@@ -157,26 +157,27 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 pushLetLambda o                  = o
 
                 -- Create a symbolic variable:
-                mkSym _    _  (KBase k) nm  = do v <- S.svMkSymVar Nothing k (Just nm)
-                                                 return (Base v)
+                mkSym mbLs curLoc bType = sym
+                 where sym (KBase k) nm  = do v <- S.svMkSymVar Nothing k (Just nm)
+                                              return (Base v)
 
-                mkSym mbLs sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
-                                                vs <- zipWithM (mkSym mbLs sp) ks ns
-                                                return $ Tup vs
+                       sym (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
+                                             vs <- zipWithM sym ks ns
+                                             return $ Tup vs
 
-                mkSym mbLs sp (KLst ks) nm = do let ls  = fromMaybe bad mbLs
-                                                    bad = die sp "List-argument found, with no size info"
-                                                                 [ "Name         : " ++ show nm
-                                                                 , "Symbolic kind: " ++ sh (KLst ks)
-                                                                 , "Hint         : Use the \"ListSize\" argument to the theorem annotation"
-                                                                 ]
-                                                    ns = map (\i -> nm ++ "_" ++ show i) [1 .. ls]
-                                                vs <- zipWithM (mkSym mbLs sp) (replicate ls ks) ns
-                                                return (Lst vs)
+                       sym (KLst ks) nm = do let ls  = fromMaybe bad mbLs
+                                                 bad = die curLoc "List-argument found, with no size info"
+                                                                  [ "Name: " ++ nm
+                                                                  , "Type: " ++ sh bType
+                                                                  , "Hint: Use the \"ListSize\" annotation"
+                                                                  ]
+                                                 ns = map (\i -> nm ++ "_" ++ show i) [1 .. ls]
+                                             vs <- zipWithM sym (replicate ls ks) ns
+                                             return (Lst vs)
 
-                mkSym _    sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
-                                                                                 , "Symbolic kind: " ++ sh k
-                                                                                 ]
+                       sym _         nm = die curLoc "Unsupported symbolic input" [ "Name: " ++ show nm
+                                                                                  , "Type: " ++ sh bType
+                                                                                  ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
@@ -432,16 +433,17 @@ getType :: SrcSpan -> Type -> Eval SKind
 getType sp typ = do let (tvs, typ')   = splitForAllTys typ
                         (args, res) = splitFunTys typ'
                     argKs <- mapM (getType sp) args
-                    resK  <- getTupOrBase res
+                    resK  <- getComposite res
                     return $ wrap tvs $ foldr KFun resK argKs
  where wrap ts f    = foldr (KFun . mkUserSort) f ts
        mkUserSort v = KBase (S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
 
-       -- | Either extract tuples or bases
-       getTupOrBase :: Type -> Eval SKind
-       getTupOrBase t = case splitTyConApp_maybe t of
-                          Just (k, ts) | isTupleTyCon k -> KTup  `fmap` mapM (getType sp) ts
-                          _                             -> KBase `fmap` getBaseType t
+       -- | Extract tuples, lists, or base kinds
+       getComposite :: Type -> Eval SKind
+       getComposite t = case splitTyConApp_maybe t of
+                          Just (k, ts)  | isTupleTyCon k -> KTup  `fmap` mapM (getType sp) ts
+                          Just (k, [a]) | listTyCon == k -> KLst  `fmap` getType sp a
+                          _                              -> KBase `fmap` getBaseType t
 
        -- | Convert a Core type to an SBV kind, if known
        -- Otherwise, create an uninterpreted kind, and return that.

@@ -192,8 +192,8 @@ buildDests = do simple <- mapM mkSingle dests
                        return (d, dest)
 
         mkNil  = do d <- lookupId nilDataConName
-                    let dest (Lst []) [] = []
-                        dest a        b  = error $ "Impossible: []-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
+                    let dest (Lst _) [] = []
+                        dest a       b  = error $ "Impossible: []-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
                     return (d, dest)
 
         mkCons  = do d <- lookupId consDataConName

@@ -11,13 +11,16 @@ True :: Bool
 ; has user-defined sorts, no logic specified.
 ; --- uninterpreted sorts ---
 (declare-sort sbvChar 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:3
-(declare-sort sbvString 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:5
 ; --- literal constants ---
 (define-fun s_2 () Bool false)
 (define-fun s_1 () Bool true)
 ; --- skolem constants ---
 (declare-fun s0 () sbvChar) ; tracks user variable "c"
-(declare-fun s1 () sbvString) ; tracks user variable "s"
+(declare-fun s1 () sbvChar) ; tracks user variable "s_1"
+(declare-fun s2 () sbvChar) ; tracks user variable "s_2"
+(declare-fun s3 () sbvChar) ; tracks user variable "s_3"
+(declare-fun s4 () sbvChar) ; tracks user variable "s_4"
+(declare-fun s5 () sbvChar) ; tracks user variable "s_5"
 ; --- constant tables ---
 ; --- skolemized tables ---
 ; --- arrays ---

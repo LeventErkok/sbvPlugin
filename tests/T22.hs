@@ -4,7 +4,7 @@ module T22 where
 
 import Data.SBV.Plugin
 
-{-# ANN f theorem {options=[Verbose]} #-}
+{-# ANN f theorem {options=[Verbose, ListSize 5]} #-}
 f :: String -> Bool
 f s = reverse (reverse s) == s
 

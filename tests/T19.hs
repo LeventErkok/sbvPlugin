@@ -4,7 +4,7 @@ module T19 where
 
 import Data.SBV.Plugin
 
-{-# ANN f theorem {options=[Verbose]} #-}
+{-# ANN f theorem {options=[Verbose, ListSize 5]} #-}
 f :: [Char] -> Bool
 f s = reverse (reverse s) == s
 
