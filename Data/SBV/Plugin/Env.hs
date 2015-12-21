@@ -163,16 +163,13 @@ symFuncs wsz =  -- equality is for all kinds
                      ]
 
 
--- | List destructor not quite working yet
-ignoreListDestructor :: Bool
-ignoreListDestructor = True
-
 -- | Destructors
 buildDests :: CoreM (M.Map Var (Val -> [(Var, SKind)] -> [((Var, SKind), Val)]))
 buildDests = do simple <- mapM mkSingle dests
                 tups   <- mapM mkTuple  supportTupleSizes
-                lst    <- mkList
-                return $ M.fromList (simple ++ tups ++ if ignoreListDestructor then [] else [lst])
+                nil    <- mkNil
+                cons   <- mkCons
+                return $ M.fromList (simple ++ tups ++ [nil, cons])
   where
         dests = [ ('W#, dest1)
                 , ('I#, dest1)
@@ -194,13 +191,15 @@ buildDests = do simple <- mapM mkSingle dests
                            dest a b = error $ "Impossible: Tuple-case mismatch: " ++ showSDocUnsafe (ppr (n, a, b))
                        return (d, dest)
 
-        mkList = do d <- grabTH lookupId (''[])
-                    let dest (Lst xs) bs
-                          | length xs == length bs
-                          = zip bs xs
-                        dest a b = error $ "Impossible: List-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
+        mkNil  = do d <- lookupId nilDataConName
+                    let dest (Lst []) [] = []
+                        dest a        b  = error $ "Impossible: []-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
                     return (d, dest)
 
+        mkCons  = do d <- lookupId consDataConName
+                     let dest (Lst (x:xs)) [h, t] = [(h, x), (t, Lst xs)]
+                         dest a            b      = error $ "Impossible: (:)-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
+                     return (d, dest)
 
 -- | These types show up during uninterpretation, but are not really "interesting" as they
 -- are singly inhabited.
