@@ -8,7 +8,7 @@ import Data.SBV.Plugin
 f :: String -> Bool
 f s = rev (rev s) == s
   where rev [a, b, c, d, e] = [e, d, c, b, a]
-        rev xs              = xs
+        rev xs              = 'a':xs
 
 {-# ANN g theorem {options=[ListSize 6, IgnoreFailure]} #-}
 g :: String -> Bool

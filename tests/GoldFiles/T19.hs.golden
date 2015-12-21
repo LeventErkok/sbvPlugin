@@ -10,3 +10,5 @@
   s_4 = sbvChar!val!0 :: sbvChar
   s_5 = sbvChar!val!0 :: sbvChar
   s_6 = sbvChar!val!0 :: sbvChar
+[SBV] Counter-example might be bogus due to uninterpreted constants:
+  [<wired into compiler>] C# :: Char# -> Char
