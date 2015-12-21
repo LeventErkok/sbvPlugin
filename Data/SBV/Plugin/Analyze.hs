@@ -22,7 +22,7 @@ import Data.IORef
 
 import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
 import Data.List     (intercalate, partition, nub, sort, sortBy)
-import Data.Maybe    (listToMaybe)
+import Data.Maybe    (listToMaybe, fromMaybe)
 import Data.Ord      (comparing)
 
 import qualified Data.Map as M
@@ -143,17 +143,27 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                        finalType <- getType curLoc (exprType body)
                        case finalType of
                          KBase S.KBool -> do ats <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, KBase k), mbN) = do v <- S.svMkSymVar Nothing k (mbN `mplus` Just (sh b))
-                                                                                return ((b, KBase k), Base v)
-                                                 mkVar i = error $ "Don't know how to make an input argument of complicated kind: " ++ sh i
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym curLoc k (fromMaybe (sh b) mbN)
+                                                                          return ((b, k), sv)
                                              sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                                              local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
                          _             -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
                                                                                                 , ["Returning: " ++ sh (exprType body) | not (null bs)]
                                                                                                 , ["Expected : Bool" ++ if null bs then "" else " result"]
                                                                                                 ])
-          where pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
+          where -- Sometimes the core has a wrapper let, floated out on top. Float that in.
+                pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
                 pushLetLambda o                  = o
+
+                -- Create a symbolic variable:
+                mkSym _  (KBase k) nm = do v <- S.svMkSymVar Nothing k (Just nm)
+                                           return (Base v)
+                mkSym sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
+                                           vs <- zipWithM (mkSym sp) ks ns
+                                           return $ Tup vs
+                mkSym sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
+                                                                            , "Symbolic kind: " ++ sh k
+                                                                            ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
