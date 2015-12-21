@@ -1,7 +1,5 @@
 
 [SBV] tests/T22.hs:12:1 Proving "g", using Z3.
-
-[SBV] tests/T22.hs:12:1 Skipping proof. Non-boolean property declaration:
-                           Found    : Int -> Bool
-                           Expected : Bool
+[Z3] Falsifiable. Counter-example:
+  s0 = -1 :: Int64
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

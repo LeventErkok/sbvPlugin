@@ -141,13 +141,32 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
                        Env{curLoc} <- ask
                        let mbListSize = listToMaybe [n | ListSize n <- opts]
-                       finalType <- getType curLoc (exprType body)
+                       bodyType <- getType curLoc (exprType body)
+
+                       -- Figure out if there were some unmentioned variables; happens if the top
+                       -- level wasn't fully saturated.
+                       let (extraArgs, finalType) = walk bodyType []
+                                where walk (KFun d c) sofar = walk c (d:sofar)
+                                      walk k          sofar = (reverse sofar, k)
+
                        case finalType of
-                         KBase S.KBool -> do argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize curLoc (idType b) k (fromMaybe (sh b) mbN)
+                         KBase S.KBool -> do -- First collect the named arguments:
+                                             argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize curLoc (Just (idType b)) k (mbN `mplus` Just (sh b))
                                                                           return ((b, k), sv)
-                                             sArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
-                                             local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
+                                             bArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+
+                                             -- Go ahead and run the body symbolically; on bArgs
+                                             bRes <- local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bArgs}) (go body)
+
+                                             -- If there are extraArgs; then create symbolics and apply to the result:
+                                             let feed []     sres       = return sres
+                                                 feed (k:ks) (Func _ f) = do sv <- lift $ mkSym mbListSize curLoc Nothing k Nothing
+                                                                             f sv >>= feed ks
+                                                 feed ks     v          = error $ "Impossible! Left with extra args to apply on a non-function: " ++ sh (ks, v)
+
+                                             feed extraArgs bRes
+
                          _             -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
                                                                                                 , ["Returning: " ++ sh (exprType body) | not (null bs)]
                                                                                                 , ["Expected : Bool" ++ if null bs then "" else " result"]
@@ -157,26 +176,31 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 pushLetLambda o                  = o
 
                 -- Create a symbolic variable:
-                mkSym mbLs curLoc bType = sym
-                 where sym (KBase k) nm  = do v <- S.svMkSymVar Nothing k (Just nm)
+                mkSym :: Maybe Int -> SrcSpan -> Maybe Type -> SKind -> Maybe String -> S.Symbolic Val
+                mkSym mbLs curLoc mbBType = sym
+                 where tinfo k = case mbBType of
+                                   Nothing -> "Kind: " ++ sh k
+                                   Just t  -> "Type: " ++ sh t
+
+                       sym (KBase k) nm  = do v <- S.svMkSymVar Nothing k nm
                                               return (Base v)
 
-                       sym (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
+                       sym (KTup ks) nm = do let ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. length ks]
                                              vs <- zipWithM sym ks ns
                                              return $ Tup vs
 
                        sym (KLst ks) nm = do let ls  = fromMaybe bad mbLs
                                                  bad = die curLoc "List-argument found, with no size info"
-                                                                  [ "Name: " ++ nm
-                                                                  , "Type: " ++ sh bType
+                                                                  [ "Name: " ++ fromMaybe "anonymous" nm
+                                                                  , tinfo (KLst ks)
                                                                   , "Hint: Use the \"ListSize\" annotation"
                                                                   ]
-                                                 ns = map (\i -> nm ++ "_" ++ show i) [1 .. ls]
+                                                 ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. ls]
                                              vs <- zipWithM sym (replicate ls ks) ns
                                              return (Lst vs)
 
-                       sym _         nm = die curLoc "Unsupported symbolic input" [ "Name: " ++ show nm
-                                                                                  , "Type: " ++ sh bType
+                       sym k         nm = die curLoc "Unsupported symbolic input" [ "Name: " ++ show nm
+                                                                                  , tinfo k
                                                                                   ]
 
         isUninterpretedBinding :: Var -> Bool
