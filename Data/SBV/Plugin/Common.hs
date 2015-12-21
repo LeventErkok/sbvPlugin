@@ -32,6 +32,7 @@ import Data.SBV.Plugin.Data
 -- | Certain "very-polymorphic" things are just special
 data Specials = Specials { isEquality :: Var -> Maybe Val
                          , isTuple    :: Var -> Maybe Val
+                         , isList     :: Var -> Maybe Val
                          }
 
 -- | Interpreter environment

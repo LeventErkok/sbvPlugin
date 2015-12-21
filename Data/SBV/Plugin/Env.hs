@@ -163,11 +163,16 @@ symFuncs wsz =  -- equality is for all kinds
                      ]
 
 
+-- | List destructor not quite working yet
+ignoreListDestructor :: Bool
+ignoreListDestructor = True
+
 -- | Destructors
 buildDests :: CoreM (M.Map Var (Val -> [(Var, SKind)] -> [((Var, SKind), Val)]))
 buildDests = do simple <- mapM mkSingle dests
                 tups   <- mapM mkTuple  supportTupleSizes
-                return $ M.fromList (simple ++ tups)
+                lst    <- mkList
+                return $ M.fromList (simple ++ tups ++ if ignoreListDestructor then [] else [lst])
   where
         dests = [ ('W#, dest1)
                 , ('I#, dest1)
@@ -189,6 +194,13 @@ buildDests = do simple <- mapM mkSingle dests
                            dest a b = error $ "Impossible: Tuple-case mismatch: " ++ showSDocUnsafe (ppr (n, a, b))
                        return (d, dest)
 
+        mkList = do d <- grabTH lookupId (''[])
+                    let dest (Lst xs) bs
+                          | length xs == length bs
+                          = zip bs xs
+                        dest a b = error $ "Impossible: List-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
+                    return (d, dest)
+
 
 -- | These types show up during uninterpretation, but are not really "interesting" as they
 -- are singly inhabited.
@@ -199,8 +211,11 @@ uninterestingTypes = map varType `fmap` mapM (grabTH lookupId) ['void#]
 buildSpecials :: CoreM Specials
 buildSpecials = do isEq  <- do eq  <- grabTH lookupId '(==)
                                neq <- grabTH lookupId '(/=)
+
                                let choose = [(eq, liftEq S.svEqual), (neq, liftEq S.svNotEqual)]
+
                                return (`lookup` choose)
+
                    isTup <- do let mkTup n = Func Nothing g
                                      where g (Typ _) = return $ Func Nothing g
                                            g v       = h (n-1) [v]
@@ -209,8 +224,25 @@ buildSpecials = do isEq  <- do eq  <- grabTH lookupId '(==)
                                ts <- mapM (grabTH lookupId . TH.tupleDataName) supportTupleSizes
                                let choose = zip ts (map mkTup supportTupleSizes)
                                return (`lookup` choose)
+
+                   isLst <- do nil  <- lookupId nilDataConName
+                               cons <- lookupId consDataConName
+
+                               let snil  = Lst []
+
+                                   scons = Func Nothing g
+                                     where g (Typ _)    = return $ Func Nothing g
+                                           g v          = return $ Func Nothing (k v)
+                                           k v (Lst xs) = return (Lst (v:xs))
+                                           k v a        = error $ "Impossible: (:) received incompatible arguments: " ++ showSDocUnsafe (ppr (v, a))
+
+                                   choose = [(nil, snil), (cons, scons)]
+
+                               return (`lookup` choose)
+
                    return Specials{ isEquality = isEq
                                   , isTuple    = isTup
+                                  , isList     = isLst
                                   }
 
 -- | Lift a binary type, with result bool

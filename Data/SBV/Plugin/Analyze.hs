@@ -21,7 +21,7 @@ import System.Exit hiding (die)
 import Data.IORef
 
 import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
-import Data.List     (intercalate, partition, nub, sort, sortBy)
+import Data.List     (intercalate, partition, nub, sort, sortBy, isPrefixOf)
 import Data.Maybe    (listToMaybe, fromMaybe)
 import Data.Ord      (comparing)
 
@@ -233,27 +233,31 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
              Env{specials} <- ask
 
-             -- handle specials: Equality and tuples
-             let isEq (App (App (Var v) (Type _)) (Var dict)) | isReallyADictionary dict, Just f <- isEquality specials v = Just f
-                 isEq _                                                                                                   = Nothing
+             -- handle specials: Equality, tuples, and lists
+             let isEq (App (App (Var v) (Type _)) dict) | isReallyADictionary dict, Just f <- isEquality specials v = Just f
+                 isEq _                                                                                             = Nothing
 
                  isTup (Var v)          = isTuple specials v
                  isTup (App f (Type _)) = isTup f
                  isTup _                = Nothing
 
-                 isSpecial e = isEq e `mplus` isTup e
+                 isLst (Var v)          = isList specials v
+                 isLst (App f (Type _)) = isLst f
+                 isLst _                = Nothing
+
+                 isSpecial e = isEq e `mplus` isTup e `mplus` isLst e
 
              case isSpecial reduced of
-               Just f  -> debugTrace ("Special located: " ++ sh (orig, f)) return f
+               Just f  -> debugTrace ("Special located: " ++ sh (orig, f)) $ return f
                Nothing -> case reduced of
-                            App (App (Var v) (Type t)) (Var dict) | isReallyADictionary dict -> do
+                            App (App (Var v) (Type t)) dict | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
                                 k <- getType (getSrcSpan v) t
                                 case (v, k) `M.lookup` envMap of
                                   Just b  -> return b
                                   Nothing -> do Env{coreMap} <- ask
                                                 case v `M.lookup` coreMap of
-                                                  Just e  -> tgo tFun (App (App e (Type t)) (Var dict))
+                                                  Just e  -> tgo tFun (App (App e (Type t)) dict)
                                                   Nothing -> tgo tFun (Var v)
 
                             App (Var v) (Type t) -> do
@@ -323,9 +327,9 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                       case (wid, k) `M.lookup` envMap of
                                                         Just (Base b) -> return $ Just (a `eqVal` Base b, [])
                                                         _             -> case wid `M.lookup` destMap of
-                                                                            Nothing -> return Nothing
-                                                                            Just f  -> do bts <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                                                                          return $ Just (S.svTrue, f a bts)
+                                                                           Nothing -> return Nothing
+                                                                           Just f  -> do bts <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
+                                                                                         return $ Just (S.svTrue, f a bts)
 
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
@@ -340,14 +344,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tgo _ e@Coercion{}
            = tbd "Unsupported coercion-expression" [sh e]
 
-        isEtaReducable (Var  a)  = isTyVar a || isReallyADictionary a
-        isEtaReducable (Type _)  = True
-        isEtaReducable _         = False
+        isBetaReducable (Type _) = True
+        isBetaReducable e        = isReallyADictionary e
 
         betaReduce :: CoreExpr -> Eval CoreExpr
         betaReduce orig@(App f a) = do
                 rf <- betaReduce f
-                if not (isEtaReducable a)
+                if not (isBetaReducable a)
                    then return (App rf a)
                    else do let chaseVars :: CoreExpr -> Eval CoreExpr
                                chaseVars (Var x)    = do Env{coreMap} <- ask
@@ -363,6 +366,15 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                            return reduced
                              _       -> return (App rf a)
         betaReduce e = return e
+
+-- | Is this really a dictionary in disguise? This is a terrible hack, and the ice is thin here. But it seems to work.
+-- TODO: Figure out if there's a better way of doing this. Note that this function really does get applications, when
+-- those dictionaries are parameterized by others. Think of the case where "Eq [a]" dictionary depends on "Eq a", for
+-- instance. In these cases, GHC to produces applications.
+isReallyADictionary :: CoreExpr -> Bool
+isReallyADictionary (App f _) = isReallyADictionary f
+isReallyADictionary (Var v)   = "$" `isPrefixOf` unpackFS (occNameFS (occName (varName v)))
+isReallyADictionary _         = False
 
 -- | Uninterpret an expression
 uninterpret :: Type -> Var -> Eval Val
@@ -414,14 +426,6 @@ mkValidName name =
         tr '|'   = '_'
         tr '\\'  = '_'
         tr c     = c
-
--- | Is this variable really a dictionary?
-isReallyADictionary :: Var -> Bool
-isReallyADictionary v = case classifyPredType (varType v) of
-                          ClassPred{} -> True
-                          EqPred{}    -> True
-                          TuplePred{} -> True
-                          IrredPred{} -> False
 
 -- | Convert a Core type to an SBV Type, retaining functions and tuples
 getType :: SrcSpan -> Type -> Eval SKind
