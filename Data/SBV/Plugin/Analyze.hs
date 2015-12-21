@@ -140,13 +140,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
                        Env{curLoc} <- ask
+                       let listSize = last (5 : [n | ListSize n <- opts])
                        finalType <- getType curLoc (exprType body)
                        case finalType of
                          KBase S.KBool -> do argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let aks = markSizes argKs (concat [ns | Sizes ns <- opts])
-                                                 mkVar (((b, k), _), mbN) = do sv <- mkSym curLoc k (fromMaybe (sh b) mbN)
-                                                                               return ((b, k), sv)
-                                             sArgs <- mapM (lift . mkVar) (zip aks (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym listSize curLoc k (fromMaybe (sh b) mbN)
+                                                                          return ((b, k), sv)
+                                             sArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                                              local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
                          _             -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
                                                                                                 , ["Returning: " ++ sh (exprType body) | not (null bs)]
@@ -156,33 +156,21 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
                 pushLetLambda o                  = o
 
-                -- Attach size info for each list we find:
-                markSizes :: [(Var, SKind)] -> [Int] -> [((Var, SKind), Int)]
-                markSizes ks _ = zip ks (repeat 1)
-
                 -- Create a symbolic variable:
-                mkSym _  (KBase k) nm = do v <- S.svMkSymVar Nothing k (Just nm)
-                                           return (Base v)
-                mkSym sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
-                                           vs <- zipWithM (mkSym sp) ks ns
-                                           return $ Tup vs
-                                          {-
-                mkSym sp (KTup ks) nm szs = do let (card, szs') | isTup = (length ks, szs)
-                                                                       | True  = case szs of
-                                                                                   (i:is) -> (i, is)
-                                                                                   _      -> die sp "List-argument requires a size to be specified"
-                                                                                                    [ "Name         : " ++ show nm
-                                                                                                    , "Symbolic kind: " ++ sh (KMany isTup ks)
-                                                                                                    , "Hint         : Use the \"Sizes\" option in the theorem declaration."
-                                                                                                    ]
-                                                          ns      = map (\i -> nm ++ "_" ++ show i) [1 .. card]
-                                                      vs <- zipWithM (mkSym sp) ks ns szs'
-                                                      return (Many isTup vs, szs')
-                                                      -}
+                mkSym _ _  (KBase k) nm  = do v <- S.svMkSymVar Nothing k (Just nm)
+                                              return (Base v)
 
-                mkSym sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
-                                                                            , "Symbolic kind: " ++ sh k
-                                                                            ]
+                mkSym ls sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
+                                              vs <- zipWithM (mkSym ls sp) ks ns
+                                              return $ Tup vs
+
+                mkSym ls sp (KLst ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. ls]
+                                              vs <- zipWithM (mkSym ls sp) (replicate ls ks) ns
+                                              return (Lst vs)
+
+                mkSym _  sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
+                                                                               , "Symbolic kind: " ++ sh k
+                                                                               ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
@@ -233,7 +221,6 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                    case k of
                                      KBase b -> return $ Base $ S.svUninterpreted b nm Nothing []
                                      _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
-                                   
 
         tgo tFun orig@App{} = do
              reduced <- betaReduce orig
