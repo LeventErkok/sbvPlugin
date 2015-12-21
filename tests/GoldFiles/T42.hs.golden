@@ -1,0 +1,9 @@
+
+[SBV] tests/T42.hs:9:1 Proving "f", using Z3.
+[Z3] Falsifiable. Counter-example:
+  xs_1 = 10 :: Int64
+  xs_2 =  0 :: Int64
+  xs_3 =  0 :: Int64
+  xs_4 =  0 :: Int64
+  xs_5 =  0 :: Int64
+[SBV] Failed. (Use option 'IgnoreFailure' to continue.)
