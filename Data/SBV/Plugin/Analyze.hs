@@ -142,10 +142,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                        Env{curLoc} <- ask
                        finalType <- getType curLoc (exprType body)
                        case finalType of
-                         KBase S.KBool -> do ats <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym curLoc k (fromMaybe (sh b) mbN)
-                                                                          return ((b, k), sv)
-                                             sArgs <- mapM (lift . mkVar) (zip ats (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+                         KBase S.KBool -> do argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
+                                             let aks = markSizes argKs (concat [ns | Sizes ns <- opts])
+                                                 mkVar (((b, k), _), mbN) = do sv <- mkSym curLoc k (fromMaybe (sh b) mbN)
+                                                                               return ((b, k), sv)
+                                             sArgs <- mapM (lift . mkVar) (zip aks (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                                              local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
                          _             -> die curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
                                                                                                 , ["Returning: " ++ sh (exprType body) | not (null bs)]
@@ -155,12 +156,30 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
                 pushLetLambda o                  = o
 
+                -- Attach size info for each list we find:
+                markSizes :: [(Var, SKind)] -> [Int] -> [((Var, SKind), Int)]
+                markSizes ks _ = zip ks (repeat 1)
+
                 -- Create a symbolic variable:
                 mkSym _  (KBase k) nm = do v <- S.svMkSymVar Nothing k (Just nm)
                                            return (Base v)
                 mkSym sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
                                            vs <- zipWithM (mkSym sp) ks ns
                                            return $ Tup vs
+                                          {-
+                mkSym sp (KTup ks) nm szs = do let (card, szs') | isTup = (length ks, szs)
+                                                                       | True  = case szs of
+                                                                                   (i:is) -> (i, is)
+                                                                                   _      -> die sp "List-argument requires a size to be specified"
+                                                                                                    [ "Name         : " ++ show nm
+                                                                                                    , "Symbolic kind: " ++ sh (KMany isTup ks)
+                                                                                                    , "Hint         : Use the \"Sizes\" option in the theorem declaration."
+                                                                                                    ]
+                                                          ns      = map (\i -> nm ++ "_" ++ show i) [1 .. card]
+                                                      vs <- zipWithM (mkSym sp) ks ns szs'
+                                                      return (Many isTup vs, szs')
+                                                      -}
+
                 mkSym sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
                                                                             , "Symbolic kind: " ++ sh k
                                                                             ]

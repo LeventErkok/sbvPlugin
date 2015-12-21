@@ -78,6 +78,7 @@ pickSolvers slvrs
 -- | The kinds used by the plugin
 data SKind = KBase S.Kind
            | KTup  [SKind]
+           | KLst  SKind
            | KFun  SKind SKind
            deriving (Eq, Ord)
 
@@ -85,12 +86,14 @@ data SKind = KBase S.Kind
 data Val = Base S.SVal
          | Typ  SKind
          | Tup  [Val]
+         | Lst  [Val]
          | Func (Maybe String) (Val -> Eval Val)
 
 -- | Outputable instance for SKind
 instance Outputable SKind where
    ppr (KBase k)   = text (show k)
    ppr (KTup  ks)  = parens $ sep (punctuate (text ",") (map ppr ks))
+   ppr (KLst  k)   = brackets $ ppr k
    ppr (KFun  k r) = parens (ppr k) <+> text "->" <+> ppr r
 
 -- | Outputable instance for S.Kind
@@ -101,15 +104,17 @@ instance Outputable S.Kind where
 instance Outputable Val where
    ppr (Base s)   = text (show s)
    ppr (Typ  k)   = ppr k
-   ppr (Tup vs)   = parens $ sep $ punctuate (text ",") (map ppr vs)
+   ppr (Tup  vs)  = parens   $ sep $ punctuate (text ",") (map ppr vs)
+   ppr (Lst  vs)  = brackets $ sep $ punctuate (text ",") (map ppr vs)
    ppr (Func k _) = text ("Func<" ++ show k ++ ">")
 
 -- | Structural lifting of a boolean function (eq/neq) over Val
 liftEqVal :: (S.SVal -> S.SVal -> S.SVal) -> Val -> Val -> S.SVal
 liftEqVal baseEq v1 v2 = k v1 v2
-  where k (Base a)  (Base b)                          = a `baseEq` b
-        k (Tup as)  (Tup bs) | length as == length bs = foldr S.svAnd S.svTrue (zipWith k as bs)
-        k _         _                                 = error  $ "Impossible happened: liftEq received unexpected arguments: " ++ showSDocUnsafe (ppr (v1, v2))
+  where k (Base a) (Base b)                          = a `baseEq` b
+        k (Tup as) (Tup bs) | length as == length bs = foldr S.svAnd S.svTrue                            (zipWith k as bs)
+        k (Lst as) (Lst bs)                          = foldr S.svAnd (S.svBool (length as == length bs)) (zipWith k as bs)
+        k _ _                                        = error  $ "Impossible happened: liftEq received unexpected arguments: " ++ showSDocUnsafe (ppr (v1, v2))
 
 -- | Symbolic equality over variables
 eqVal :: Val -> Val -> S.SVal
