@@ -164,7 +164,7 @@ symFuncs wsz =  -- equality is for all kinds
 
 
 -- | Destructors
-buildDests :: CoreM (M.Map Var (Val -> [(Var, SKind)] -> [((Var, SKind), Val)]))
+buildDests :: CoreM (M.Map Var (Val -> [(Var, SKind)] -> (S.SVal, [((Var, SKind), Val)])))
 buildDests = do simple <- mapM mkSingle dests
                 tups   <- mapM mkTuple  supportTupleSizes
                 nil    <- mkNil
@@ -177,7 +177,7 @@ buildDests = do simple <- mapM mkSingle dests
                 , ('D#, dest1)
                 ]
 
-        dest1 a [bk] = [(bk, a)]
+        dest1 a [bk] = (S.svTrue, [(bk, a)])
         dest1 a bs   = error $ "Impossible happened: Mistmatched arity case-binder for: " ++ showSDocUnsafe (ppr a) ++ ". Expected 1, got: " ++ show (length bs) ++ " arguments."
 
         mkSingle :: (TH.Name, b) -> CoreM (Id, b)
@@ -187,17 +187,19 @@ buildDests = do simple <- mapM mkSingle dests
         mkTuple n = do d <- grabTH lookupId (TH.tupleDataName n)
                        let dest (Tup xs) bs
                              | length xs == n && length bs == n
-                             = zip bs xs
+                             = (S.svTrue, zip bs xs)
                            dest a b = error $ "Impossible: Tuple-case mismatch: " ++ showSDocUnsafe (ppr (n, a, b))
                        return (d, dest)
 
         mkNil  = do d <- lookupId nilDataConName
-                    let dest (Lst _) [] = []
-                        dest a       b  = error $ "Impossible: []-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
+                    let dest (Lst []) [] = (S.svTrue,  [])
+                        dest (Lst _)  _  = (S.svFalse, [])
+                        dest a        b  = error $ "Impossible: []-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
                     return (d, dest)
 
         mkCons  = do d <- lookupId consDataConName
-                     let dest (Lst (x:xs)) [h, t] = [(h, x), (t, Lst xs)]
+                     let dest (Lst [])     _      = (S.svFalse, [])
+                         dest (Lst (x:xs)) [h, t] = (S.svTrue, [(h, x), (t, Lst xs)])
                          dest a            b      = error $ "Impossible: (:)-case mismatch: " ++ showSDocUnsafe (ppr (a, b))
                      return (d, dest)
 

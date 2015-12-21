@@ -354,7 +354,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                                         _             -> case wid `M.lookup` destMap of
                                                                            Nothing -> return Nothing
                                                                            Just f  -> do bts <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                                                                         return $ Just (S.svTrue, f a bts)
+                                                                                         return $ Just (f a bts)
 
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
