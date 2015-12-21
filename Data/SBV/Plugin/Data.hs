@@ -26,7 +26,7 @@ data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | QuickCheck     -- ^ Perform quickCheck
                | Uninterpret    -- ^ Uninterpret this binding for proof purposes
                | Names [String] -- ^ Use these names for the arguments; need not be exhaustive
-               | ListSize Int   -- ^ If a list-input is found, use this length. Default: 5
+               | ListSize Int   -- ^ If a list-input is found, use this length. If not specified, we will complain!
                | Z3             -- ^ Use Z3
                | Yices          -- ^ Use Yices
                | Boolector      -- ^ Use Boolector

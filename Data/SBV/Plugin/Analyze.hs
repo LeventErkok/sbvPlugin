@@ -140,11 +140,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
                        Env{curLoc} <- ask
-                       let listSize = last (5 : [n | ListSize n <- opts])
+                       let mbListSize = listToMaybe [n | ListSize n <- opts]
                        finalType <- getType curLoc (exprType body)
                        case finalType of
                          KBase S.KBool -> do argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym listSize curLoc k (fromMaybe (sh b) mbN)
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize curLoc k (fromMaybe (sh b) mbN)
                                                                           return ((b, k), sv)
                                              sArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
                                              local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) sArgs}) (go body)
@@ -157,20 +157,26 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 pushLetLambda o                  = o
 
                 -- Create a symbolic variable:
-                mkSym _ _  (KBase k) nm  = do v <- S.svMkSymVar Nothing k (Just nm)
-                                              return (Base v)
+                mkSym _    _  (KBase k) nm  = do v <- S.svMkSymVar Nothing k (Just nm)
+                                                 return (Base v)
 
-                mkSym ls sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
-                                              vs <- zipWithM (mkSym ls sp) ks ns
-                                              return $ Tup vs
+                mkSym mbLs sp (KTup ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. length ks]
+                                                vs <- zipWithM (mkSym mbLs sp) ks ns
+                                                return $ Tup vs
 
-                mkSym ls sp (KLst ks) nm = do let ns = map (\i -> nm ++ "_" ++ show i) [1 .. ls]
-                                              vs <- zipWithM (mkSym ls sp) (replicate ls ks) ns
-                                              return (Lst vs)
+                mkSym mbLs sp (KLst ks) nm = do let ls  = fromMaybe bad mbLs
+                                                    bad = die sp "List-argument found, with no size info"
+                                                                 [ "Name         : " ++ show nm
+                                                                 , "Symbolic kind: " ++ sh (KLst ks)
+                                                                 , "Hint         : Use the \"ListSize\" argument to the theorem annotation"
+                                                                 ]
+                                                    ns = map (\i -> nm ++ "_" ++ show i) [1 .. ls]
+                                                vs <- zipWithM (mkSym mbLs sp) (replicate ls ks) ns
+                                                return (Lst vs)
 
-                mkSym _  sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
-                                                                               , "Symbolic kind: " ++ sh k
-                                                                               ]
+                mkSym _    sp k         nm = die sp "Unsupported symbolic input" [ "Name         : " ++ show nm
+                                                                                 , "Symbolic kind: " ++ sh k
+                                                                                 ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
