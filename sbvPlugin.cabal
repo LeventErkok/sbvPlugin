@@ -1,11 +1,12 @@
 Name              : sbvPlugin
-Version           : 0.2
+Version           : 0.3
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
 Synopsis          : Analyze Haskell expressions using SBV/SMT
 Description       : GHC plugin for analyzing expressions using SMT solvers, based
                     on the <http://hackage.haskell.org/package/sbv SBV> package.
                     .
-                    See "Data.SBV.Plugin" for a quick example.
+                    See "Data.SBV.Plugin" for a quick example, or the modules under 'Data.SBV.Plugin.Examples'
+                    for more details.
 License           : BSD3
 License-file      : LICENSE
 Stability         : Experimental
@@ -24,8 +25,9 @@ source-repository head
 
 Library
   default-language: Haskell2010
-  ghc-options     : -Wall
+  ghc-options     : -Wall -fplugin-opt Data.SBV.Plugin:skip
   Exposed-modules : Data.SBV.Plugin
+                  , Data.SBV.Plugin.Examples.MicroController
   build-depends   : base >= 4.8 && < 5, ghc, ghc-prim, containers, sbv >= 5.7, mtl, template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Data

@@ -1,7 +1,15 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 0.1, 2015-12-21
+* Latest Hackage released version: 0.3, 2015-12-21
+
+### Version 0.3, 2015-12-21
+  
+  * Added the micro-controller example, adapted from
+    the original SBV variant by Anthony Cowley
+    (http://acowley.github.io/NYHUG/FunctionalRoboticist.pdf)
+  * Add the "skip" option for the plugin itself. Handy when
+    compiling the plugin itself!
 
 ### Version 0.2, 2015-12-21
 
