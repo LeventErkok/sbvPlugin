@@ -16,9 +16,9 @@ module Data.SBV.Plugin.Data where
 import Data.Data  (Data, Typeable)
 
 -- | Plugin options. Note that we allow picking multiple solvers, which
--- will all be run in parallel. If you want to run all available solvers,
--- use the option 'AnySolver'. The default is to error-out on failure, using
--- the default-SMT solver picked by SBV, which is currently Z3.
+-- will all be run in parallel. You can pick and choose any number of them,
+-- or if you want to run all available solvers, then use the option 'AnySolver'.
+-- The default behavior is to error-out on failure, using the default-SMT solver picked by SBV, which is currently Z3.
 data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | Skip String    -- ^ Skip the proof. Can be handy for properties that we currently do not want to focus on.
                | Verbose        -- ^ Produce verbose output, good for debugging
@@ -33,7 +33,7 @@ data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | CVC4           -- ^ Use CVC4
                | MathSAT        -- ^ Use MathSAT
                | ABC            -- ^ Use ABC
-               | AnySolver      -- ^ Use all installed solvers
+               | AnySolver      -- ^ Run all installed solvers in parallel, and report the result from the first to finish
                deriving (Show, Eq, Data, Typeable)
 
 -- | The actual annotation.
