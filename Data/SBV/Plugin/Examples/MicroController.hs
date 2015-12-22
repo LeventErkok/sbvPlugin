@@ -88,7 +88,7 @@ checkBad range manual timeSince = checkSpec computeLastBad range manual timeSinc
 -- * A correct implementation
 -----------------------------------------------------------------------------
 
--- | A "good" implementation, properly handling the off-by-one error of the original:
+-- | A "good" implementation, properly handling the off-by-one error of the original.
 computeLastGood :: Int -> Bool -> Int -> Int
 computeLastGood range manual timeSince
    | range > safetyDistance       = 0

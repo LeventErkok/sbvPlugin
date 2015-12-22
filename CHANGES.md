@@ -3,6 +3,10 @@
 
 * Latest Hackage released version: 0.3, 2015-12-21
 
+### Version 0.4, Not yet released
+
+  * Current development version
+
 ### Version 0.3, 2015-12-21
   
   * Added the micro-controller example, adapted from

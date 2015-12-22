@@ -1,5 +1,5 @@
 Name              : sbvPlugin
-Version           : 0.3
+Version           : 0.4
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
 Synopsis          : Analyze Haskell expressions using SBV/SMT
 Description       : GHC plugin for analyzing expressions using SMT solvers, based
