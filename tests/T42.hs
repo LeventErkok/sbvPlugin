@@ -10,5 +10,4 @@ f xs = s xs /= 10
   where s []     = 0
         s (x:xs) = x + s xs
 
-
 {-# ANN f ("HLint: ignore Use foldr" :: String) #-}
