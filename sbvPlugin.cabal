@@ -1,5 +1,5 @@
 Name              : sbvPlugin
-Version           : 0.4
+Version           : 0.5
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
 Synopsis          : Formally prove properties of Haskell programs using SBV/SMT
 Description       : GHC plugin for proving properties over Haskell functions using SMT solvers, based
@@ -16,7 +16,6 @@ Bug-reports       : http://github.com/LeventErkok/sbvPlugin/issues
 Maintainer        : Levent Erkok (erkokl@gmail.com)
 Build-Type        : Simple
 Cabal-Version     : >= 1.14
-Data-Files        : tests/GoldFiles/*.hs.golden
 Extra-Source-Files: INSTALL, README.md, COPYRIGHT, CHANGES.md
 
 source-repository head
