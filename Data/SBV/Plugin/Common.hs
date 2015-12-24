@@ -117,9 +117,25 @@ liftEqVal baseEq v1 v2 = k v1 v2
         k (Lst as) (Lst bs)                          = foldr S.svAnd (S.svBool (length as == length bs)) (zipWith k as bs)
         k _ _                                        = error  $ "Impossible happened: liftEq received unexpected arguments: " ++ showSDocUnsafe (ppr (v1, v2))
 
--- | Symbolic equality over variables
+-- | Symbolic equality over values
 eqVal :: Val -> Val -> S.SVal
 eqVal = liftEqVal S.svEqual
+
+-- | Symbolic if-then-else over values.
+iteVal :: ([String] -> Val) -> S.SVal -> Val -> Val -> Val
+iteVal bailOut t v1 v2 = k v1 v2
+  where k (Base a) (Base b)                          = Base  $ S.svIte t a b
+        k (Tup as) (Tup bs) | length as == length bs = Tup   $ zipWith k as bs
+        k (Lst as) (Lst bs) | length as == length bs = Lst   $ zipWith k as bs
+                            | True                   = bailOut [ "Alternatives are producing lists of differing sizes:"
+                                                               , "   Length " ++ show (length as) ++ ": " ++ showSDocUnsafe (ppr (Lst as))
+                                                               , "vs Length " ++ show (length bs) ++ ": " ++ showSDocUnsafe (ppr (Lst bs))
+                                                               ]
+        k (Func n1 f) (Func n2 g)                    = Func (n1 `mplus` n2) $ \a -> f a >>= \fa -> g a >>= \ga -> return (k fa ga)
+        k _ _                                        = bailOut [ "Unsupported if-then-else/case with alternatives:"
+                                                               , "    Value:" ++ showSDocUnsafe (ppr v1)
+                                                               , "       vs:" ++ showSDocUnsafe (ppr v2)
+                                                               ]
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan -> SrcSpan
