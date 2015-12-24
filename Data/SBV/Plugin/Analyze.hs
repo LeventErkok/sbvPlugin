@@ -316,30 +316,34 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
         tgo _ e@(Case ce caseBinder caseType alts)
            = do sce <- go ce
-                let isDefault (DEFAULT, _, _) = True
+                Env{curLoc} <- ask
+                let caseTooComplicated l w [] = die l ("Unsupported case-expression (" ++ w ++ ")") [sh e]
+                    caseTooComplicated l w xs = die l ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
+                    isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
                     (defs, nonDefs)           = partition isDefault alts
                     walk ((p, bs, rhs) : rest) =
-                         do mr <- match (bindSpan caseBinder) sce p bs
+                         do -- try to get a "good" location for this alternative, if possible:
+                            let eLoc = case (rhs, bs) of
+                                        (Tick t _, _  ) -> tickSpan t curLoc
+                                        (_,        b:_) -> bindSpan b
+                                        _               -> curLoc
+                            mr <- match eLoc sce p bs
                             case mr of
                               Just (m, bs') -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
                                                   if null rest
                                                      then result
-                                                     else choose m result (walk rest)
-                              Nothing -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
-                    walk []                   = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
+                                                     else choose (caseTooComplicated eLoc "with-complicated-alternatives-during-merging") m result (walk rest)
+                              Nothing -> caseTooComplicated eLoc "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
+                    walk []                   = caseTooComplicated curLoc "with-non-exhaustive-match" []  -- can't really happen
                 k <- getType (getSrcSpan caseBinder) caseType
                 local (\env -> env{envMap = M.insert (caseBinder, k) sce (envMap env)}) $ walk (nonDefs ++ defs)
-           where caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
-                 caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
-                 choose t tb fb = case S.svAsBool t of
-                                     Nothing    -> do stb <- tb
-                                                      sfb <- fb
-                                                      case (stb, sfb) of
-                                                        (Base a, Base b) -> return $ Base $ S.svIte t a b
-                                                        _                -> caseTooComplicated "with-non-base-alternatives" []
-                                     Just True  -> tb
-                                     Just False -> fb
+           where choose bailOut t tb fb = case S.svAsBool t of
+                                            Nothing    -> do stb <- tb
+                                                             sfb <- fb
+                                                             return $ iteVal bailOut t stb sfb
+                                            Just True  -> tb
+                                            Just False -> fb
                  match :: SrcSpan -> Val -> AltCon -> [Var] -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
                  match sp a c bs = case c of
                                      DEFAULT    -> return $ Just (S.svTrue, [])

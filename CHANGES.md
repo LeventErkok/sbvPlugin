@@ -5,7 +5,10 @@
 
 ### Version 0.4, Not yet released
 
-  * Current development version
+  * Support for case-alternatives producing lists/tuples
+    and functions. In the list case, we require that both
+    alternatives produce equal-length lists, as otherwise
+    there is no way to merge the two results.
 
 ### Version 0.3, 2015-12-21
   
