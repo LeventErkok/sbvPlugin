@@ -1,8 +1,8 @@
 Name              : sbvPlugin
 Version           : 0.4
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
-Synopsis          : Analyze Haskell expressions using SBV/SMT
-Description       : GHC plugin for analyzing expressions using SMT solvers, based
+Synopsis          : Formally prove properties of Haskell programs using SBV/SMT
+Description       : GHC plugin for proving properties over Haskell functions using SMT solvers, based
                     on the <http://hackage.haskell.org/package/sbv SBV> package.
                     .
                     See "Data.SBV.Plugin" for a quick example, or the modules under 'Data.SBV.Plugin.Examples'
