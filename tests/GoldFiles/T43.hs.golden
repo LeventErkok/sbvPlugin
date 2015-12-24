@@ -1,0 +1,21 @@
+
+[SBV] tests/T43.hs:13:1 Proving "t", using Z3.
+[Z3] Q.E.D.
+
+[SBV] tests/T43.hs:19:1 Proving "r", using Z3.
+
+[SBV] tests/T43.hs:19:1 Skipping proof. Unsupported case-expression (with-complicated-alternatives-during-merging):
+                           case == @ Int $fEqInt x (I# 0) of _ [Occ=Dead] {
+  False ->
+    (\ _ [Occ=Dead, OS=OneShot] ->
+       : @ Int x (: @ Int x (: @ Int x (: @ Int x ([] @ Int)))))
+      void#;
+  True -> : @ Int x (: @ Int x (: @ Int x ([] @ Int)))
+}
+                           While Analyzing:
+                           Alternatives are producing lists of differing sizes:
+                              Length 4: [<symbolic> :: SInt64,
+ <symbolic> :: SInt64,
+ <symbolic> :: SInt64,
+ <symbolic> :: SInt64]
+                           vs Length 3: [<symbolic> :: SInt64, <symbolic> :: SInt64, <symbolic> :: SInt64]
