@@ -1,0 +1,9 @@
+
+[SBV] tests/T44.hs:12:1 Proving "t", using Z3.
+[Z3] Q.E.D.
+
+[SBV] tests/T44.hs:20:1 Proving "r", using Z3.
+[Z3] Falsifiable. Counter-example:
+  b = False :: Bool
+  x =     0 :: Integer
+  y =    -1 :: Integer
