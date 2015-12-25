@@ -155,7 +155,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                        case finalType of
                          KBase S.KBool -> do -- First collect the named arguments:
                                              argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize (varSpan b) (Just (idType b)) k (mbN `mplus` Just (sh b))
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym (Just b) mbListSize (varSpan b) (Just (idType b)) k (mbN `mplus` Just (sh b))
                                                                           return ((b, k), sv)
                                              bArgs <- mapM mkVar (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
 
@@ -164,7 +164,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
 
                                              -- If there are extraArgs; then create symbolics and apply to the result:
                                              let feed []     sres       = return sres
-                                                 feed (k:ks) (Func _ f) = do sv <- mkSym mbListSize (pickSpan curLoc) Nothing k Nothing
+                                                 feed (k:ks) (Func _ f) = do sv <- mkSym Nothing mbListSize (pickSpan curLoc) Nothing k Nothing
                                                                              f sv >>= feed ks
                                                  feed ks     v          = error $ "Impossible! Left with extra args to apply on a non-function: " ++ sh (ks, v)
 
@@ -179,8 +179,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                 pushLetLambda o                  = o
 
                 -- Create a symbolic variable:
-                mkSym :: Maybe Int -> SrcSpan -> Maybe Type -> SKind -> Maybe String -> Eval Val
-                mkSym mbLs curLoc mbBType = sym
+                mkSym :: Maybe Var -> Maybe Int -> SrcSpan -> Maybe Type -> SKind -> Maybe String -> Eval Val
+                mkSym mbBind mbLs curLoc mbBType = sym
                  where tinfo k = case mbBType of
                                    Nothing -> "Kind: " ++ sh k
                                    Just t  -> "Type: " ++ sh t
@@ -202,10 +202,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                              vs <- zipWithM sym (replicate ls ks) ns
                                              return (Lst vs)
 
-                       sym k@KFun{}  nm = die [curLoc] "Unsupported higher-order symbolic input"
-                                                       [ "Name: " ++ fromMaybe "<anonymous>" nm
-                                                       , tinfo k
-                                                       ]
+                       sym k@KFun{}  nm = case mbBind of
+                                            Just v -> uninterpret (varType v) v
+                                            _      -> die [curLoc] "Unsupported unnamed higher-order symbolic input"
+                                                                   [ "Name: " ++ fromMaybe "<anonymous>" nm
+                                                                   , tinfo k
+                                                                   , "Hint: Name all higher-order inputs explicitly"
+                                                                   ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
