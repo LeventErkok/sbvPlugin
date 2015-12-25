@@ -66,7 +66,7 @@ plugin = defaultPlugin {installCoreToDos = install}
           let cfg = Config { isGHCi        = hscTarget df == HscInterpreted
                            , opts          = []
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
-                           , cfgEnv        = Env { curLoc         = noSrcSpan
+                           , cfgEnv        = Env { curLoc         = []
                                                  , flags          = df
                                                  , machWordSize   = wsz
                                                  , uninteresting  = uninteresting
@@ -77,13 +77,13 @@ plugin = defaultPlugin {installCoreToDos = install}
                                                  , tcMap          = baseTCs
                                                  , envMap         = baseEnv
                                                  , destMap        = baseDests
-                                                 , coreMap        = M.fromList (flattenBinds mg_binds)
+                                                 , coreMap        = M.fromList [(b, (varSpan b, e)) | (b, e) <- flattenBinds mg_binds]
                                                  }
                            }
 
-          let bindLoc (NonRec b _)     = bindSpan b
+          let bindLoc (NonRec b _)     = varSpan b
               bindLoc (Rec [])         = noSrcSpan
-              bindLoc (Rec ((b, _):_)) = bindSpan b
+              bindLoc (Rec ((b, _):_)) = varSpan b
 
           mapM_ (analyzeBind cfg) $ sortBy (comparing bindLoc) mg_binds
 

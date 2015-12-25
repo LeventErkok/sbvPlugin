@@ -44,16 +44,18 @@ analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
 
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
-                 | Just s <- hasSkip opts  = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg b topLoc ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
-                 | Uninterpret `elem` opts = return ()
-                 | True                    = liftIO $ prove cfg opts b topLoc e
+                   | Just s <- hasSkip opts 
+                   = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg (pickSpan [varSpan b]) ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
+                   | Uninterpret `elem` opts
+                   = return ()
+                   | True
+                   = liftIO $ prove cfg opts b e
                 hasSkip opts = listToMaybe [s | Skip s <- opts]
-                topLoc       = bindSpan b
 
 -- | Prove an SBVTheorem
-prove :: Config -> [SBVOption] -> Var -> SrcSpan -> CoreExpr -> IO ()
-prove cfg@Config{isGHCi} opts b topLoc e = do
-        success <- safely $ proveIt cfg opts (topLoc, b) e
+prove :: Config -> [SBVOption] -> Var -> CoreExpr -> IO ()
+prove cfg@Config{isGHCi} opts b e = do
+        success <- safely $ proveIt cfg opts b e
         unless (success || isGHCi || IgnoreFailure `elem` opts) $ do
             putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)" 
             exitFailure
@@ -66,15 +68,16 @@ safely a = a `C.catch` bad
                    return False
 
 -- | Returns True if proof went thru
-proveIt :: Config -> [SBVOption] -> (SrcSpan, Var) -> CoreExpr -> IO Bool
-proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
+proveIt :: Config -> [SBVOption] -> Var -> CoreExpr -> IO Bool
+proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
         solverConfigs <- pickSolvers opts
         let verbose = Verbose    `elem` opts
             qCheck  = QuickCheck `elem` opts
             runProver prop
               | qCheck = Left  `fmap` S.svQuickCheck prop
               | True   = Right `fmap` S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs] prop
-            loc = "[SBV] " ++ showSpan cfg topBind topLoc
+            topLoc = varSpan topBind
+            loc = "[SBV] " ++ showSpan cfg topLoc
             slvrTag = ", using " ++ tag ++ "."
               where tag = case solverConfigs of
                             []     -> "no solvers"  -- can't really happen
@@ -83,7 +86,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                             xs     -> intercalate ", " (map show (init xs)) ++ ", and " ++ show (last xs)
         putStrLn $ "\n" ++ loc ++ (if qCheck then " QuickChecking " else " Proving ") ++ show (sh topBind) ++ slvrTag
         (finalResult, finalUninterps) <- do
-                        finalResult    <- runProver (res cfgEnv)
+                        finalResult    <- runProver (res cfgEnv topLoc)
                         finalUninterps <- readIORef (rUninterpreted cfgEnv)
                         return (finalResult, finalUninterps)
         case finalResult of
@@ -116,15 +119,15 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
   where debug = Debug `elem` opts
 
-        res initEnv = do
-               v <- runReaderT (symEval topExpr) initEnv{curLoc = topLoc}
+        res initEnv topLoc = do
+               v <- runReaderT (symEval topExpr) initEnv{curLoc = [topLoc]}
                case v of
                  Base r -> return r
                  r      -> error $ "Impossible happened. Final result reduced to a non-base value: " ++ showSDocUnsafe (ppr r)
 
-        die :: SrcSpan -> String -> [String] -> a
-        die loc w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
-          where marker = "[SBV] " ++ showSpan cfg topBind loc
+        die :: [SrcSpan] -> String -> [String] -> a
+        die locs w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
+          where marker = "[SBV] " ++ showSpan cfg (pickSpan locs)
                 tag s = marker ++ " " ++ s
                 tab s = replicate (length marker) ' ' ++  "    " ++ s
 
@@ -141,7 +144,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
                        Env{curLoc} <- ask
                        let mbListSize = listToMaybe [n | ListSize n <- opts]
-                       bodyType <- getType curLoc (exprType body)
+                       bodyType <- getType (pickSpan curLoc) (exprType body)
 
                        -- Figure out if there were some unmentioned variables; happens if the top
                        -- level wasn't fully saturated.
@@ -152,7 +155,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                        case finalType of
                          KBase S.KBool -> do -- First collect the named arguments:
                                              argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize curLoc (Just (idType b)) k (mbN `mplus` Just (sh b))
+                                             let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize (varSpan b) (Just (idType b)) k (mbN `mplus` Just (sh b))
                                                                           return ((b, k), sv)
                                              bArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
 
@@ -161,7 +164,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
 
                                              -- If there are extraArgs; then create symbolics and apply to the result:
                                              let feed []     sres       = return sres
-                                                 feed (k:ks) (Func _ f) = do sv <- lift $ mkSym mbListSize curLoc Nothing k Nothing
+                                                 feed (k:ks) (Func _ f) = do sv <- lift $ mkSym mbListSize (pickSpan curLoc) Nothing k Nothing
                                                                              f sv >>= feed ks
                                                  feed ks     v          = error $ "Impossible! Left with extra args to apply on a non-function: " ++ sh (ks, v)
 
@@ -190,24 +193,24 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                              return $ Tup vs
 
                        sym (KLst ks) nm = do let ls  = fromMaybe bad mbLs
-                                                 bad = die curLoc "List-argument found, with no size info"
-                                                                  [ "Name: " ++ fromMaybe "anonymous" nm
-                                                                  , tinfo (KLst ks)
-                                                                  , "Hint: Use the \"ListSize\" annotation"
-                                                                  ]
+                                                 bad = die [curLoc] "List-argument found, with no size info"
+                                                                    [ "Name: " ++ fromMaybe "anonymous" nm
+                                                                    , tinfo (KLst ks)
+                                                                    , "Hint: Use the \"ListSize\" annotation"
+                                                                    ]
                                                  ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. ls]
                                              vs <- zipWithM sym (replicate ls ks) ns
                                              return (Lst vs)
 
-                       sym k         nm = die curLoc "Unsupported symbolic input" [ "Name: " ++ show nm
-                                                                                  , tinfo k
-                                                                                  ]
+                       sym k         nm = die [curLoc] "Unsupported symbolic input" [ "Name: " ++ show nm
+                                                                                    , tinfo k
+                                                                                    ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
 
         go :: CoreExpr -> Eval Val
-        go (Tick t e) = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
+        go (Tick t e) = local (\envMap -> envMap{curLoc = tickSpan t : curLoc envMap}) $ go e
         go e          = tgo (exprType e) e
 
         debugTrace s w
@@ -224,11 +227,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                            case (v, k) `M.lookup` envMap of
                              Just b  -> return b
                              Nothing -> case v `M.lookup` coreMap of
-                                           Just b  -> if isUninterpretedBinding v
-                                                      then uninterpret t v
-                                                      else go b
-                                           Nothing -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
-                                                               $ uninterpret t v
+                                           Just (l, b)  -> if isUninterpretedBinding v
+                                                           then uninterpret t v
+                                                           else local (\env -> env{curLoc = l : curLoc env}) $ go b
+                                           Nothing      -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
+                                                                      $ uninterpret t v
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -259,15 +262,21 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
              Env{specials} <- ask
 
              -- handle specials: Equality, tuples, and lists
-             let isEq (App (App (Var v) (Type _)) dict) | isReallyADictionary dict, Just f <- isEquality specials v = Just f
-                 isEq _                                                                                             = Nothing
+             let getVar (Var v)    = Just v
+                 getVar (Tick _ e) = getVar e
+                 getVar _          = Nothing
+
+                 isEq (App (App ev (Type _)) dict) | Just v <- getVar ev, isReallyADictionary dict, Just f <- isEquality specials v = Just f
+                 isEq _                                                                                                             = Nothing
 
                  isTup (Var v)          = isTuple specials v
                  isTup (App f (Type _)) = isTup f
+                 isTup (Tick _ e)       = isTup e
                  isTup _                = Nothing
 
                  isLst (Var v)          = isList specials v
                  isLst (App f (Type _)) = isLst f
+                 isLst (Tick _ e)       = isLst e
                  isLst _                = Nothing
 
                  isSpecial e = isEq e `mplus` isTup e `mplus` isLst e
@@ -282,14 +291,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                                   Just b  -> return b
                                   Nothing -> do Env{coreMap} <- ask
                                                 case v `M.lookup` coreMap of
-                                                  Just e  -> tgo tFun (App (App e (Type t)) dict)
-                                                  Nothing -> tgo tFun (Var v)
+                                                  Just (l, e) -> local (\env -> env{curLoc = l : curLoc env}) $ tgo tFun (App (App e (Type t)) dict)
+                                                  Nothing     -> tgo tFun (Var v)
 
                             App (Var v) (Type t) -> do
                                 Env{coreMap} <- ask
                                 case v `M.lookup` coreMap of
-                                  Just e  -> tgo tFun (App e (Type t))
-                                  Nothing -> tgo tFun (Var v)
+                                  Just (l, e) -> local (\env -> env{curLoc = l : curLoc env}) $ tgo tFun (App e (Type t))
+                                  Nothing     -> tgo tFun (Var v)
 
                             App (Let (Rec bs) f) a -> go (Let (Rec bs) (App f a))
 
@@ -307,16 +316,15 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                 Env{envMap} <- ask
                 return $ Func (Just (sh b)) $ \s -> local (\env -> env{envMap = M.insert (b, k) s envMap}) (go body)
 
-        tgo _ (Let (NonRec b e) body) = local (\env -> env{coreMap = M.insert b e (coreMap env)}) (go body)
+        tgo _ (Let (NonRec b e) body) = local (\env -> env{coreMap = M.insert b (varSpan b, e) (coreMap env)}) (go body)
 
-        tgo _ (Let (Rec bs) body) = local (\env -> env{coreMap = foldr (uncurry M.insert) (coreMap env) bs}) (go body)
+        tgo _ (Let (Rec bs) body) = local (\env -> env{coreMap = foldr (\(b, e) m -> M.insert b (varSpan b, e) m) (coreMap env) bs}) (go body)
 
         -- Case expressions. We take advantage of the core-invariant that each case alternative
         -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
         -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
         tgo _ e@(Case ce caseBinder caseType alts)
            = do sce <- go ce
-                Env{curLoc} <- ask
                 let caseTooComplicated l w [] = die l ("Unsupported case-expression (" ++ w ++ ")") [sh e]
                     caseTooComplicated l w xs = die l ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
                     isDefault (DEFAULT, _, _) = True
@@ -325,17 +333,21 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                     walk ((p, bs, rhs) : rest) =
                          do -- try to get a "good" location for this alternative, if possible:
                             let eLoc = case (rhs, bs) of
-                                        (Tick t _, _  ) -> tickSpan t curLoc
-                                        (_,        b:_) -> bindSpan b
-                                        _               -> curLoc
+                                        (Tick t _, _  ) -> tickSpan t
+                                        (Var v,    _  ) -> varSpan v
+                                        (_,        b:_) -> varSpan b
+                                        _               -> varSpan caseBinder
                             mr <- match eLoc sce p bs
                             case mr of
-                              Just (m, bs') -> do let result = local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
+                              Just (m, bs') -> do let result = local (\env -> env{curLoc = eLoc : curLoc env, envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
                                                   if null rest
                                                      then result
-                                                     else choose (caseTooComplicated eLoc "with-complicated-alternatives-during-merging") m result (walk rest)
-                              Nothing -> caseTooComplicated eLoc "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
-                    walk []                   = caseTooComplicated curLoc "with-non-exhaustive-match" []  -- can't really happen
+                                                     else do Env{curLoc} <- ask
+                                                             choose (caseTooComplicated (eLoc : curLoc) "with-complicated-alternatives-during-merging") m result (walk rest)
+                              Nothing -> do Env{curLoc} <- ask
+                                            caseTooComplicated (eLoc : curLoc) "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
+                    walk []                   = do Env{curLoc} <- ask
+                                                   caseTooComplicated curLoc "with-non-exhaustive-match" []  -- can't really happen
                 k <- getType (getSrcSpan caseBinder) caseType
                 local (\env -> env{envMap = M.insert (caseBinder, k) sce (envMap env)}) $ walk (nonDefs ++ defs)
            where choose bailOut t tb fb = case S.svAsBool t of
@@ -363,11 +375,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
         tgo t (Cast e c)
            = debugTrace ("Going thru a Cast: " ++ sh c) $ tgo t e
 
-        tgo _ (Tick t e) = local (\envMap -> envMap{curLoc = tickSpan t (curLoc envMap)}) $ go e
+        tgo _ (Tick t e) = local (\envMap -> envMap{curLoc = tickSpan t : curLoc envMap}) $ go e
 
         tgo _ (Type t)
            = do Env{curLoc} <- ask
-                k <- getType curLoc t
+                k <- getType (pickSpan curLoc) t
                 return (Typ k)
 
         tgo _ e@Coercion{}
@@ -384,8 +396,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts (topLoc, topBind) topExpr = do
                    else do let chaseVars :: CoreExpr -> Eval CoreExpr
                                chaseVars (Var x)    = do Env{coreMap} <- ask
                                                          case x `M.lookup` coreMap of
-                                                           Nothing -> return (Var x)
-                                                           Just b  -> chaseVars b
+                                                           Nothing     -> return (Var x)
+                                                           Just (_, b) -> chaseVars b
                                chaseVars (Tick _ x) = chaseVars x
                                chaseVars x          = return x
                            func <- chaseVars rf

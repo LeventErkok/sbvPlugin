@@ -10,6 +10,8 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE NamedFieldPuns       #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.SBV.Plugin.Common where
@@ -36,7 +38,7 @@ data Specials = Specials { isEquality :: Var -> Maybe Val
                          }
 
 -- | Interpreter environment
-data Env = Env { curLoc         :: SrcSpan
+data Env = Env { curLoc         :: [SrcSpan]
                , flags          :: DynFlags
                , machWordSize   :: Int
                , uninteresting  :: [Type]
@@ -47,7 +49,7 @@ data Env = Env { curLoc         :: SrcSpan
                , tcMap          :: M.Map (TyCon, [TyCon]) S.Kind
                , envMap         :: M.Map (Var, SKind) Val
                , destMap        :: M.Map Var          (Val -> [(Var, SKind)] -> (S.SVal, [((Var, SKind), Val)]))
-               , coreMap        :: M.Map Var CoreExpr
+               , coreMap        :: M.Map Var          (SrcSpan, CoreExpr)
                }
 
 
@@ -138,15 +140,35 @@ iteVal bailOut t v1 v2 = k v1 v2
                                                                ]
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
-tickSpan :: Tickish t -> SrcSpan -> SrcSpan
-tickSpan (ProfNote cc _ _) _ = cc_loc cc
-tickSpan (SourceNote s _)  _ = RealSrcSpan s
-tickSpan _                 s = s
+tickSpan :: Tickish t -> SrcSpan
+tickSpan (ProfNote cc _ _) = cc_loc cc
+tickSpan (SourceNote s _)  = RealSrcSpan s
+tickSpan _                 = noSrcSpan
 
 -- | Compute the span for a binding.
-bindSpan :: Var -> SrcSpan
-bindSpan = nameSrcSpan . varName
+varSpan :: Var -> SrcSpan
+varSpan = nameSrcSpan . varName
 
--- | Show a GHC span in user-friendly form.
-showSpan :: Config -> Var -> SrcSpan -> String
-showSpan Config{cfgEnv} b s = showSDoc (flags cfgEnv) $ if isGoodSrcSpan s then ppr s else ppr b
+-- | Show a GHC span in user-friendly form
+pickSpan :: [SrcSpan] -> SrcSpan
+pickSpan ss = case filter isGoodSrcSpan ss of
+                (s:_) -> s
+                []    -> noSrcSpan
+
+showSpan :: Config -> SrcSpan -> String
+showSpan Config{cfgEnv} s = showSDoc (flags cfgEnv) (ppr s)
+
+-- | This comes mighty handy! Wonder why GHC doesn't have it already:
+instance Show CoreExpr where
+  show = go
+    where sh x = showSDocUnsafe (ppr x)
+          go (Var   i)      = "(Var "  ++ sh i ++ ")"
+          go (Lit   l)      = "(Lit "  ++ sh l ++ ")"
+          go (App f a)      = "(App "  ++ go f ++ " " ++ go a ++ ")"
+          go (Lam b e)      = "(Lam "  ++ sh b ++ " " ++ go e ++ ")"
+          go (Let b e)      = "(Let "  ++ sh b ++ " " ++ go e ++ ")"
+          go (Case e b t _) = "(Case " ++ go e ++ " " ++ sh b ++ " " ++ sh t ++ "...)"
+          go (Cast e _)     = "(Cast " ++ go e ++ " ...)"
+          go (Tick _ e)     = "(Tick " ++ go e ++ ")"
+          go (Type t)       = "(Type " ++ sh t ++ ")"
+          go (Coercion _)   = "(Coercion ...)"
