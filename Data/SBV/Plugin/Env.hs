@@ -32,7 +32,6 @@ import qualified Data.SBV.Dynamic as S
 
 import Data.SBV.Plugin.Common
 
-
 -- | What tuple-sizes we support? We go upto 15, but would be easy to change if necessary
 supportTupleSizes :: [Int]
 supportTupleSizes = [2 .. 15]
@@ -108,9 +107,15 @@ symFuncs wsz =  -- equality is for all kinds
       ++ [ (op, tlift2 (KBase k),          lift2 sOp) | k <- bvKinds, (op, sOp) <- bvBinOps   ]
       ++ [ (op, tlift2ShRot wsz (KBase k), lift2 sOp) | k <- bvKinds, (op, sOp) <- bvShiftRots]
 
+         -- bv-splits
+      ++ [('S.split, tSplit s, liftSplit s) | s <- [16, 32, 64]]
+
+         -- bv-joins
+      ++ [ ('(S.#),  tJoin s, lift2 S.svJoin) | s <- [8, 16, 32]]
+
  where
        -- Bit-vectors
-       bvKinds    = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
+       bvKinds = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
 
        -- Those that are "integral"ish
        integralKinds = S.KUnbounded : bvKinds
@@ -262,6 +267,18 @@ tlift2 k = KFun k (tlift1 k)
 tlift2ShRot :: Int -> SKind -> SKind
 tlift2ShRot wsz k = KFun k (KFun (KBase (S.KBounded True wsz)) k)
 
+-- | Construct the type for a split operation
+tSplit :: Int -> SKind
+tSplit n = KFun a (KTup [r, r])
+  where a = KBase (S.KBounded False n)
+        r = KBase (S.KBounded False (n `div` 2))
+
+-- | Construct the type for a join operation
+tJoin :: Int -> SKind
+tJoin n = KFun a (KFun a r)
+   where a = KBase (S.KBounded False n)
+         r = KBase (S.KBounded False (n*2))
+
 -- | Lift a unary SBV function that via kind/integer
 lift1Int :: (Integer -> S.SVal) -> Val
 lift1Int f = Func Nothing g
@@ -285,6 +302,16 @@ lift2 f = Func Nothing g
          h v          = error  $ "Impossible happened: lift2 received non-base argument (h): " ++ showSDocUnsafe (ppr v)
          k a (Base b) = return $ Base $ f a b
          k _ v        = error  $ "Impossible happened: lift2 received non-base argument (k): " ++ showSDocUnsafe (ppr v)
+
+-- | Lifting splits
+liftSplit :: Int -> Val
+liftSplit n = Func Nothing g
+   where g (Typ _)  = return $ Func Nothing g
+         g (Base a) = do let half = n `div` 2
+                             f    = Base $ S.svExtract (n-1) half a
+                             s    = Base $ S.svExtract (half-1) 0 a
+                         return $ Tup [f, s]
+         g v        = error $ "Impossible happened: liftSplit received unexpected argument: " ++ showSDocUnsafe (ppr (n, v))
 
 -- | Lifting an equality is special; since it acts uniformly over tuples.
 liftEq :: (S.SVal -> S.SVal -> S.SVal) -> Val

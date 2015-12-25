@@ -288,6 +288,23 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
              case isSpecial reduced of
                Just f  -> debugTrace ("Special located: " ++ sh (orig, f)) $ return f
                Nothing -> case reduced of
+
+                            -- special case for split and join; there must be a better way to do this
+                            App (App (App (Var v) (Type t1)) (Type t2)) dict | isReallyADictionary dict -> do
+                                Env{envMap} <- ask
+                                let vSpan = getSrcSpan v
+                                k1 <- getType vSpan t1
+                                k2 <- getType vSpan t2
+                                let kSplit = KFun k1 (KTup [k2, k2])
+                                    kJoin  = KFun k1 (KFun k1 k2)
+                                case ((v, kSplit) `M.lookup` envMap, (v, kJoin) `M.lookup` envMap)  of
+                                  (Just b, _) -> debugTrace ("Located split: " ++ sh (reduced, kSplit)) $ return b
+                                  (_, Just b) -> debugTrace ("Located join: "  ++ sh (reduced, kJoin))  $ return b
+                                  _           -> do Env{coreMap} <- ask
+                                                    case v `M.lookup` coreMap of
+                                                      Just (l, e) -> local (\env -> env{curLoc = l : curLoc env}) $ tgo tFun (App (App (App e (Type t1)) (Type t2)) dict)
+                                                      Nothing     -> tgo tFun (Var v)
+
                             App (App (Var v) (Type t)) dict | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
                                 k <- getType (getSrcSpan v) t
