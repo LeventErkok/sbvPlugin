@@ -157,14 +157,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                              argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
                                              let mkVar ((b, k), mbN) = do sv <- mkSym mbListSize (varSpan b) (Just (idType b)) k (mbN `mplus` Just (sh b))
                                                                           return ((b, k), sv)
-                                             bArgs <- mapM (lift . mkVar) (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
+                                             bArgs <- mapM mkVar (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
 
                                              -- Go ahead and run the body symbolically; on bArgs
                                              bRes <- local (\env -> env{envMap = foldr (uncurry M.insert) (envMap env) bArgs}) (go body)
 
                                              -- If there are extraArgs; then create symbolics and apply to the result:
                                              let feed []     sres       = return sres
-                                                 feed (k:ks) (Func _ f) = do sv <- lift $ mkSym mbListSize (pickSpan curLoc) Nothing k Nothing
+                                                 feed (k:ks) (Func _ f) = do sv <- mkSym mbListSize (pickSpan curLoc) Nothing k Nothing
                                                                              f sv >>= feed ks
                                                  feed ks     v          = error $ "Impossible! Left with extra args to apply on a non-function: " ++ sh (ks, v)
 
@@ -179,13 +179,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                 pushLetLambda o                  = o
 
                 -- Create a symbolic variable:
-                mkSym :: Maybe Int -> SrcSpan -> Maybe Type -> SKind -> Maybe String -> S.Symbolic Val
+                mkSym :: Maybe Int -> SrcSpan -> Maybe Type -> SKind -> Maybe String -> Eval Val
                 mkSym mbLs curLoc mbBType = sym
                  where tinfo k = case mbBType of
                                    Nothing -> "Kind: " ++ sh k
                                    Just t  -> "Type: " ++ sh t
 
-                       sym (KBase k) nm  = do v <- S.svMkSymVar Nothing k nm
+                       sym (KBase k) nm  = do v <- lift $ S.svMkSymVar Nothing k nm
                                               return (Base v)
 
                        sym (KTup ks) nm = do let ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. length ks]
