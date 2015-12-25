@@ -42,7 +42,7 @@ data Env = Env { curLoc         :: [SrcSpan]
                , flags          :: DynFlags
                , machWordSize   :: Int
                , uninteresting  :: [Type]
-               , rUninterpreted :: IORef [((Var, Type), (String, Val))]
+               , rUninterpreted :: IORef [((Var, Type), (Bool, String, Val))]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]
                , specials       :: Specials

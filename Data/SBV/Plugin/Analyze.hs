@@ -100,8 +100,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                 putStr $ "[" ++ show solver ++ "] "
                 print sres
 
-                -- If proof failed and there are uninterpreted values, print a warning; except for "uninteresting" types
-                let unintVals = filter ((`notElem` uninteresting cfgEnv) . snd) $ nub $ sortBy (comparing fst) [vt | (vt, _) <- finalUninterps]
+                -- If proof failed and there are uninterpreted non-input values, print a warning; except for "uninteresting" types
+                let unintVals = filter ((`notElem` uninteresting cfgEnv) . snd) $ nub $ sortBy (comparing fst) [vt | (vt, (False, _, _)) <- finalUninterps]
                 unless (success || null unintVals) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
@@ -203,7 +203,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                              return (Lst vs)
 
                        sym k@KFun{}  nm = case mbBind of
-                                            Just v -> uninterpret (varType v) v
+                                            Just v -> uninterpret True (varType v) v
                                             _      -> die [curLoc] "Unsupported unnamed higher-order symbolic input"
                                                                    [ "Name: " ++ fromMaybe "<anonymous>" nm
                                                                    , tinfo k
@@ -232,10 +232,10 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                              Just b  -> return b
                              Nothing -> case v `M.lookup` coreMap of
                                            Just (l, b)  -> if isUninterpretedBinding v
-                                                           then uninterpret t v
+                                                           then uninterpret False t v
                                                            else local (\env -> env{curLoc = l : curLoc env}) $ go b
                                            Nothing      -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
-                                                                      $ uninterpret t v
+                                                                      $ uninterpret False t v
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -422,21 +422,21 @@ isReallyADictionary (Var v)   = "$" `isPrefixOf` unpackFS (occNameFS (occName (v
 isReallyADictionary _         = False
 
 -- | Uninterpret an expression
-uninterpret :: Type -> Var -> Eval Val
-uninterpret t v = do
+uninterpret :: Bool -> Type -> Var -> Eval Val
+uninterpret isInput t v = do
           Env{rUninterpreted, flags} <- ask
           prevUninterpreted <- liftIO $ readIORef rUninterpreted
           case (v, t) `lookup` prevUninterpreted of
-             Just (_, val) -> return val
-             Nothing       -> do let (tvs,  t')  = splitForAllTys t
-                                     (args, res) = splitFunTys t'
-                                     sp          = getSrcSpan v
-                                 argKs <- mapM (getType sp) args
-                                 resK  <- getType sp res
-                                 nm <- mkValidName $ showSDoc flags (ppr v)
-                                 let fVal = wrap tvs $ walk argKs (nm, resK) []
-                                 liftIO $ modifyIORef rUninterpreted (((v, t), (nm, fVal)) :)
-                                 return fVal
+             Just (_, _, val) -> return val
+             Nothing          -> do let (tvs,  t')  = splitForAllTys t
+                                        (args, res) = splitFunTys t'
+                                        sp          = getSrcSpan v
+                                    argKs <- mapM (getType sp) args
+                                    resK  <- getType sp res
+                                    nm <- mkValidName $ showSDoc flags (ppr v)
+                                    let fVal = wrap tvs $ walk argKs (nm, resK) []
+                                    liftIO $ modifyIORef rUninterpreted (((v, t), (isInput, nm, fVal)) :)
+                                    return fVal
   where walk :: [SKind] -> (String, SKind) -> [S.SVal] -> Val
         walk []     (nm, k) args = case k of
                                      KBase b -> Base $ S.svUninterpreted b nm Nothing (reverse args)
