@@ -149,12 +149,15 @@ tickSpan _                 = noSrcSpan
 varSpan :: Var -> SrcSpan
 varSpan = nameSrcSpan . varName
 
--- | Show a GHC span in user-friendly form
+-- | Pick the first "good" span, hopefully corresponding to
+-- the closest location to where we are in the code
+-- when we issue an error message.
 pickSpan :: [SrcSpan] -> SrcSpan
 pickSpan ss = case filter isGoodSrcSpan ss of
                 (s:_) -> s
                 []    -> noSrcSpan
 
+-- | Show a GHC span in user-friendly form
 showSpan :: Config -> SrcSpan -> String
 showSpan Config{cfgEnv} s = showSDoc (flags cfgEnv) (ppr s)
 
