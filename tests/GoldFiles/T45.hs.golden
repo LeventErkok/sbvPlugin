@@ -1,0 +1,3 @@
+
+[SBV] tests/T45.hs:22:1-7 Proving "filtLen", using Z3.
+[Z3] Q.E.D.
