@@ -471,7 +471,7 @@ mkValidName name =
 
 -- | Convert a Core type to an SBV Type, retaining functions and tuples
 getType :: SrcSpan -> Type -> Eval SKind
-getType sp typ = do let (tvs, typ')   = splitForAllTys typ
+getType sp typ = do let (tvs, typ') = splitForAllTys typ
                         (args, res) = splitFunTys typ'
                     argKs <- mapM (getType sp) args
                     resK  <- getComposite res
