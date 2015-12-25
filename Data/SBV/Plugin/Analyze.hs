@@ -202,9 +202,10 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                              vs <- zipWithM sym (replicate ls ks) ns
                                              return (Lst vs)
 
-                       sym k         nm = die [curLoc] "Unsupported symbolic input" [ "Name: " ++ show nm
-                                                                                    , tinfo k
-                                                                                    ]
+                       sym k@KFun{}  nm = die [curLoc] "Unsupported higher-order symbolic input"
+                                                       [ "Name: " ++ fromMaybe "<anonymous>" nm
+                                                       , tinfo k
+                                                       ]
 
         isUninterpretedBinding :: Var -> Bool
         isUninterpretedBinding v = any (Uninterpret `elem`) [opt | SBV opt <- sbvAnnotation v]
