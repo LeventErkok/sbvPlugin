@@ -4,9 +4,10 @@
 * Latest Hackage released version: 0.4, 2015-12-24
 
 ### Version 0.5, Not yet released
-
-  * Simplify cabal file; no need to ship gold-files
-    for tests
+ 
+  * Allow higher-order (i.e., function) arguments to
+    theorems.
+  * Simplify cabal file; no need to ship gold-files for tests
 
 ### Version 0.4, 2015-12-24
 
