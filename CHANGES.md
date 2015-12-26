@@ -5,9 +5,10 @@
 
 ### Version 0.5, Not yet released
  
-  * Allow higher-order (i.e., function) arguments to
-    theorems.
+  * Allow higher-order (i.e., function) arguments to theorems.
+  * Rework uninterpreted functions, generalize types
   * Simplify cabal file; no need to ship gold-files for tests
+  * Add merge-sort example
 
 ### Version 0.4, 2015-12-24
 
