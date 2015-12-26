@@ -69,6 +69,7 @@ plugin = defaultPlugin {installCoreToDos = install}
                            , cfgEnv        = Env { curLoc         = []
                                                  , flags          = df
                                                  , machWordSize   = wsz
+                                                 , mbListSize     = Nothing
                                                  , uninteresting  = uninteresting
                                                  , rUninterpreted = rUninterpreted
                                                  , rUsedNames     = rUsedNames

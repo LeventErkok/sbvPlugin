@@ -41,6 +41,7 @@ data Specials = Specials { isEquality :: Var -> Maybe Val
 data Env = Env { curLoc         :: [SrcSpan]
                , flags          :: DynFlags
                , machWordSize   :: Int
+               , mbListSize     :: Maybe Int
                , uninteresting  :: [Type]
                , rUninterpreted :: IORef [((Var, Type), (Bool, String, Val))]
                , rUsedNames     :: IORef [String]
