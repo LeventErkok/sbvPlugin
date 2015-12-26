@@ -1,0 +1,9 @@
+
+[SBV] tests/T47.hs:85:1-8 Proving "checkBad", using Z3.
+[Z3] Falsifiable. Counter-example:
+  range     =   200 :: Int64
+  manual    = False :: Bool
+  timeSince =     9 :: Int64
+
+[SBV] tests/T47.hs:108:1-9 Proving "checkGood", using Z3.
+[Z3] Q.E.D.
