@@ -1,14 +1,15 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 0.4, 2015-12-24
+* Latest Hackage released version: 0.5, 2015-12-26
 
-### Version 0.5, Not yet released
+### Version 0.5, 2015-12-26
  
   * Allow higher-order (i.e., function) arguments to theorems.
   * Rework uninterpreted functions, generalize types
   * Simplify cabal file; no need to ship gold-files for tests
-  * Add merge-sort example
+  * Add merge-sort example "Data/SBV/Plugin/Examples/MergeSort.hs"
+  * Add bit-tricks example "Data/SBV/Plugin/Examples/BitTricks.hs"
 
 ### Version 0.4, 2015-12-24
 
