@@ -259,6 +259,20 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                Just f  -> debugTrace ("Special located: " ++ sh (orig, f)) $ return f
                Nothing -> case reduced of
 
+                            -- special case for exponentiation; there must be a better way to do this
+                            App (App (App (App (Var v) (Type t1)) (Type t2)) dict1) dict2 | isReallyADictionary dict1 && isReallyADictionary dict2 -> do
+                                Env{envMap} <- ask
+                                let vSpan = getSrcSpan v
+                                k1 <- getType vSpan t1
+                                k2 <- getType vSpan t2
+                                let kExp  = KFun k1 (KFun k1 k2)
+                                case (v, kExp) `M.lookup` envMap of
+                                  Just b -> debugTrace ("Located exp(^): " ++ sh (reduced, kExp)) $ return b
+                                  _      -> do Env{coreMap} <- ask
+                                               case v `M.lookup` coreMap of
+                                                 Just (l, e) -> local (\env -> env{curLoc = l : curLoc env}) $ tgo tFun (App (App (App (App e (Type t1)) (Type t2)) dict1) dict2)
+                                                 Nothing     -> tgo tFun (Var v)
+
                             -- special case for split and join; there must be a better way to do this
                             App (App (App (Var v) (Type t1)) (Type t2)) dict | isReallyADictionary dict -> do
                                 Env{envMap} <- ask
@@ -560,3 +574,5 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
                                             let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
                                             liftIO $ modifyIORef rUITypes ((bt, k) :)
                                             return k
+
+{-# ANN module ("HLint: ignore Reduce duplication" :: String) #-}

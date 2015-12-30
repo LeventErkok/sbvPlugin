@@ -24,11 +24,11 @@ import qualified Language.Haskell.TH as TH
 import Data.Int
 import Data.Word
 import Data.Bits
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Ratio
 
-import qualified Data.SBV         as S hiding (proveWith, proveWithAny)
-import qualified Data.SBV.Dynamic as S
+import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
+import qualified Data.SBV.Dynamic   as S
 
 import Data.SBV.Plugin.Common
 
@@ -113,6 +113,10 @@ symFuncs wsz =  -- equality is for all kinds
          -- bv-joins
       ++ [ ('(S.#),  tJoin s, lift2 S.svJoin) | s <- [8, 16, 32]]
 
+         -- constructing "fixed-size" lists
+      ++ [ ('enumFromTo,     tEnumFromTo     (KBase k), sEnumFromTo)     | k <- arithKinds ]
+      ++ [ ('enumFromThenTo, tEnumFromThenTo (KBase k), sEnumFromThenTo) | k <- arithKinds ]
+
  where
        -- Bit-vectors
        bvKinds = [S.KBounded s sz | s <- [False, True], sz <- [8, 16, 32, 64]]
@@ -143,6 +147,7 @@ symFuncs wsz =  -- equality is for all kinds
                     , ('(-),        S.svMinus)
                     , ('(*),        S.svTimes)
                     , ('(/),        S.svDivide)
+                    , ('(^),        S.svExp)
                     , ('quot,       S.svQuot)
                     , ('rem,        S.svRem)
                     ]
@@ -279,6 +284,14 @@ tJoin n = KFun a (KFun a r)
    where a = KBase (S.KBounded False n)
          r = KBase (S.KBounded False (n*2))
 
+-- | Type of enumFromTo: [x .. y]
+tEnumFromTo :: SKind -> SKind
+tEnumFromTo a = KFun a (KFun a (KLst a))
+
+-- | Type of enumFromThenTo: [x .. y]
+tEnumFromThenTo :: SKind -> SKind
+tEnumFromThenTo a = KFun a (KFun a (KFun a (KLst a)))
+
 -- | Lift a unary SBV function that via kind/integer
 lift1Int :: (Integer -> S.SVal) -> Val
 lift1Int f = Func Nothing g
@@ -318,6 +331,33 @@ liftEq :: (S.SVal -> S.SVal -> S.SVal) -> Val
 liftEq baseEq = Func Nothing g
    where g (Typ  _) = return $ Func Nothing g
          g v1       = return $ Func Nothing $ \v2 -> return $ Base $ liftEqVal baseEq v1 v2
+
+-- | Lifting enumFromTo: [x .. y]
+sEnumFromTo :: Val
+sEnumFromTo = Func Nothing (g [])
+    where g [x]  y       = enumList x Nothing y
+          g args (Typ _) = return $ Func Nothing (g args)
+          g args v       = return $ Func Nothing (g (v:args))
+
+-- | Lifting sEnumFromThenTo: [x, y .. z]
+sEnumFromThenTo :: Val
+sEnumFromThenTo = Func Nothing (g [])
+    where g [x, y] z         = enumList y (Just x) z
+          g args   (Typ _)   = return $ Func Nothing (g args)
+          g args   v         = return $ Func Nothing (g (v:args))
+
+-- | Implement [x .. y] or [x, y .. z]; provided the inputs are concrete
+enumList :: Val -> Maybe Val -> Val -> Eval Val
+enumList bf mbs bt
+   | Just bs <- mbs, Just f <- extract bf, Just s <- extract bs, Just t <- extract bt = mkLst $ S.svEnumFromThenTo f (Just s) t
+   |                 Just f <- extract bf,                       Just t <- extract bt = mkLst $ S.svEnumFromThenTo f Nothing  t
+   | True                                                                             = bad
+  where extract (Base b) = Just b
+        extract _        = error $ "enumList: Impossible happened: " ++ showSDocUnsafe (ppr (bf, mbs, bt))
+        mkLst (Just xs)  = return $ Lst $ map Base xs
+        mkLst _          = bad
+        knd              = if isJust mbs then "[x, y .. z]" else "[x .. y]"
+        bad              = error $ "SBVPlugin: Found unsupported comprehension of form " ++ knd ++ " with non-concrete arguments: " ++ showSDocUnsafe (ppr (bf, mbs, bt))
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n
