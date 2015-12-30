@@ -1,15 +1,15 @@
 
-[SBV] tests/T49.hs:30:1-14 Proving "fastMinCorrect", using Z3.
+[SBV] tests/T49.hs:37:1-14 Proving "fastMinCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:37:1-14 Proving "fastMaxCorrect", using Z3.
+[SBV] tests/T49.hs:44:1-14 Proving "fastMaxCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:44:1-20 Proving "oppositeSignsCorrect", using Z3.
+[SBV] tests/T49.hs:51:1-20 Proving "oppositeSignsCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:51:1-26 Proving "conditionalSetClearCorrect", using Z3.
+[SBV] tests/T49.hs:58:1-26 Proving "conditionalSetClearCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:59:1-17 Proving "powerOfTwoCorrect", using Z3.
+[SBV] tests/T49.hs:66:1-17 Proving "powerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.

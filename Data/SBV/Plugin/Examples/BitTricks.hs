@@ -63,12 +63,5 @@ conditionalSetClearCorrect f m w = r == r'
 -- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
 {-# ANN powerOfTwoCorrect theorem #-}
 powerOfTwoCorrect :: Word32 -> Bool
-powerOfTwoCorrect v = f == (v `elem` powers)
+powerOfTwoCorrect v = f == (v `elem` [2^i | i <- [(0 :: Word32) .. 31]])
   where f = (v /= 0) && ((v .&. (v-1)) == 0)
-
-        powers :: [Word32]
-        powers = [        1,        2,        4,         8,        16,        32,         64,        128
-                 ,      256,      512,     1024,      2048,      4096,      8192,      16384,      32768
-                 ,    65536,   131072,   262144,    524288,   1048576,   2097152,    4194304,    8388608
-                 , 16777216, 33554432, 67108864, 134217728, 268435456, 536870912, 1073741824, 2147483648
-                 ]
