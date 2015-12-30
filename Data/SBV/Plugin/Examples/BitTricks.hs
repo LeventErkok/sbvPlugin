@@ -19,6 +19,13 @@ import Data.SBV.Plugin
 import Data.Bits
 import Data.Word
 
+import Prelude hiding(elem)
+
+-- | SBVPlugin can only see definitions in the current module. So we define `elem` ourselves.
+elem :: Eq a => a -> [a] -> Bool
+elem _ []     = False
+elem k (x:xs) = k == x || elem k xs
+
 -- | Returns 1 if bool is @True@
 oneIf :: Num a => Bool -> a
 oneIf True  = 1
@@ -56,7 +63,7 @@ conditionalSetClearCorrect f m w = r == r'
 -- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
 {-# ANN powerOfTwoCorrect theorem #-}
 powerOfTwoCorrect :: Word32 -> Bool
-powerOfTwoCorrect v = f == search powers
+powerOfTwoCorrect v = f == (v `elem` powers)
   where f = (v /= 0) && ((v .&. (v-1)) == 0)
 
         powers :: [Word32]
@@ -65,9 +72,3 @@ powerOfTwoCorrect v = f == search powers
                  ,    65536,   131072,   262144,    524288,   1048576,   2097152,    4194304,    8388608
                  , 16777216, 33554432, 67108864, 134217728, 268435456, 536870912, 1073741824, 2147483648
                  ]
-
-        search :: [Word32] -> Bool
-        search []     = False
-        search (x:xs)
-          | x == v    = True
-          | True      = search xs
