@@ -72,3 +72,24 @@ maskedMergeCorrect :: Word32 -> Word32 -> Word32 -> Bool
 maskedMergeCorrect a b mask = slow == fast
   where slow = (a .&. complement mask) .|. (b .&. mask)
         fast = a `xor` ((a `xor` b) .&. mask)
+
+-- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2>
+{-# ANN roundPowerOfTwoCorrect theorem #-}
+roundPowerOfTwoCorrect :: Word32 -> Bool
+roundPowerOfTwoCorrect v = f == find [2^i | i <- [(0 :: Word32) .. 31]]
+  where f = let v1 = v - 1
+                v2 = v1 .|. (v1 `shiftR`  1)
+                v3 = v2 .|. (v2 `shiftR`  2)
+                v4 = v3 .|. (v3 `shiftR`  4)
+                v5 = v4 .|. (v4 `shiftR`  8)
+                v6 = v5 .|. (v5 `shiftR` 16)
+                v7 = v6 + 1
+                v8 = v7 + oneIf (v7 == 0)
+            in  v8
+
+        -- walk down the powers and return the closest one up
+        find :: [Word32] -> Word32
+        find []     = 1
+        find (x:xs)
+          | v > x = find xs
+          | True   = x

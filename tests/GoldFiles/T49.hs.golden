@@ -16,3 +16,6 @@
 
 [SBV] tests/T49.hs:72:1-18 Proving "maskedMergeCorrect", using Z3.
 [Z3] Q.E.D.
+
+[SBV] tests/T49.hs:79:1-22 Proving "roundPowerOfTwoCorrect", using Z3.
+[Z3] Q.E.D.
