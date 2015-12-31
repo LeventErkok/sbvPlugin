@@ -9,9 +9,11 @@
 -- Common data-structures/utilities
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE NamedFieldPuns       #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Data.SBV.Plugin.Common where
@@ -51,6 +53,7 @@ data Env = Env { curLoc         :: [SrcSpan]
                , envMap         :: M.Map (Var, SKind) Val
                , destMap        :: M.Map Var          (Val -> [(Var, SKind)] -> (S.SVal, [((Var, SKind), Val)]))
                , coreMap        :: M.Map Var          (SrcSpan, CoreExpr)
+               , bailOut        :: forall a. String -> [String] -> Eval a
                }
 
 
@@ -125,16 +128,16 @@ eqVal :: Val -> Val -> S.SVal
 eqVal = liftEqVal S.svEqual
 
 -- | Symbolic if-then-else over values.
-iteVal :: ([String] -> Val) -> S.SVal -> Val -> Val -> Val
+iteVal :: ([String] -> Eval Val) -> S.SVal -> Val -> Val -> Eval Val
 iteVal bailOut t v1 v2 = k v1 v2
-  where k (Base a) (Base b)                          = Base  $ S.svIte t a b
-        k (Tup as) (Tup bs) | length as == length bs = Tup   $ zipWith k as bs
-        k (Lst as) (Lst bs) | length as == length bs = Lst   $ zipWith k as bs
+  where k (Base a) (Base b)                          = return $ Base $ S.svIte t a b
+        k (Tup as) (Tup bs) | length as == length bs = Tup `fmap` zipWithM k as bs
+        k (Lst as) (Lst bs) | length as == length bs = Lst `fmap` zipWithM k as bs
                             | True                   = bailOut [ "Alternatives are producing lists of differing sizes:"
                                                                , "   Length " ++ show (length as) ++ ": " ++ showSDocUnsafe (ppr (Lst as))
                                                                , "vs Length " ++ show (length bs) ++ ": " ++ showSDocUnsafe (ppr (Lst bs))
                                                                ]
-        k (Func n1 f) (Func n2 g)                    = Func (n1 `mplus` n2) $ \a -> f a >>= \fa -> g a >>= \ga -> return (k fa ga)
+        k (Func n1 f) (Func n2 g)                    = return $ Func (n1 `mplus` n2) $ \a -> f a >>= \fa -> g a >>= \ga -> k fa ga
         k _ _                                        = bailOut [ "Unsupported if-then-else/case with alternatives:"
                                                                , "    Value:" ++ showSDocUnsafe (ppr v1)
                                                                , "       vs:" ++ showSDocUnsafe (ppr v2)
@@ -159,8 +162,8 @@ pickSpan ss = case filter isGoodSrcSpan ss of
                 []    -> noSrcSpan
 
 -- | Show a GHC span in user-friendly form
-showSpan :: Config -> SrcSpan -> String
-showSpan Config{cfgEnv} s = showSDoc (flags cfgEnv) (ppr s)
+showSpan :: DynFlags -> SrcSpan -> String
+showSpan flags s = showSDoc flags (ppr s)
 
 -- | This comes mighty handy! Wonder why GHC doesn't have it already:
 instance Show CoreExpr where

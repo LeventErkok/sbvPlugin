@@ -78,6 +78,7 @@ plugin = defaultPlugin {installCoreToDos = install}
                                                  , tcMap          = baseTCs
                                                  , envMap         = baseEnv
                                                  , destMap        = baseDests
+                                                 , bailOut        = \s ss -> error $ unlines (s:ss)
                                                  , coreMap        = M.fromList [(b, (varSpan b, e)) | (b, e) <- flattenBinds mg_binds]
                                                  }
                            }

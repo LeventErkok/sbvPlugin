@@ -10,6 +10,7 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE MagicHash       #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildSpecials, uninterestingTypes) where
@@ -20,6 +21,8 @@ import GHC.Types
 
 import qualified Data.Map            as M
 import qualified Language.Haskell.TH as TH
+
+import Control.Monad.Reader
 
 import Data.Int
 import Data.Word
@@ -351,13 +354,19 @@ enumList :: Val -> Maybe Val -> Val -> Eval Val
 enumList bf mbs bt
    | Just bs <- mbs, Just f <- extract bf, Just s <- extract bs, Just t <- extract bt = mkLst $ S.svEnumFromThenTo f (Just s) t
    |                 Just f <- extract bf,                       Just t <- extract bt = mkLst $ S.svEnumFromThenTo f Nothing  t
-   | True                                                                             = bad
+   | True                                                                             = cantHandle
   where extract (Base b) = Just b
-        extract _        = error $ "enumList: Impossible happened: " ++ showSDocUnsafe (ppr (bf, mbs, bt))
+        extract _        = error $ "SBVPlugin.enumList: Impossible happened: " ++ showSDocUnsafe (ppr (bf, mbs, bt))
         mkLst (Just xs)  = return $ Lst $ map Base xs
-        mkLst _          = bad
-        knd              = if isJust mbs then "[x, y .. z]" else "[x .. y]"
-        bad              = error $ "SBVPlugin: Found unsupported comprehension of form " ++ knd ++ " with non-concrete arguments: " ++ showSDocUnsafe (ppr (bf, mbs, bt))
+        mkLst _          = cantHandle
+        cantHandle       = do Env{bailOut} <- ask
+                              bailOut "Found unsupported list comprehension expression"
+                                      [ "From: " ++ showSDocUnsafe (ppr bf)
+                                      , "Then: " ++ showSDocUnsafe (ppr mbs)
+                                      , "To  : " ++ showSDocUnsafe (ppr bt)
+                                      , "Kind: " ++ (if isJust mbs then "[x, y .. z]" else "[x .. y]")
+                                      , "Hint: The plugin only allows concrete boundaries for comprehensions"
+                                      ]
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n

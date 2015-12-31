@@ -16,7 +16,7 @@ module Data.SBV.Plugin.Analyze (analyzeBind) where
 import GhcPlugins
 
 import Control.Monad.Reader
-import System.Exit hiding (die)
+import System.Exit
 
 import Data.IORef
 
@@ -45,7 +45,7 @@ analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
                    | Just s <- hasSkip opts 
-                   = liftIO $ putStrLn $ "[SBV] " ++ showSpan cfg (pickSpan [varSpan b]) ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
+                   = liftIO $ putStrLn $ "[SBV] " ++ showSpan (flags cfgEnv) (pickSpan [varSpan b]) ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
                    | Uninterpret `elem` opts
                    = return ()
                    | True
@@ -67,13 +67,6 @@ safely a = a `C.catch` bad
         bad e = do print e
                    return False
 
--- | Sometimes life is hard. Giving up is an option.
-die :: Config -> [SrcSpan] -> String -> [String] -> a
-die cfg locs w es = error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
-  where marker = "[SBV] " ++ showSpan cfg (pickSpan locs)
-        tag s = marker ++ " " ++ s
-        tab s = replicate (length marker) ' ' ++  "    " ++ s
-
 -- | Returns True if proof went thru
 proveIt :: Config -> [SBVOption] -> Var -> CoreExpr -> IO Bool
 proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
@@ -84,7 +77,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
               | qCheck = Left  `fmap` S.svQuickCheck prop
               | True   = Right `fmap` S.proveWithAny [s{S.verbose = verbose} | s <- solverConfigs] prop
             topLoc = varSpan topBind
-            loc = "[SBV] " ++ showSpan cfg topLoc
+            loc = "[SBV] " ++ showSpan (flags cfgEnv) topLoc
             slvrTag = ", using " ++ tag ++ "."
               where tag = case solverConfigs of
                             []     -> "no solvers"  -- can't really happen
@@ -126,17 +119,26 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
 
   where debug = Debug `elem` opts
 
+        -- | Sometimes life is hard. Giving up is an option.
+        cantHandle :: String -> [String] -> Eval a
+        cantHandle w es = do Env{flags, curLoc} <- ask
+                             let marker = "[SBV] " ++ showSpan flags (pickSpan curLoc)
+                                 tag s = marker ++ " " ++ s
+                                 tab s = replicate (length marker) ' ' ++  "    " ++ s
+                             error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
+
         res initEnv topLoc = do
                v <- runReaderT (symEval topExpr) initEnv { curLoc     = [topLoc]
                                                          , mbListSize = listToMaybe [n | ListSize n <- opts]
+                                                         , bailOut    = cantHandle
                                                          }
                case v of
                  Base r -> return r
                  r      -> error $ "Impossible happened. Final result reduced to a non-base value: " ++ showSDocUnsafe (ppr r)
 
         tbd :: String -> [String] -> Eval Val
-        tbd w ws = do Env{curLoc} <- ask
-                      die cfg curLoc w ws
+        tbd w ws = do Env{bailOut} <- ask
+                      bailOut w ws
 
         sh o = showSDoc (flags cfgEnv) (ppr o)
 
@@ -145,8 +147,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
         -- number of symbolic arguments
         symEval :: CoreExpr -> Eval Val
         symEval e = do let (bs, body) = collectBinders (pushLetLambda e)
-                       Env{curLoc} <- ask
-                       bodyType <- getType (pickSpan curLoc) (exprType body)
+                       curEnv@Env{bailOut} <- ask
+                       bodyType <- getType (pickSpan (curLoc curEnv)) (exprType body)
 
                        -- Figure out if there were some unmentioned variables; happens if the top
                        -- level wasn't fully saturated.
@@ -157,7 +159,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                        case finalType of
                          KBase S.KBool -> do -- First collect the named arguments:
                                              argKs <- mapM (\b -> getType (getSrcSpan b) (varType b) >>= \bt -> return (b, bt)) bs
-                                             let mkVar ((b, k), mbN) = do sv <- mkSym cfg (Just b) (varSpan b) (Just (idType b)) k (mbN `mplus` Just (sh b))
+                                             let mkVar ((b, k), mbN) = do sv <- local (\env -> env{curLoc = varSpan b : curLoc env})
+                                                                                    $ mkSym cfg (Just b) (Just (idType b)) k (mbN `mplus` Just (sh b))
                                                                           return ((b, k), sv)
                                              bArgs <- mapM mkVar (zip argKs (concat [map Just ns | Names ns <- opts] ++ repeat Nothing))
 
@@ -166,16 +169,16 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
 
                                              -- If there are extraArgs; then create symbolics and apply to the result:
                                              let feed []     sres       = return sres
-                                                 feed (k:ks) (Func _ f) = do sv <- mkSym cfg Nothing (pickSpan curLoc) Nothing k Nothing
+                                                 feed (k:ks) (Func _ f) = do sv <- mkSym cfg Nothing Nothing k Nothing
                                                                              f sv >>= feed ks
                                                  feed ks     v          = error $ "Impossible! Left with extra args to apply on a non-function: " ++ sh (ks, v)
 
                                              feed extraArgs bRes
 
-                         _             -> die cfg curLoc "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
-                                                                                                , ["Returning: " ++ sh (exprType body) | not (null bs)]
-                                                                                                , ["Expected : Bool" ++ if null bs then "" else " result"]
-                                                                                                ])
+                         _             -> bailOut "Non-boolean property declaration" (concat [ ["Found    : " ++ sh (exprType e)]
+                                                                                             , ["Returning: " ++ sh (exprType body) | not (null bs)]
+                                                                                             , ["Expected : Bool" ++ if null bs then "" else " result"]
+                                                                                             ])
           where -- Sometimes the core has a wrapper let, floated out on top. Float that in.
                 pushLetLambda (Let b (Lam x bd)) = Lam x (pushLetLambda (Let b bd))
                 pushLetLambda o                  = o
@@ -202,10 +205,10 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                              Just b  -> return b
                              Nothing -> case v `M.lookup` coreMap of
                                            Just (l, b)  -> if isUninterpretedBinding v
-                                                           then uninterpret cfg False t v
+                                                           then uninterpret False t v
                                                            else local (\env -> env{curLoc = l : curLoc env}) $ go b
                                            Nothing      -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
-                                                                      $ uninterpret cfg False t v
+                                                                      $ uninterpret False t v
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
@@ -330,11 +333,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
         -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
         tgo _ e@(Case ce caseBinder caseType alts)
            = do sce <- go ce
-                let caseTooComplicated l w [] = die cfg l ("Unsupported case-expression (" ++ w ++ ")") [sh e]
-                    caseTooComplicated l w xs = die cfg l ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
+                let caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
+                    caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
                     isDefault (DEFAULT, _, _) = True
                     isDefault _               = False
                     (defs, nonDefs)           = partition isDefault alts
+
+                    walk []                    = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
                     walk ((p, bs, rhs) : rest) =
                          do -- try to get a "good" location for this alternative, if possible:
                             let eLoc = case (rhs, bs) of
@@ -347,18 +352,16 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                               Just (m, bs') -> do let result = local (\env -> env{curLoc = eLoc : curLoc env, envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
                                                   if null rest
                                                      then result
-                                                     else do Env{curLoc} <- ask
-                                                             choose (caseTooComplicated (eLoc : curLoc) "with-complicated-alternatives-during-merging") m result (walk rest)
-                              Nothing -> do Env{curLoc} <- ask
-                                            caseTooComplicated (eLoc : curLoc) "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
-                    walk []                   = do Env{curLoc} <- ask
-                                                   caseTooComplicated curLoc "with-non-exhaustive-match" []  -- can't really happen
+                                                     else choose (caseTooComplicated "with-complicated-alternatives-during-merging") m result (walk rest)
+                              Nothing       -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
+
                 k <- getType (getSrcSpan caseBinder) caseType
                 local (\env -> env{envMap = M.insert (caseBinder, k) sce (envMap env)}) $ walk (nonDefs ++ defs)
+
            where choose bailOut t tb fb = case S.svAsBool t of
                                             Nothing    -> do stb <- tb
                                                              sfb <- fb
-                                                             return $ iteVal bailOut t stb sfb
+                                                             iteVal bailOut t stb sfb
                                             Just True  -> tb
                                             Just False -> fb
                  match :: SrcSpan -> Val -> AltCon -> [Var] -> Eval (Maybe (S.SVal, [((Var, SKind), Val)]))
@@ -423,8 +426,8 @@ isReallyADictionary (Var v)   = "$" `isPrefixOf` unpackFS (occNameFS (occName (v
 isReallyADictionary _         = False
 
 -- Create a symbolic variable.
-mkSym :: Config -> Maybe Var -> SrcSpan -> Maybe Type -> SKind -> Maybe String -> Eval Val
-mkSym cfg@Config{cfgEnv} mbBind curLoc mbBType = sym
+mkSym :: Config -> Maybe Var -> Maybe Type -> SKind -> Maybe String -> Eval Val
+mkSym Config{cfgEnv} mbBind mbBType = sym
  where sh o = showSDoc (flags cfgEnv) (ppr o)
 
        tinfo k = case mbBType of
@@ -438,29 +441,31 @@ mkSym cfg@Config{cfgEnv} mbBind curLoc mbBType = sym
                              vs <- zipWithM sym ks ns
                              return $ Tup vs
 
-       sym (KLst ks) nm = do Env{mbListSize} <- ask
-                             let ls  = fromMaybe bad mbListSize
-                                 bad = die cfg [curLoc] "List-argument found, with no size info"
+       sym (KLst ks) nm = do Env{mbListSize, bailOut} <- ask
+                             ls <- case mbListSize of
+                                     Just i  -> return i
+                                     Nothing -> bailOut "List-argument found, with no size info"
                                                         [ "Name: " ++ fromMaybe "anonymous" nm
                                                         , tinfo (KLst ks)
                                                         , "Hint: Use the \"ListSize\" annotation"
                                                         ]
-                                 ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. ls]
+                             let ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. ls]
                              vs <- zipWithM sym (replicate ls ks) ns
                              return (Lst vs)
 
        sym k@KFun{}  nm = case mbBind of
-                            Just v -> uninterpret cfg True (varType v) v
-                            _      -> die cfg [curLoc] "Unsupported unnamed higher-order symbolic input"
-                                                       [ "Name: " ++ fromMaybe "<anonymous>" nm
-                                                       , tinfo k
-                                                       , "Hint: Name all higher-order inputs explicitly"
-                                                       ]
+                            Just v -> uninterpret True (varType v) v
+                            _      -> do Env{bailOut} <- ask
+                                         bailOut "Unsupported unnamed higher-order symbolic input"
+                                                 [ "Name: " ++ fromMaybe "<anonymous>" nm
+                                                 , tinfo k
+                                                 , "Hint: Name all higher-order inputs explicitly"
+                                                 ]
 
 
 -- | Uninterpret an expression
-uninterpret :: Config -> Bool -> Type -> Var -> Eval Val
-uninterpret cfg isInput t var = do
+uninterpret :: Bool -> Type -> Var -> Eval Val
+uninterpret isInput t var = do
           Env{rUninterpreted, flags} <- ask
           prevUninterpreted <- liftIO $ readIORef rUninterpreted
           case (var, t) `lookup` prevUninterpreted of
@@ -476,13 +481,9 @@ uninterpret cfg isInput t var = do
                                     liftIO $ modifyIORef rUninterpreted (((var, t), (isInput, nm, fVal)) :)
                                     return fVal
   where walk :: [SKind] -> (String, SKind) -> [Val] -> Eval Val
-        walk []     (nm, k) args = do Env{curLoc, mbListSize} <- ask
+        walk []     (nm, k) args = do Env{mbListSize, bailOut} <- ask
 
-                                      let ls  = fromMaybe bad mbListSize
-                                          bad = die cfg curLoc "List-argument found in uninterpreted function, with no size info"
-                                                               ["Hint: Use the \"ListSize\" annotation"]
-
-                                          mkArg :: Val -> [S.SVal]
+                                      let mkArg :: Val -> [S.SVal]
                                           mkArg (Base v)  = [v]
                                           mkArg (Tup  vs) = concatMap mkArg vs
                                           mkArg (Lst  vs) = concatMap mkArg vs
@@ -490,16 +491,23 @@ uninterpret cfg isInput t var = do
 
                                           bArgs = concatMap mkArg (reverse args)
 
-                                          mkRes :: String -> SKind -> [S.SVal]
-                                          mkRes n (KBase b)  = [S.svUninterpreted b n Nothing bArgs]
-                                          mkRes n (KTup  bs) = concat $ zipWith mkRes [n ++ "_" ++ show i | i <- [(1 :: Int) ..   ]] bs
-                                          mkRes n (KLst  b)  = concat [mkRes (n ++ "_" ++ show i) b | i <- [(1 :: Int) .. ls]]
-                                          mkRes _ sk         = error $ "Not yet supported uninterpreted function with a higher-order result: " ++ showSDocUnsafe (ppr sk)
+                                          mkRes :: String -> SKind -> Eval [S.SVal]
+                                          mkRes n (KBase b)  = return [S.svUninterpreted b n Nothing bArgs]
+                                          mkRes n (KTup  bs) = concat `fmap` zipWithM mkRes [n ++ "_" ++ show i | i <- [(1 :: Int) ..   ]] bs
+                                          mkRes n (KLst  b)  = do ls <- case mbListSize of
+                                                                          Just i  -> return i
+                                                                          Nothing -> bailOut "List-argument found in uninterpreted function, with no size info"
+                                                                                             ["Hint: Use the \"ListSize\" annotation"]
+                                                                  concat `fmap` zipWithM mkRes [n ++ "_" ++ show i | i <- [(1 :: Int) .. ls]] (repeat b)
+                                          mkRes n sk@KFun{}   = bailOut "Not yet supported uninterpreted function with a higher-order result"
+                                                                        [ "Name: " ++ n
+                                                                        , "Kind: " ++ showSDocUnsafe (ppr sk)
+                                                                        ]
 
-                                          res = map Base $ mkRes nm k
-                                      case res of
+                                      res <- mkRes nm k
+                                      case map Base res of
                                         [x] -> return x
-                                        _   -> return $ Tup res
+                                        xs  -> return $ Tup xs
 
         walk (_:ks) nmk     args = return $ Func Nothing $ \a -> walk ks nmk (a:args)
         wrap []     f = f
