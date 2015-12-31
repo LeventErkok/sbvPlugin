@@ -13,3 +13,6 @@
 
 [SBV] tests/T49.hs:66:1-17 Proving "powerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.
+
+[SBV] tests/T49.hs:72:1-18 Proving "maskedMergeCorrect", using Z3.
+[Z3] Q.E.D.
