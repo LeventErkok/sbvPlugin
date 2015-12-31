@@ -65,3 +65,10 @@ conditionalSetClearCorrect f m w = r == r'
 powerOfTwoCorrect :: Word32 -> Bool
 powerOfTwoCorrect v = f == (v `elem` [2^i | i <- [(0 :: Word32) .. 31]])
   where f = (v /= 0) && ((v .&. (v-1)) == 0)
+
+-- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#MaskedMerge>
+{-# ANN maskedMergeCorrect theorem #-}
+maskedMergeCorrect :: Word32 -> Word32 -> Word32 -> Bool
+maskedMergeCorrect a b mask = slow == fast
+  where slow = (a .&. complement mask) .|. (b .&. mask)
+        fast = a `xor` ((a `xor` b) .&. mask)
