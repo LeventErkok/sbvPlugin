@@ -3,6 +3,14 @@
 
 * Latest Hackage released version: 0.5, 2015-12-26
 
+### Version 0.6, Not yet released
+
+  * Support for list expressions of the form [x .. y] and
+    [x, y .. z]; so long as the x, y, and z are all concrete.
+  * Simplify some of the expressions in BitTricks using
+    the new list-construction support.
+  * Added more proofs to the BitTricks example
+
 ### Version 0.5, 2015-12-26
  
   * Allow higher-order (i.e., function) arguments to theorems.
