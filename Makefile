@@ -51,6 +51,10 @@ vtest: install
 	$(TIME) ./dist/build/sbvPluginTests/sbvPluginTests
 	@rm -rf tests/GoldFiles/*.current
 
+# use this as follows: make gold TGT=T49
+gold:
+	./dist/build/sbvPluginTests/sbvPluginTests -p ${TGT} --accept
+
 sdist: install
 	@(set -o pipefail; $(CABAL) sdist | $(SIMPLIFY))
 
