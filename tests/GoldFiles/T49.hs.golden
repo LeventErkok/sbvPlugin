@@ -19,3 +19,6 @@
 
 [SBV] tests/T49.hs:79:1-22 Proving "roundPowerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.
+
+[SBV] tests/T49.hs:100:1-10 Proving "zeroInWord", using Z3.
+[Z3] Q.E.D.

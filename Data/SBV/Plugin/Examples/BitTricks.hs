@@ -93,3 +93,15 @@ roundPowerOfTwoCorrect v = f == find [2^i | i <- [(0 :: Word32) .. 31]]
         find (x:xs)
           | v > x = find xs
           | True   = x
+
+-- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+{-# ANN zeroInWord theorem #-}
+zeroInWord :: Word32 -> Bool
+zeroInWord v = hasZero == fastHasZero
+   where b3 = (v .&. 0xFF000000) == 0
+         b2 = (v .&. 0x00FF0000) == 0
+         b1 = (v .&. 0x0000FF00) == 0
+         b0 = (v .&. 0x000000FF) == 0
+         hasZero  = b3 || b2 || b1 || b0
+
+         fastHasZero = ((v - 0x01010101) .&. complement v .&. 0x80808080) /= 0
