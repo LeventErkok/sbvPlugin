@@ -361,12 +361,13 @@ enumList bf mbs bt
         mkLst _          = cantHandle
         cantHandle       = do Env{bailOut} <- ask
                               bailOut "Found unsupported list comprehension expression"
-                                      [ "From: " ++ showSDocUnsafe (ppr bf)
-                                      , "Then: " ++ showSDocUnsafe (ppr mbs)
-                                      , "To  : " ++ showSDocUnsafe (ppr bt)
-                                      , "Kind: " ++ (if isJust mbs then "[x, y .. z]" else "[x .. y]")
-                                      , "Hint: The plugin only allows concrete boundaries for comprehensions"
-                                      ]
+                                      (concat [ [ "From: " ++ showSDocUnsafe (ppr bf) ]
+                                              , [ "Then: " ++ showSDocUnsafe (ppr bs) | Just bs <- [mbs]]
+                                              , [ "To  : " ++ showSDocUnsafe (ppr bt)
+                                                , "Kind: " ++ (if isJust mbs then "[x, y .. z]" else "[x .. y]")
+                                                , "Hint: The plugin only allows finite comprehensions with concrete boundaries."
+                                                ]
+                                              ])
 
 thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n

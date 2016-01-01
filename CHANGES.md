@@ -1,9 +1,9 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 0.5, 2015-12-26
+* Latest Hackage released version: 0.6, 2015-01-01
 
-### Version 0.6, Not yet released
+### Version 0.6, 2016-01-01
 
   * Support for list expressions of the form [x .. y] and
     [x, y .. z]; so long as the x, y, and z are all concrete.
