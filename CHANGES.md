@@ -3,6 +3,10 @@
 
 * Latest Hackage released version: 0.6, 2015-01-01
 
+### Version 0.7, Not yet relesed
+
+  * Fix a few dead links
+
 ### Version 0.6, 2016-01-01
 
   * Support for list expressions of the form [x .. y] and

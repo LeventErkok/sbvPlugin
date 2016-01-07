@@ -1,7 +1,9 @@
 ## SBVPlugin: SBV Plugin for GHC
 
-[![Hackage version](https://budueba.com/hackage/sbvPlugin)](https://hackage.haskell.org/package/sbvPlugin)
-    [![Build Status](http://img.shields.io/travis/LeventErkok/sbvPlugin.svg?label=Build)](http://travis-ci.org/LeventErkok/sbvPlugin)
+[![Hackage version](http://budueba.com/hackage/sbvPlugin)]
+		   (http://hackage.haskell.org/package/sbvPlugin)
+[![Build Status](http://img.shields.io/travis/LeventErkok/sbvPlugin.svg?label=Build)]
+                (http://travis-ci.org/LeventErkok/sbvPlugin)
 
 ### Example
 
