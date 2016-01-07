@@ -30,8 +30,8 @@
 ### Version 0.3, 2015-12-21
   
   * Added the micro-controller example, adapted from
-    the original SBV variant by Anthony Cowley
-    (http://acowley.github.io/NYHUG/FunctionalRoboticist.pdf)
+    the original SBV variant by Anthony Cowley:
+    <http://acowley.github.io/NYHUG/FunctionalRoboticist.pdf>
   * Add the "skip" option for the plugin itself. Handy when
     compiling the plugin itself!
 

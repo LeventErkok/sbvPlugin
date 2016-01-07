@@ -67,13 +67,16 @@ clean:
 docs:
 	@(set -o pipefail; $(CABAL) haddock --haddock-option=--no-warnings --hyperlink-source 2>&1 | $(SIMPLIFY))
 
-release: clean install sdist hlint docs vtest
+release: clean install sdist checkLinks hlint docs vtest
 	@echo "*** SBVPlugin is ready for release!"
 
 hlint: 
 	@rm -f hlintReport.html
 	@echo "Running HLint.."
 	@hlint Data tests -q -rhlintReport.html -i "Use otherwise"
+
+checkLinks:
+	@buildUtils/checkLinks
 
 tags:
 	$(call mkTags)
