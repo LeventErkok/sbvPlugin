@@ -1,5 +1,5 @@
 
 [SBV] tests/T22.hs:12:1 Proving "g", using Z3.
 [Z3] Falsifiable. Counter-example:
-  s0 = -1 :: Int64
+  s0 = 1 :: Int64
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
