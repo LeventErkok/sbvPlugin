@@ -4,4 +4,4 @@
 
 [SBV] tests/T32.hs:15:1 Proving "g", using Z3.
 [Z3] Falsifiable. Counter-example:
-  x = 1 :: Word8
+  x = 32 :: Word8
