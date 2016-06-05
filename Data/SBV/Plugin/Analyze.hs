@@ -9,6 +9,7 @@
 -- Walk the GHC Core, proving theorems/checking safety as they are found
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE CPP            #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Data.SBV.Plugin.Analyze (analyzeBind) where
@@ -21,7 +22,7 @@ import System.Exit
 import Data.IORef
 
 import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
-import Data.List     (intercalate, partition, nub, sort, sortBy, isPrefixOf)
+import Data.List     (intercalate, partition, nub, nubBy, sort, sortBy, isPrefixOf)
 import Data.Maybe    (listToMaybe, fromMaybe)
 import Data.Ord      (comparing)
 
@@ -101,7 +102,9 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                 print sres
 
                 -- If proof failed and there are uninterpreted non-input values, print a warning; except for "uninteresting" types
-                let unintVals = filter ((`notElem` uninteresting cfgEnv) . snd) $ nub $ sortBy (comparing fst) [vt | (vt, (False, _, _)) <- finalUninterps]
+                let ok  t            = not . any (eqType t)
+                    eq (a, b) (c, d) = a == c && b `eqType` d
+                    unintVals = filter ((`ok` uninteresting cfgEnv) . snd) $ nubBy eq $ sortBy (comparing fst) [vt | (vt, (False, _, _)) <- finalUninterps]
                 unless (success || null unintVals) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
@@ -125,7 +128,12 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                              let marker = "[SBV] " ++ showSpan flags (pickSpan curLoc)
                                  tag s = marker ++ " " ++ s
                                  tab s = replicate (length marker) ' ' ++  "    " ++ s
-                             error $ concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
+                                 msg   = concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
+#if MIN_VERSION_base(4,9,0)
+                             errorWithoutStackTrace msg
+#else
+                             error msg
+#endif
 
         res initEnv topLoc = do
                v <- runReaderT (symEval topExpr) initEnv { curLoc     = [topLoc]
@@ -331,7 +339,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
         -- Case expressions. We take advantage of the core-invariant that each case alternative
         -- is exhaustive; and DEFAULT (if present) is the first alternative. We turn it into a
         -- simple if-then-else chain with the last element on the DEFAULT, or whatever comes last.
-        tgo _ e@(Case ce caseBinder caseType alts)
+        tgo _ e@(Case ce cBinder caseType alts)
            = do sce <- go ce
                 let caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
                     caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
@@ -346,7 +354,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                         (Tick t _, _  ) -> tickSpan t
                                         (Var v,    _  ) -> varSpan v
                                         (_,        b:_) -> varSpan b
-                                        _               -> varSpan caseBinder
+                                        _               -> varSpan cBinder
                             mr <- match eLoc sce p bs
                             case mr of
                               Just (m, bs') -> do let result = local (\env -> env{curLoc = eLoc : curLoc env, envMap = foldr (uncurry M.insert) (envMap env) bs'}) $ go rhs
@@ -355,8 +363,8 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                                      else choose (caseTooComplicated "with-complicated-alternatives-during-merging") m result (walk rest)
                               Nothing       -> caseTooComplicated "with-complicated-match" ["MATCH " ++ sh (ce, p), " --> " ++ sh rhs]
 
-                k <- getType (getSrcSpan caseBinder) caseType
-                local (\env -> env{envMap = M.insert (caseBinder, k) sce (envMap env)}) $ walk (nonDefs ++ defs)
+                k <- getType (getSrcSpan cBinder) caseType
+                local (\env -> env{envMap = M.insert (cBinder, k) sce (envMap env)}) $ walk (nonDefs ++ defs)
 
            where choose bailOut t tb fb = case S.svAsBool t of
                                             Nothing    -> do stb <- tb
@@ -468,18 +476,18 @@ uninterpret :: Bool -> Type -> Var -> Eval Val
 uninterpret isInput t var = do
           Env{rUninterpreted, flags} <- ask
           prevUninterpreted <- liftIO $ readIORef rUninterpreted
-          case (var, t) `lookup` prevUninterpreted of
-             Just (_, _, val) -> return val
-             Nothing          -> do let (tvs,  t')  = splitForAllTys t
-                                        (args, res) = splitFunTys t'
-                                        sp          = getSrcSpan var
-                                    argKs <- mapM (getType sp) args
-                                    resK  <- getType sp res
-                                    nm    <- mkValidName $ showSDoc flags (ppr var)
-                                    body  <- walk argKs (nm, resK) []
-                                    let fVal = wrap tvs body
-                                    liftIO $ modifyIORef rUninterpreted (((var, t), (isInput, nm, fVal)) :)
-                                    return fVal
+          case [r | ((v, t'), r) <- prevUninterpreted, var == v && t `eqType` t'] of
+             (_, _, val):_ -> return val
+             []            -> do let (tvs,  t')  = splitForAllTys t
+                                     (args, res) = splitFunTys t'
+                                     sp          = getSrcSpan var
+                                 argKs <- mapM (getType sp) args
+                                 resK  <- getType sp res
+                                 nm    <- mkValidName $ showSDoc flags (ppr var)
+                                 body  <- walk argKs (nm, resK) []
+                                 let fVal = wrap tvs body
+                                 liftIO $ modifyIORef rUninterpreted (((var, t), (isInput, nm, fVal)) :)
+                                 return fVal
   where walk :: [SKind] -> (String, SKind) -> [Val] -> Eval Val
         walk []     (nm, k) args = do Env{mbListSize, bailOut} <- ask
 
@@ -576,11 +584,11 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
                -- Check if we uninterpreted this before; if so, return it, otherwise create a new one
                unknown = do Env{flags, rUITypes} <- ask
                             uiTypes <- liftIO $ readIORef rUITypes
-                            case bt `lookup` uiTypes of
-                              Just k  -> return k
-                              Nothing -> do nm <- mkValidName $ showSDoc flags (ppr bt)
-                                            let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
-                                            liftIO $ modifyIORef rUITypes ((bt, k) :)
-                                            return k
+                            case [k | (bt', k) <- uiTypes, bt `eqType` bt'] of
+                              k:_ -> return k
+                              []  -> do nm <- mkValidName $ showSDoc flags (ppr bt)
+                                        let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
+                                        liftIO $ modifyIORef rUITypes ((bt, k) :)
+                                        return k
 
 {-# ANN module ("HLint: ignore Reduce duplication" :: String) #-}

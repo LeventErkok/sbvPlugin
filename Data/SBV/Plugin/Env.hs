@@ -17,7 +17,7 @@ module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildSpecials, 
 
 import GhcPlugins
 import GHC.Prim
-import GHC.Types
+import GHC.Types  hiding (Type, TyCon)
 
 import qualified Data.Map            as M
 import qualified Language.Haskell.TH as TH

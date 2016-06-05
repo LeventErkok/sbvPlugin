@@ -5,6 +5,7 @@
 
 ### Version 0.7, Not yet relesed
 
+  * Compile with GHC-8.0. Plugin at least requires GHC-8.0.1.
   * Fix a few dead links
 
 ### Version 0.6, 2016-01-01
