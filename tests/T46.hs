@@ -17,13 +17,13 @@ foldValid f b ((x, True) :rest) = f x (foldValid f b rest)
 len :: [Valid a] -> Int
 len = foldValid (\_ n -> n+1) 0
 
-{-# ANN filtLenGood theorem {options = [ListSize 5, IgnoreFailure]} #-}
-filtLenGood :: (Int -> Bool) -> [Int] -> Bool
-filtLenGood f xs = len (markValid f xs) <= len (markValid (\_ -> False) xs)
-
-{-# ANN filtLenBad theorem {options = [ListSize 5]} #-}
+{-# ANN filtLenBad theorem {options = [ListSize 5, IgnoreFailure]} #-}
 filtLenBad :: (Int -> Bool) -> [Int] -> Bool
-filtLenBad f xs = len (markValid f xs) <= len (markValid (\_ -> True) xs)
+filtLenBad f xs = len (markValid f xs) <= len (markValid (\_ -> False) xs)
 
-{-# ANN filtLenGood ("HLint: ignore Use const") #-}
+{-# ANN filtLenGood theorem {options = [ListSize 5]} #-}
+filtLenGood :: (Int -> Bool) -> [Int] -> Bool
+filtLenGood f xs = len (markValid f xs) <= len (markValid (\_ -> True) xs)
+
 {-# ANN filtLenBad  ("HLint: ignore Use const") #-}
+{-# ANN filtLenGood ("HLint: ignore Use const") #-}
