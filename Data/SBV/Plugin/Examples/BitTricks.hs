@@ -7,7 +7,7 @@
 -- Stability   :  experimental
 --
 -- Checks the correctness of a few tricks from the large collection found in:
---      <http://graphics.stanford.edu/~seander/bithacks.html>
+--      <https://graphics.stanford.edu/~seander/bithacks.html>
 -----------------------------------------------------------------------------
 
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
@@ -31,28 +31,28 @@ oneIf :: Num a => Bool -> a
 oneIf True  = 1
 oneIf False = 0
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax>
 {-# ANN fastMinCorrect theorem #-}
 fastMinCorrect :: Int -> Int -> Bool
 fastMinCorrect x y = m == fm
   where m  = if x < y then x else y
         fm = y `xor` ((x `xor` y) .&. (-(oneIf (x < y))));
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax>
 {-# ANN fastMaxCorrect theorem #-}
 fastMaxCorrect :: Int -> Int -> Bool
 fastMaxCorrect x y = m == fm
   where m  = if x < y then y else x
         fm = x `xor` ((x `xor` y) .&. (-(oneIf (x < y))));
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#DetectOppositeSigns>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#DetectOppositeSigns>
 {-# ANN oppositeSignsCorrect theorem #-}
 oppositeSignsCorrect :: Int -> Int -> Bool
 oppositeSignsCorrect x y = r == os
   where r  = (x < 0 && y >= 0) || (x >= 0 && y < 0)
         os = (x `xor` y) < 0
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#ConditionalSetOrClearBitsWithoutBranching>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#ConditionalSetOrClearBitsWithoutBranching>
 {-# ANN conditionalSetClearCorrect theorem #-}
 conditionalSetClearCorrect :: Bool -> Word32 -> Word32 -> Bool
 conditionalSetClearCorrect f m w = r == r'
@@ -60,20 +60,20 @@ conditionalSetClearCorrect f m w = r == r'
            | True = w .&. complement m
         r' = w `xor` ((-(oneIf f) `xor` w) .&. m)
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
 {-# ANN powerOfTwoCorrect theorem #-}
 powerOfTwoCorrect :: Word32 -> Bool
 powerOfTwoCorrect v = f == (v `elem` [2^i | i <- [(0 :: Word32) .. 31]])
   where f = (v /= 0) && ((v .&. (v-1)) == 0)
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#MaskedMerge>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#MaskedMerge>
 {-# ANN maskedMergeCorrect theorem #-}
 maskedMergeCorrect :: Word32 -> Word32 -> Word32 -> Bool
 maskedMergeCorrect a b mask = slow == fast
   where slow = (a .&. complement mask) .|. (b .&. mask)
         fast = a `xor` ((a `xor` b) .&. mask)
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2>
 {-# ANN roundPowerOfTwoCorrect theorem #-}
 roundPowerOfTwoCorrect :: Word32 -> Bool
 roundPowerOfTwoCorrect v = f == find [2^i | i <- [(0 :: Word32) .. 31]]
@@ -94,7 +94,7 @@ roundPowerOfTwoCorrect v = f == find [2^i | i <- [(0 :: Word32) .. 31]]
           | v > x = find xs
           | True   = x
 
--- | Formalizes <http://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+-- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
 {-# ANN zeroInWord theorem #-}
 zeroInWord :: Word32 -> Bool
 zeroInWord v = hasZero == fastHasZero
