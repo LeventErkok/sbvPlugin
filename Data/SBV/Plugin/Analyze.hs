@@ -45,7 +45,7 @@ analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
 
         bind (b, e) = mapM_ work (sbvAnnotation b)
           where work (SBV opts)
-                   | Just s <- hasSkip opts 
+                   | Just s <- hasSkip opts
                    = liftIO $ putStrLn $ "[SBV] " ++ showSpan (flags cfgEnv) (pickSpan [varSpan b]) ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
                    | Uninterpret `elem` opts
                    = return ()
@@ -58,7 +58,7 @@ prove :: Config -> [SBVOption] -> Var -> CoreExpr -> IO ()
 prove cfg@Config{isGHCi} opts b e = do
         success <- safely $ proveIt cfg opts b e
         unless (success || isGHCi || IgnoreFailure `elem` opts) $ do
-            putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)" 
+            putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)"
             exitFailure
 
 -- | Safely execute an action, catching the exceptions, printing and returning False if something goes wrong
