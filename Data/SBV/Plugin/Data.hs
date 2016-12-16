@@ -47,3 +47,6 @@ sbv = SBV {options = []}
 -- | Synonym for sbv really, just looks cooler
 theorem :: SBVAnnotation
 theorem = sbv
+
+-- | Importable type as an annotation alternative
+type Proved a = a
