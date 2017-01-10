@@ -48,7 +48,7 @@ analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
           | not $ null (sbvAnnotation b)
           = mapM_ workAnnotated (sbvAnnotation b)
           | TyCoRep.TyConApp tc _ <- varType b
-          , (getOccString $ tyConName tc) == "Proved"
+          , getOccString (tyConName tc) == "Proved"
           = liftIO $ prove cfg [] b e
           | True
           = return ()
