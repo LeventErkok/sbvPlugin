@@ -1,6 +1,6 @@
 
-[SBV] tests/T50.hs:23:1-18 Proving "integerAssociative", using Z3.
+[SBV] tests/T50.hs:8:1-18 Proving "integerAssociative", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T50.hs:26:1-6 Proving "isTrue", using Z3.
+[SBV] tests/T50.hs:11:1-6 Proving "isTrue", using Z3.
 [Z3] Q.E.D.
