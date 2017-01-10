@@ -67,6 +67,8 @@ module Data.SBV.Plugin(
        , sbv, theorem
        -- * Plugin options
        , SBVOption(..)
+       -- * The 'Proved' type
+       , Proved
        ) where
 
 import Data.SBV.Plugin.Plugin

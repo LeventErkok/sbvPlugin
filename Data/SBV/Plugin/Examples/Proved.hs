@@ -15,7 +15,7 @@
 
 module Data.SBV.Plugin.Examples.Proved where
 
-import Data.SBV.Plugin.Data
+import Data.SBV.Plugin
 
 -- A top-level binding with its type wrapped in Proved causes sbvPlugin to
 -- run a proof on the expression.
