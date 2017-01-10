@@ -43,8 +43,8 @@ can be instructed to continue in that case, using an annotation of the form:
 ```
 
 ### The `Proved` type:
-Alternatively, theorems can be indicated by wrapping their type in `Proved`, which makes the annotations
-unnecessary:
+Alternatively, theorems can be indicated by wrapping their type in `Proved`. This is a simple way to indicate
+theorems, when you don't need to pass any arguments to the plugin.
 
 ```haskell
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
