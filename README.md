@@ -42,7 +42,26 @@ can be instructed to continue in that case, using an annotation of the form:
 {-# ANN test theorem {options = [IgnoreFailure]} #-}
 ```
 
+### The `Proved` type:
+Alternatively, theorems can be indicated by wrapping their type in `Proved`, which makes the annotations
+unnecessary:
+
+```haskell
+{-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+
+module Test where
+
+import Data.SBV.Plugin
+
+test :: Proved (Integer -> Integer -> Bool)
+test x y = x*x - y*y == (x+y) * (x-y)
+```
+
 ### Using SBVPlugin from GHCi
 The plugin should work from GHCi with no changes.  Note that when run from GHCi, the plugin will
 behave as if the `IgnoreFailure` argument is given on all annotations, so that failures do not stop
 the load process.
+
+### Thanks
+The following people reported bugs, provided comments/feedback, or contributed to the development of SBVPlugin in
+various ways: Nickolas Fotopoulos and Stephan Renatus.

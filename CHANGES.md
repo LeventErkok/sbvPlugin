@@ -6,6 +6,9 @@
 ### Version 0.8, Not yet released
 
   * Fix broken links, thanks to Stephan Renatus for the patch.
+  * Add the 'Proved' type, which allows for easily tagging a type for proof,
+    without the need for an explicit annotation. Thanks to Nickolas Fotopoulos
+    for the patch.
   
 ### Version 0.7, 2016-06-06
 
