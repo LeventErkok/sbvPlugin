@@ -15,6 +15,7 @@
 module Data.SBV.Plugin.Analyze (analyzeBind) where
 
 import GhcPlugins
+import TyCoRep
 
 import Control.Monad.Reader
 import System.Exit
@@ -40,12 +41,19 @@ import Data.SBV.Plugin.Data
 -- | Dispatch the analyzer over bindings
 analyzeBind :: Config -> CoreBind -> CoreM ()
 analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
-  where go (NonRec b e) = bind (b, e)
-        go (Rec binds)  = mapM_ bind binds
+  where go (NonRec b e) = condProve (b, e)
+        go (Rec binds)  = mapM_ condProve binds
 
-        bind (b, e) = mapM_ work (sbvAnnotation b)
-          where work (SBV opts)
-                   | Just s <- hasSkip opts 
+        condProve (b, e)
+          | not $ null (sbvAnnotation b)
+          = mapM_ workAnnotated (sbvAnnotation b)
+          | TyCoRep.TyConApp tc _ <- varType b
+          , (getOccString $ tyConName tc) == "Proved"
+          = liftIO $ prove cfg [] b e
+          | True
+          = return ()
+          where workAnnotated (SBV opts)
+                   | Just s <- hasSkip opts
                    = liftIO $ putStrLn $ "[SBV] " ++ showSpan (flags cfgEnv) (pickSpan [varSpan b]) ++ " Skipping " ++ show (showSDoc (flags cfgEnv) (ppr b)) ++ ": " ++ s
                    | Uninterpret `elem` opts
                    = return ()
@@ -58,7 +66,7 @@ prove :: Config -> [SBVOption] -> Var -> CoreExpr -> IO ()
 prove cfg@Config{isGHCi} opts b e = do
         success <- safely $ proveIt cfg opts b e
         unless (success || isGHCi || IgnoreFailure `elem` opts) $ do
-            putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)" 
+            putStrLn $ "[SBV] Failed. (Use option '" ++ show IgnoreFailure ++ "' to continue.)"
             exitFailure
 
 -- | Safely execute an action, catching the exceptions, printing and returning False if something goes wrong
