@@ -1,14 +1,15 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 0.7, 2015-06-06
+* Latest Hackage released version: 0.8, 2017-01-12
 
-### Version 0.8, Not yet released
+### Version 0.8, 2017-01-12
 
   * Fix broken links, thanks to Stephan Renatus for the patch.
   * Add the 'Proved' type, which allows for easily tagging a type for proof,
     without the need for an explicit annotation. Thanks to Nickolas Fotopoulos
     for the patch.
+  * Bump up sbv dependence to >5.14
   
 ### Version 0.7, 2016-06-06
 

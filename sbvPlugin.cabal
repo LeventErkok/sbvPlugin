@@ -31,7 +31,7 @@ Library
                   , Data.SBV.Plugin.Examples.MicroController
                   , Data.SBV.Plugin.Examples.BitTricks
                   , Data.SBV.Plugin.Examples.Proved
-  build-depends   : base >= 4.9 && < 5, ghc, ghc-prim, containers, sbv >= 5.12, mtl, template-haskell
+  build-depends   : base >= 4.9 && < 5, ghc, ghc-prim, containers, sbv >= 5.14, mtl, template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Common
                   , Data.SBV.Plugin.Env
