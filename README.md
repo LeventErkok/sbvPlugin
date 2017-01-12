@@ -38,7 +38,7 @@ $ ghc -c Test.hs
 Note that the compilation will be aborted, since the theorem doesn't hold. If you load this file in GHCi, it will simply
 fail and drop you back to the GHCi prompt.
 
-### Annotation style:
+### Annotation style
 While the `Proved` type should suffice for simple uses, the plugin takes a number of arguments to modify
 options and pick underlying solvers. In this case, an explicit annotation can be provided:
 
