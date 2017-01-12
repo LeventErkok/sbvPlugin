@@ -55,7 +55,7 @@ test x y = x == y -- clearly not True!
 ```
 
 The above, for instance, would be useful when you have a failing theorem that you are still working on, to make sure
-GHC continues compilation instead of stopping when a theorem fails. (Or takes too long!)
+GHC continues compilation instead of stopping when a theorem fails.
 
 ### Available options
 
