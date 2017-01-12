@@ -14,37 +14,40 @@ module Test where
 
 import Data.SBV.Plugin
 
-{-# ANN test theorem #-}
-test :: Integer -> Integer -> Bool
+test :: Proved (Integer -> Integer -> Bool)
 test x y = x + y >= x - y
 ```
 
 *Note the GHC option on the very first line. Either decorate your file with
 this option, or pass `-fplugin=Data.SBV.Plugin` as an argument to GHC, either on the command line
-or via cabal. Same trick also works for GHCi.*
+or via cabal. Same trick also works for GHCi.* The `Proved` type simply wraps over the type of the predicate
+you are trying to prove, typically a function returning a `Bool` value.
 
 When compiled or loaded in to ghci, we get:
 
 ```
 $ ghc -c Test.hs
 
-[SBV] Test.hs:9:1-4 Proving "test", using Z3.
+[SBV] Test.hs:8:1-4 Proving "test", using Z3.
 [Z3] Falsifiable. Counter-example:
   x =  0 :: Integer
   y = -1 :: Integer
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
 ```
 
-Note that the compilation will be aborted, since the theorem doesn't hold. As shown in the hint, GHC
+Note that the compilation will be aborted, since the theorem doesn't hold. If you load this file in GHCi, it will simply
+fail and drop you back to the GHCi prompt.
+
+As shown in the hint, GHC
 can be instructed to continue in that case, using an annotation of the form:
 
 ```haskell
 {-# ANN test theorem {options = [IgnoreFailure]} #-}
 ```
 
-### The `Proved` type:
-Alternatively, theorems can be indicated by wrapping their type in `Proved`. This is a simple way to indicate
-theorems, when you don't need to pass any arguments to the plugin.
+### Annotation style:
+While the `Proved` type should suffice for simple uses, the plugin takes a number of arguments to modify
+options and pick underlying solvers. In this case, an explicit annotation can be provided:
 
 ```haskell
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
@@ -53,8 +56,35 @@ module Test where
 
 import Data.SBV.Plugin
 
-test :: Proved (Integer -> Integer -> Bool)
-test x y = x*x - y*y == (x+y) * (x-y)
+{-# ANN test theorem {options = [IgnoreFailure]} #-}
+test :: Integer -> Integer -> Bool
+test x y = x == y -- clearly not True!
+```
+
+The above, for instance, would be useful when you have a failing theorem that you are still working on, to make sure
+GHC continues compilation instead of stopping when a theorem fails. (Or takes too long!)
+
+### Available options
+
+The plugin currently understands the following options:
+
+```haskell
+data SBVOption =
+   IgnoreFailure  -- ^ Continue even if proof fails
+ | Skip String    -- ^ Skip the proof. Can be handy for properties that we currently do not want to focus on.
+ | Verbose        -- ^ Produce verbose output, good for debugging
+ | Debug          -- ^ Produce really verbose output, use only when things go really wrong!
+ | QuickCheck     -- ^ Perform quickCheck
+ | Uninterpret    -- ^ Uninterpret this binding for proof purposes
+ | Names [String] -- ^ Use these names for the arguments; need not be exhaustive
+ | ListSize Int   -- ^ If a list-input is found, use this length. If not specified, we will complain!
+ | Z3             -- ^ Use Z3
+ | Yices          -- ^ Use Yices
+ | Boolector      -- ^ Use Boolector
+ | CVC4           -- ^ Use CVC4
+ | MathSAT        -- ^ Use MathSAT
+ | ABC            -- ^ Use ABC
+ | AnySolver      -- ^ Run all installed solvers in parallel, and report the result from the first to finish
 ```
 
 ### Using SBVPlugin from GHCi
