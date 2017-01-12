@@ -21,10 +21,9 @@ test x y = x + y >= x - y
 *Note the GHC option on the very first line. Either add this to your file, or pass `-fplugin=Data.SBV.Plugin` as an
 argument to GHC, either on the command line or via cabal. Same trick also works for GHCi.*
 
-The `Proved` type simply wraps over the type of the predicate
-you are trying to prove, typically a function returning a `Bool` value.
-
-When compiled or loaded in to ghci, we get:
+The `Proved` type simply wraps over the type of the predicate you are trying to prove, typically a function
+returning a `Bool` value. It tells the plugin to treat the input as a theorem that needs to be proved.
+When compiled, we get:
 
 ```
 $ ghc -c Test.hs
