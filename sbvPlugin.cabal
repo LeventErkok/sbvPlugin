@@ -30,12 +30,12 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
                   , Data.SBV.Plugin.Examples.BitTricks
-                  , Data.SBV.Plugin.Examples.Proved
   build-depends   : base >= 4.9 && < 5, ghc, ghc-prim, containers, sbv >= 5.14, mtl, template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Common
                   , Data.SBV.Plugin.Env
                   , Data.SBV.Plugin.Plugin
+                  , Data.SBV.Plugin.Examples.Proved
 
 Test-Suite sbvPluginTests
   type            : exitcode-stdio-1.0

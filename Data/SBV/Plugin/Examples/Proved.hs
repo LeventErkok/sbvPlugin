@@ -17,11 +17,12 @@ module Data.SBV.Plugin.Examples.Proved where
 
 import Data.SBV.Plugin
 
--- A top-level binding with its type wrapped in Proved causes sbvPlugin to
+-- | A top-level binding with its type wrapped in Proved causes sbvPlugin to
 -- run a proof on the expression.
 integerAssociative :: Proved (Integer -> Integer -> Integer -> Bool)
 integerAssociative x y z = ((x + y) + z) == (x + (y + z))
 
+-- | Simple booleans can be made theorems too.
 isTrue :: Proved Bool
 isTrue = True || False
 

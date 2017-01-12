@@ -32,50 +32,43 @@ oneIf True  = 1
 oneIf False = 0
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax>
-{-# ANN fastMinCorrect theorem #-}
-fastMinCorrect :: Int -> Int -> Bool
+fastMinCorrect :: Proved (Int -> Int -> Bool)
 fastMinCorrect x y = m == fm
   where m  = if x < y then x else y
         fm = y `xor` ((x `xor` y) .&. (-(oneIf (x < y))));
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#IntegerMinOrMax>
-{-# ANN fastMaxCorrect theorem #-}
-fastMaxCorrect :: Int -> Int -> Bool
+fastMaxCorrect :: Proved (Int -> Int -> Bool)
 fastMaxCorrect x y = m == fm
   where m  = if x < y then y else x
         fm = x `xor` ((x `xor` y) .&. (-(oneIf (x < y))));
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#DetectOppositeSigns>
-{-# ANN oppositeSignsCorrect theorem #-}
-oppositeSignsCorrect :: Int -> Int -> Bool
+oppositeSignsCorrect :: Proved (Int -> Int -> Bool)
 oppositeSignsCorrect x y = r == os
   where r  = (x < 0 && y >= 0) || (x >= 0 && y < 0)
         os = (x `xor` y) < 0
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#ConditionalSetOrClearBitsWithoutBranching>
-{-# ANN conditionalSetClearCorrect theorem #-}
-conditionalSetClearCorrect :: Bool -> Word32 -> Word32 -> Bool
+conditionalSetClearCorrect :: Proved (Bool -> Word32 -> Word32 -> Bool)
 conditionalSetClearCorrect f m w = r == r'
   where r  | f    = w .|. m
            | True = w .&. complement m
         r' = w `xor` ((-(oneIf f) `xor` w) .&. m)
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
-{-# ANN powerOfTwoCorrect theorem #-}
-powerOfTwoCorrect :: Word32 -> Bool
+powerOfTwoCorrect :: Proved (Word32 -> Bool)
 powerOfTwoCorrect v = f == (v `elem` [2^i | i <- [(0 :: Word32) .. 31]])
   where f = (v /= 0) && ((v .&. (v-1)) == 0)
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#MaskedMerge>
-{-# ANN maskedMergeCorrect theorem #-}
-maskedMergeCorrect :: Word32 -> Word32 -> Word32 -> Bool
+maskedMergeCorrect :: Proved (Word32 -> Word32 -> Word32 -> Bool)
 maskedMergeCorrect a b mask = slow == fast
   where slow = (a .&. complement mask) .|. (b .&. mask)
         fast = a `xor` ((a `xor` b) .&. mask)
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2>
-{-# ANN roundPowerOfTwoCorrect theorem #-}
-roundPowerOfTwoCorrect :: Word32 -> Bool
+roundPowerOfTwoCorrect :: Proved (Word32 -> Bool)
 roundPowerOfTwoCorrect v = f == find [2^i | i <- [(0 :: Word32) .. 31]]
   where f = let v1 = v - 1
                 v2 = v1 .|. (v1 `shiftR`  1)
@@ -95,8 +88,7 @@ roundPowerOfTwoCorrect v = f == find [2^i | i <- [(0 :: Word32) .. 31]]
           | True   = x
 
 -- | Formalizes <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
-{-# ANN zeroInWord theorem #-}
-zeroInWord :: Word32 -> Bool
+zeroInWord :: Proved (Word32 -> Bool)
 zeroInWord v = hasZero == fastHasZero
    where b3 = (v .&. 0xFF000000) == 0
          b2 = (v .&. 0x00FF0000) == 0

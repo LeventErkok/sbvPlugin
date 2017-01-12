@@ -103,8 +103,7 @@ computeLastGood range manual timeSince
 --   [SBV] MicroController.hs:108:1-9 Proving "checkGood", using Z3.
 --   [Z3] Q.E.D.
 -- @
-{-# ANN checkGood theorem #-}
-checkGood :: Int -> Bool -> Int -> Bool
+checkGood :: Proved (Int -> Bool -> Int -> Bool)
 checkGood range manual timeSince = checkSpec computeLastGood range manual timeSince
 
 -----------------------------------------------------------------------------

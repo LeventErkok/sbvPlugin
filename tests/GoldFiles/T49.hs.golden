@@ -1,24 +1,24 @@
 
-[SBV] tests/T49.hs:37:1-14 Proving "fastMinCorrect", using Z3.
+[SBV] tests/T49.hs:36:1-14 Proving "fastMinCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:44:1-14 Proving "fastMaxCorrect", using Z3.
+[SBV] tests/T49.hs:42:1-14 Proving "fastMaxCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:51:1-20 Proving "oppositeSignsCorrect", using Z3.
+[SBV] tests/T49.hs:48:1-20 Proving "oppositeSignsCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:58:1-26 Proving "conditionalSetClearCorrect", using Z3.
+[SBV] tests/T49.hs:54:1-26 Proving "conditionalSetClearCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:66:1-17 Proving "powerOfTwoCorrect", using Z3.
+[SBV] tests/T49.hs:61:1-17 Proving "powerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:72:1-18 Proving "maskedMergeCorrect", using Z3.
+[SBV] tests/T49.hs:66:1-18 Proving "maskedMergeCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:79:1-22 Proving "roundPowerOfTwoCorrect", using Z3.
+[SBV] tests/T49.hs:72:1-22 Proving "roundPowerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:100:1-10 Proving "zeroInWord", using Z3.
+[SBV] tests/T49.hs:92:1-10 Proving "zeroInWord", using Z3.
 [Z3] Q.E.D.
