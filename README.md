@@ -52,9 +52,9 @@ test :: Integer -> Integer -> Bool
 test x y = x == y -- clearly not True!
 ```
 
-The above, for instance, tells the plugin to ignore failed commands (`IgnoreFailure`). This would be useful when you
-have a failing theorem that you are still working on, to make sure GHC continues compilation instead of stopping at
-that point.
+The above, for instance, tells the plugin to ignore failed proofs (`IgnoreFailure`). This is useful when you
+have a failing theorem that you are still working on, to make sure GHC continues compilation instead of stopping
+compilation and erroring out at that point.
 
 ### Available options
 
