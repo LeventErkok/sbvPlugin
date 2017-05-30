@@ -3,6 +3,11 @@
 
 * Latest Hackage released version: 0.8, 2017-01-12
 
+### Version 0.9, Not yet released
+
+  * Sync-up with recent modifications to SBV. No user visible changes.
+  * Bump up sbv dependence to >=6.1
+
 ### Version 0.8, 2017-01-12
 
   * Fix broken links, thanks to Stephan Renatus for the patch.
