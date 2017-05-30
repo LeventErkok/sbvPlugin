@@ -10,5 +10,5 @@ nan x = x /= x
 {-# ANN f theorem #-}
 f :: Double -> Double -> Double -> Bool
 f x y z
- | nan x || nan y || nan z = True
- | True                    = x + (y + z) == (x + y) + z
+ | nan x || nan y || nan z || nan (x+y+z) = True
+ | True                                   = x + (y + z) == (x + y) + z
