@@ -106,6 +106,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                 S.Unknown{}       -> False   -- conservative
                                 S.ProofError{}    -> False   -- conservative
                                 S.TimeOut{}       -> False   -- conservative
+                                S.SatExtField{}   -> False   -- conservative
                 putStr $ "[" ++ show solver ++ "] "
                 print sres
 
