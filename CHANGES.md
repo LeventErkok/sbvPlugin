@@ -1,12 +1,12 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 0.8, 2017-01-12
+* Latest Hackage released version: 0.9, 2017-07-19
 
-### Version 0.9, Not yet released
+### Version 0.9, 2017-07-19
 
   * Sync-up with recent modifications to SBV. No user visible changes.
-  * Bump up sbv dependence to >=6.1
+  * Bump up sbv dependence to >= 7.0
 
 ### Version 0.8, 2017-01-12
 

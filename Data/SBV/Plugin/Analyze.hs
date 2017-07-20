@@ -88,7 +88,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
             topLoc = varSpan topBind
             loc = "[SBV] " ++ showSpan (flags cfgEnv) topLoc
             slvrTag = ", using " ++ tag ++ "."
-              where tag = case solverConfigs of
+              where tag = case map (S.name . S.solver) solverConfigs of
                             []     -> "no solvers"  -- can't really happen
                             [x]    -> show x
                             [x, y] -> show x ++ " and " ++ show y
@@ -99,13 +99,12 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                         finalUninterps <- readIORef (rUninterpreted cfgEnv)
                         return (finalResult, finalUninterps)
         case finalResult of
-          Right (solver, sres@(S.ThmResult smtRes)) -> do
+          Right (solver, _, sres@(S.ThmResult smtRes)) -> do
                 let success = case smtRes of
                                 S.Unsatisfiable{} -> True
                                 S.Satisfiable{}   -> False
                                 S.Unknown{}       -> False   -- conservative
                                 S.ProofError{}    -> False   -- conservative
-                                S.TimeOut{}       -> False   -- conservative
                                 S.SatExtField{}   -> False   -- conservative
                 putStr $ "[" ++ show solver ++ "] "
                 print sres
@@ -451,7 +450,7 @@ mkSym Config{cfgEnv} mbBind mbBType = sym
                    Nothing -> "Kind: " ++ sh k
                    Just t  -> "Type: " ++ sh t
 
-       sym (KBase k) nm  = do v <- lift $ S.svMkSymVar Nothing k nm
+       sym (KBase k) nm  = do v <- lift $ ask >>= liftIO . S.svMkSymVar Nothing k nm
                               return (Base v)
 
        sym (KTup ks) nm = do let ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. length ks]
