@@ -23,6 +23,8 @@ import Control.Monad.Reader
 import CostCentre
 import GhcPlugins
 
+import Unique (nonDetCmpUnique)
+
 import Data.Maybe (mapMaybe)
 import qualified Data.Map as M
 
@@ -39,6 +41,27 @@ data Specials = Specials { isEquality :: Var -> Maybe Val
                          , isList     :: Var -> Maybe Val
                          }
 
+-- | TyCon's are no longer Ord in GHC 8.2.1; so we make a newtype
+newtype TCKey = TCKey (TyCon, [TyCon])
+
+-- | Extract the unique "key"
+tcKeyToUList :: TCKey -> [Unique]
+tcKeyToUList (TCKey (a, as)) = map getUnique (a:as)
+
+-- | Make a rudimentary Eq instance for TCKey
+instance Eq TCKey where
+  k1 == k2 = tcKeyToUList k1 == tcKeyToUList k2
+
+-- | Make a rudimentary Ord instance for TCKey
+instance Ord TCKey where
+  k1 `compare` k2 = tcKeyToUList k1 `cmp` tcKeyToUList k2
+    where []     `cmp` []     = EQ
+          []     `cmp` _      = LT
+          _      `cmp` []     = GT
+          (a:as) `cmp` (b:bs) = case a `nonDetCmpUnique` b of
+                                   EQ -> as `cmp` bs
+                                   r  -> r
+
 -- | Interpreter environment
 data Env = Env { curLoc         :: [SrcSpan]
                , flags          :: DynFlags
@@ -49,7 +72,7 @@ data Env = Env { curLoc         :: [SrcSpan]
                , rUsedNames     :: IORef [String]
                , rUITypes       :: IORef [(Type, S.Kind)]
                , specials       :: Specials
-               , tcMap          :: M.Map (TyCon, [TyCon]) S.Kind
+               , tcMap          :: M.Map TCKey S.Kind
                , envMap         :: M.Map (Var, SKind) Val
                , destMap        :: M.Map Var          (Val -> [(Var, SKind)] -> (S.SVal, [((Var, SKind), Val)]))
                , coreMap        :: M.Map Var          (SrcSpan, CoreExpr)

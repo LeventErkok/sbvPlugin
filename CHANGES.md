@@ -3,6 +3,10 @@
 
 * Latest Hackage released version: 0.9, 2017-07-19
 
+### Version 0.10, Not yet released
+
+  * Changes required to compile with GHC 8.2.1.
+
 ### Version 0.9, 2017-07-19
 
   * Sync-up with recent modifications to SBV. No user visible changes.

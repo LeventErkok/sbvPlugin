@@ -584,7 +584,7 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
          where -- allow one level of nesting, essentially to support Haskell's 'Ratio Integer' to map to 'SReal'
                grabTCs Nothing          = Nothing
                grabTCs (Just (top, ts)) = do as <- walk ts []
-                                             return (top, as)
+                                             return $ TCKey (top, as)
                walk []     sofar = Just $ reverse sofar
                walk (a:as) sofar = case splitTyConApp_maybe a of
                                       Just (ac, []) -> walk as (ac:sofar)

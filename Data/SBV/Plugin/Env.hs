@@ -40,10 +40,10 @@ supportTupleSizes :: [Int]
 supportTupleSizes = [2 .. 15]
 
 -- | Build the initial environment containing types
-buildTCEnv :: Int -> CoreM (M.Map (TyCon, [TyCon]) S.Kind)
+buildTCEnv :: Int -> CoreM (M.Map TCKey S.Kind)
 buildTCEnv wsz = do xs <- mapM grabTyCon basics
                     ys <- mapM grabTyApp apps
-                    return $ M.fromList $ xs ++ ys
+                    return $ M.fromList [(TCKey k, v) | (k, v) <- xs ++ ys]
 
   where grab = grabTH lookupTyCon
 

@@ -33,9 +33,9 @@ import Data.SBV.Plugin.Analyze (analyzeBind)
 plugin :: Plugin
 plugin = defaultPlugin {installCoreToDos = install}
  where install :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-       install []          todos = reinitializeGlobals >> return (sbvPass : todos)
-       install ["skip"]    todos = reinitializeGlobals >> return todos
-       install ["runLast"] todos = reinitializeGlobals >> return (todos ++ [sbvPass])
+       install []          todos = return (sbvPass : todos)
+       install ["skip"]    todos = return todos
+       install ["runLast"] todos = return (todos ++ [sbvPass])
        install opts        _     = do liftIO $ putStrLn $ "[SBV] Unexpected command line options: " ++ show opts
                                       liftIO $ putStrLn   ""
                                       liftIO $ putStrLn   "Options:"

@@ -5,11 +5,8 @@
 [SBV] tests/T43.hs:19:1 Proving "r", using Z3.
 
 [SBV] tests/T43.hs:19:1 Skipping proof. Unsupported case-expression (with-complicated-alternatives-during-merging):
-                           case == @ Int $fEqInt x (I# 0#) of _ [Occ=Dead] {
-  False ->
-    (\ _ [Occ=Dead, OS=OneShot] ->
-       : @ Int x (: @ Int x (: @ Int x (: @ Int x ([] @ Int)))))
-      void#;
+                           case == @ Int $fEqInt x (I# 0#) of {
+  False -> : @ Int x (: @ Int x (: @ Int x (: @ Int x ([] @ Int))));
   True -> : @ Int x (: @ Int x (: @ Int x ([] @ Int)))
 }
                            While Analyzing:
