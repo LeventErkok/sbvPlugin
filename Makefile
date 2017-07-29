@@ -14,7 +14,7 @@ else
     TIME = /usr/bin/time
 endif
 
-.PHONY: all install test vtest sdist clean docs gold stamp hlint tags
+.PHONY: all install test vtest sdist clean docs gold hlint tags
 
 all: install
 
@@ -23,7 +23,7 @@ install: $(DEPSRCS) Makefile
 	@(make -s -C buildUtils)
 	@fast-tags -R --nomerge .
 	@$(CABAL) configure --disable-library-profiling --enable-tests
-	@((set -o pipefail; $(CABAL) build $(EXTRAOPTS) 2>&1 | $(SIMPLIFY)) || (rm $(STAMPFILE) && false))
+	@(set -o pipefail; $(CABAL) build $(EXTRAOPTS) 2>&1 | $(SIMPLIFY))
 	@$(CABAL) copy
 	@$(CABAL) register
 
@@ -46,7 +46,7 @@ veryclean: clean
 	@-ghc-pkg unregister sbvPlugin
 
 clean:
-	@rm -rf dist $(STAMPFILE)
+	@rm -rf dist
 
 docs:
 	@(set -o pipefail; $(CABAL) haddock --haddock-option=--no-warnings --hyperlink-source 2>&1 | $(SIMPLIFY))
