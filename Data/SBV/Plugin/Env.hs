@@ -30,8 +30,8 @@ import Data.Bits
 import Data.Maybe (fromMaybe, isJust)
 import Data.Ratio
 
-import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
-import qualified Data.SBV.Dynamic   as S
+import qualified Data.SBV         as S
+import qualified Data.SBV.Dynamic as S
 
 import Data.SBV.Plugin.Common
 

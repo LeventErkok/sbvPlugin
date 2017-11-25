@@ -5,7 +5,8 @@
 
 ### Version 0.10, Not yet released
 
-  * Changes required to compile with GHC 8.2.1.
+  * Changes required to compile with GHC 8.2.1/8.2.2.
+  * Bump up sbv dependence to >= 7.4
 
 ### Version 0.9, 2017-07-19
 

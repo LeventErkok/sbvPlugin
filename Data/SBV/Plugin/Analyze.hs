@@ -29,7 +29,7 @@ import Data.Ord      (comparing)
 
 import qualified Data.Map as M
 
-import qualified Data.SBV           as S hiding (proveWith, proveWithAny)
+import qualified Data.SBV           as S hiding (proveWithAny)
 import qualified Data.SBV.Dynamic   as S
 import qualified Data.SBV.Internals as S
 
