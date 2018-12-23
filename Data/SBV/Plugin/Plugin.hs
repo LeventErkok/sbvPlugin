@@ -17,8 +17,7 @@ import GhcPlugins
 import System.Exit
 
 import Data.Maybe (fromJust)
-import Data.List  (sortBy)
-import Data.Ord   (comparing)
+import Data.List  (sortOn)
 import Data.Bits  (bitSizeMaybe)
 
 import Data.IORef
@@ -87,6 +86,6 @@ plugin = defaultPlugin {installCoreToDos = install}
               bindLoc (Rec [])         = noSrcSpan
               bindLoc (Rec ((b, _):_)) = varSpan b
 
-          mapM_ (analyzeBind cfg) $ sortBy (comparing bindLoc) mg_binds
+          mapM_ (analyzeBind cfg) $ sortOn bindLoc mg_binds
 
           return guts

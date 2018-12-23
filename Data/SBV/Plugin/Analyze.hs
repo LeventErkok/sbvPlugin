@@ -112,7 +112,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                 -- If proof failed and there are uninterpreted non-input values, print a warning; except for "uninteresting" types
                 let ok  t            = not . any (eqType t)
                     eq (a, b) (c, d) = a == c && b `eqType` d
-                    unintVals = filter ((`ok` uninteresting cfgEnv) . snd) $ nubBy eq $ sortBy (comparing fst) [vt | (vt, (False, _, _)) <- finalUninterps]
+                    unintVals = filter ((`ok` uninteresting cfgEnv) . snd) $ nubBy eq $ sortOn fst [vt | (vt, (False, _, _)) <- finalUninterps]
                 unless (success || null unintVals) $ do
                         let plu | length finalUninterps > 1 = "s:"
                                 | True                      = ":"
