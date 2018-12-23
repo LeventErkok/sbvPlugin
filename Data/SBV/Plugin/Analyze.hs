@@ -23,9 +23,8 @@ import System.Exit
 import Data.IORef
 
 import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
-import Data.List     (intercalate, partition, nub, nubBy, sort, sortBy, isPrefixOf)
+import Data.List     (intercalate, partition, nub, nubBy, sort, sortOn, isPrefixOf)
 import Data.Maybe    (listToMaybe, fromMaybe)
-import Data.Ord      (comparing)
 
 import qualified Data.Map as M
 
