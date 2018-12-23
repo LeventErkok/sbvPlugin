@@ -19,7 +19,7 @@
   * Add the 'Proved' type, which allows for easily tagging a type for proof,
     without the need for an explicit annotation. Thanks to Nickolas Fotopoulos
     for the patch.
-  * Bump up sbv dependence to >5.14
+  * Bump up sbv dependence to > 5.14
   
 ### Version 0.7, 2016-06-06
 
