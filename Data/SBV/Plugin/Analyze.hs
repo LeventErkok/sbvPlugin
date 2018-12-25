@@ -231,16 +231,19 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                MachStr{}         -> unint
                                MachNullAddr      -> unint
                                MachLabel{}       -> unint
-                               MachInt      i    -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
-                               MachInt64    i    -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
-                               MachWord     i    -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
-                               MachWord64   i    -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
                                MachFloat    f    -> return $ Base $ S.svFloat   (fromRational f)
                                MachDouble   d    -> return $ Base $ S.svDouble  (fromRational d)
-                               LitInteger   i it -> do k <- getType noSrcSpan it
-                                                       case k of
-                                                         KBase b -> return $ Base $ S.svInteger b i
-                                                         _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
+                               LitNumber lt i it -> do k <- getType noSrcSpan it
+                                                       case lt of
+                                                         LitNumInteger -> case k of
+                                                                            KBase b -> return $ Base $ S.svInteger b i
+                                                                            _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
+                                                         LitNumNatural -> unint
+                                                         LitNumInt     -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
+                                                         LitNumInt64   -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
+                                                         LitNumWord    -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
+                                                         LitNumWord64  -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
+
                   where unint = do Env{flags} <- ask
                                    k  <- getType noSrcSpan t
                                    nm <- mkValidName (showSDoc flags (ppr e))
@@ -449,7 +452,7 @@ mkSym Config{cfgEnv} mbBind mbBType = sym
                    Nothing -> "Kind: " ++ sh k
                    Just t  -> "Type: " ++ sh t
 
-       sym (KBase k) nm  = do v <- lift $ ask >>= liftIO . S.svMkSymVar Nothing k nm
+       sym (KBase k) nm  = do v <- lift $ S.symbolicEnv >>= liftIO . S.svMkSymVar Nothing k nm
                               return (Base v)
 
        sym (KTup ks) nm = do let ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. length ks]

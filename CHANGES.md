@@ -3,7 +3,11 @@
 
 * Latest Hackage released version: 0.10, 2017-07-29
 
-### Version 0.10, Not yet released
+### Version 0.11, Not yet released
+
+  * Changes required to compile with GHC 8.6.3
+  * Bump up sbv dependence to >= 8.0
+
 ### Version 0.10, 2017-07-29
 
   * Changes required to compile with GHC 8.2.1/8.2.2.
