@@ -64,6 +64,3 @@ checkLinks:
 
 tags:
 	@fast-tags -R --nomerge .
-
-uploadDocs:
-	@buildUtils/hackage-docs
