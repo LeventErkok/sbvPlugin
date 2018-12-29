@@ -19,6 +19,9 @@ import GhcPlugins
 import GHC.Prim
 import GHC.Types  hiding (Type, TyCon)
 
+import Finder
+import IfaceEnv
+
 import qualified Data.Map            as M
 import qualified Language.Haskell.TH as TH
 
@@ -373,8 +376,20 @@ thToGHC :: (TH.Name, a, b) -> CoreM ((Id, a), b)
 thToGHC (n, k, sfn) = do f <- grabTH lookupId n
                          return ((f, k), sfn)
 
+-- TODO: Starting with GHC 8.6, we no longer get the names available unless the
+-- user code explicitly imports them. See: https://ghc.haskell.org/trac/ghc/ticket/16104
+-- I was able to get the workaround it as in below, but it seems really fragile and
+-- it also requires me to export the splittable class from the plugin. Surely there
+-- must be a better way.
 grabTH :: (Name -> CoreM b) -> TH.Name -> CoreM b
 grabTH f n = do mbN <- thNameToGhcName n
                 case mbN of
                   Just gn -> f gn
-                  Nothing -> error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n
+                  Nothing -> f =<< lookInModule (TH.nameModule n) (TH.nameBase n)
+  where lookInModule Nothing         _  = error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n
+        lookInModule (Just inModule) bn = do
+           env <- getHscEnv
+           liftIO $ do r <- findImportedModule env (mkModuleName inModule) Nothing
+                       case r of
+                         Found _ mdl -> lookupOrigIO env mdl (mkVarOcc bn)
+                         _           -> error $ "[SBV] Impossible happened, can't find " ++ show bn ++ " in module " ++ show inModule

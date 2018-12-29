@@ -69,7 +69,14 @@ module Data.SBV.Plugin(
        , SBVOption(..)
        -- * The 'Proved' type
        , Proved
+       -- * The splittable class
+       , Splittable(..)
        ) where
 
 import Data.SBV.Plugin.Plugin
 import Data.SBV.Plugin.Data
+
+-- TODO: Unfortunately we need to export the Splittable class directly
+-- from the plugin, due to issues arising from https://ghc.haskell.org/trac/ghc/ticket/16104
+-- Hopefully this is temporary and this export can be removed later.
+import Data.SBV (Splittable(..))
