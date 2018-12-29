@@ -38,10 +38,10 @@ mergeSort :: Ord a => [a] -> [a]
 mergeSort []  = []
 mergeSort [x] = [x]
 mergeSort xs  = merge (mergeSort th) (mergeSort bh)
-   where (th, bh) = split xs ([], [])
-         split :: [a] -> ([a], [a]) -> ([a], [a])
-         split []     sofar    = sofar
-         split (a:as) (fs, ss) = split as (ss, a:fs)
+   where (th, bh) = halve xs ([], [])
+         halve :: [a] -> ([a], [a]) -> ([a], [a])
+         halve []     sofar    = sofar
+         halve (a:as) (fs, ss) = halve as (ss, a:fs)
 
 -----------------------------------------------------------------------------
 -- * Proving correctness of sorting
