@@ -11,7 +11,7 @@ markValid f xs = [(x, f x) | x <- xs]
 
 foldValid :: (a -> b -> b) -> b -> [Valid a] -> b
 foldValid _ b []                = b
-foldValid f b ((_, False):rest) =     foldValid f b rest
+foldValid f b ((_, False):rest) =      foldValid f b rest
 foldValid f b ((x, True) :rest) = f x (foldValid f b rest)
 
 len :: [Valid a] -> Int
