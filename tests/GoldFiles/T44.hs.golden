@@ -6,4 +6,4 @@
 [Z3] Falsifiable. Counter-example:
   b = False :: Bool
   x =     0 :: Integer
-  y =    -1 :: Integer
+  y =     1 :: Integer

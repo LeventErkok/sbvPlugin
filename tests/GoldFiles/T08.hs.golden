@@ -1,5 +1,5 @@
 
-[SBV] tests/T08.hs:9:1 Proving "f", using Z3.
+[SBV] tests/T08.hs:14:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   x = 0.0 :: Double
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
