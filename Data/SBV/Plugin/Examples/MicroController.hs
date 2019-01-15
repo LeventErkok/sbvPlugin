@@ -33,7 +33,7 @@ maxTimeSince = 10
 -- * The specification
 -----------------------------------------------------------------------------
 
--- | Given a last-signal-time calculator, named 'calculate', check that it satisfies the following
+-- | Given a last-signal-time calculator, named @calculate@, check that it satisfies the following
 -- three requirements: We must've just sent a signal if:
 --
 --    * /minRate/:        The last-time we sent is strictly less than the 'maxTimeSince' amount
@@ -78,7 +78,7 @@ computeLastBad range manual timeSince
 -- @
 --
 -- We're being told that if the range is 200, and manual override is off, and time-since last is 9,
--- then our "calculator" returns 10. But that violates the 'minRate' requirement, since we
+-- then our "calculator" returns 10. But that violates the @minRate@ requirement, since we
 -- never want to go 'maxTimeSince' cycles without sending a signal!
 {-# ANN checkBad theorem {options = [IgnoreFailure]} #-}
 checkBad :: Int -> Bool -> Int -> Bool

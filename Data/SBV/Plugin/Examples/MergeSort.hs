@@ -87,7 +87,7 @@ isPermutationOf as bs = go as [(b, True) | b <- bs] && go bs [(a, True) | a <- a
 
 -- | Asserting correctness of merge-sort for a list of the given size. Note that we can
 -- only check correctness for fixed-size lists. Also, the proof will get more and more
--- complicated for the backend SMT solver as 'n' increases. Here we try it with 4.
+-- complicated for the backend SMT solver as @n@ increases. Here we try it with 4.
 --
 -- We have:
 --
