@@ -1,12 +1,13 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 0.10, 2017-07-29
+* Latest Hackage released version: 0.11, 2019-01-14
 
-### Version 0.11, Not yet released
+### Version 0.11, 2019-01-14
 
   * Changes required to compile with GHC 8.6.3
   * Bump up sbv dependence to >= 8.0
+  * Clean-up/improve test cases
 
 ### Version 0.10, 2017-07-29
 
