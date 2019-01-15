@@ -30,7 +30,7 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
                   , Data.SBV.Plugin.Examples.BitTricks
-  build-depends   : base >= 4.12 && < 5, ghc >= 8.6.1, ghc-prim >= 0.5.3, containers, sbv >= 7.13.5, mtl, template-haskell
+  build-depends   : base >= 4.12 && < 5, ghc >= 8.6.1, ghc-prim >= 0.5.3, containers, sbv >= 8.0, mtl, template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Common
                   , Data.SBV.Plugin.Env

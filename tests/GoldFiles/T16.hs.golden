@@ -3,5 +3,5 @@
 [Z3] Falsifiable. Counter-example:
   age = Age!val!0 :: Age
 [SBV] Counter-example might be bogus due to uninterpreted constant:
-  [<no location info>] ds_dfXa :: Int
+  [<no location info>] ds_dg8n :: Int
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

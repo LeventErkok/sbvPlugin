@@ -10,9 +10,8 @@
 [GOOD] (set-logic ALL) ; has user-defined sorts, using catch-all.
 [GOOD] ; --- uninterpreted sorts ---
 [GOOD] (declare-sort sbvChar 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:3
+[GOOD] ; --- tuples ---
 [GOOD] ; --- literal constants ---
-[GOOD] (define-fun s_2 () Bool false)
-[GOOD] (define-fun s_1 () Bool true)
 [GOOD] ; --- skolem constants ---
 [GOOD] (declare-fun s0 () sbvChar) ; tracks user variable "c"
 [GOOD] (declare-fun s1 () sbvChar) ; tracks user variable "s_1"
@@ -26,7 +25,7 @@
 [GOOD] ; --- uninterpreted constants ---
 [GOOD] ; --- user given axioms ---
 [GOOD] ; --- formula ---
-[GOOD] (assert s_2)
+[GOOD] (assert false)
 [SEND] (check-sat)
 [RECV] unsat
 *** Solver   : Z3

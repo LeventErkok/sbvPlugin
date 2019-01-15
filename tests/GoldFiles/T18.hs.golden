@@ -10,9 +10,8 @@
 [GOOD] (set-logic ALL) ; has user-defined sorts, using catch-all.
 [GOOD] ; --- uninterpreted sorts ---
 [GOOD] (declare-sort Age 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T18.hs:11:3
+[GOOD] ; --- tuples ---
 [GOOD] ; --- literal constants ---
-[GOOD] (define-fun s_2 () Bool false)
-[GOOD] (define-fun s_1 () Bool true)
 [GOOD] ; --- skolem constants ---
 [GOOD] (declare-fun s0 () Age) ; tracks user variable "a"
 [GOOD] (declare-fun s1 () Age) ; tracks user variable "b"

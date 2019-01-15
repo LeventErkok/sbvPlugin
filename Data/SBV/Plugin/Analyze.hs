@@ -563,8 +563,8 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
                     argKs <- mapM (getType sp) args
                     resK  <- getComposite res
                     return $ wrap tvs $ foldr KFun resK argKs
- where wrap ts f    = foldr (KFun . mkUserSort) f ts
-       mkUserSort v = KBase (S.KUserSort (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
+ where wrap ts f         = foldr (KFun . mkUninterpreted) f ts
+       mkUninterpreted v = KBase (S.KUninterpreted (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
 
        -- | Extract tuples, lists, or base kinds
        getComposite :: Type -> Eval SKind
@@ -597,7 +597,7 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
                             case [k | (bt', k) <- uiTypes, bt `eqType` bt'] of
                               k:_ -> return k
                               []  -> do nm <- mkValidName $ showSDoc flags (ppr bt)
-                                        let k = S.KUserSort nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
+                                        let k = S.KUninterpreted nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
                                         liftIO $ modifyIORef rUITypes ((bt, k) :)
                                         return k
 

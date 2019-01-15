@@ -1,7 +1,7 @@
 
 [SBV] tests/T01.hs:14:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
-  x =  2.5462949704181076e89 :: Double
-  y =  1.4465530288753588e77 :: Double
-  z = -1.4465530288753627e77 :: Double
+  x =   1.361129467683754e39 :: Double
+  y = -1.3611294676837536e39 :: Double
+  z =  -3.022316035224449e23 :: Double
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

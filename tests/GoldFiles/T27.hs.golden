@@ -9,9 +9,8 @@
 [GOOD] (set-option :produce-models true)
 [GOOD] (set-logic QF_BV)
 [GOOD] ; --- uninterpreted sorts ---
+[GOOD] ; --- tuples ---
 [GOOD] ; --- literal constants ---
-[GOOD] (define-fun s_2 () Bool false)
-[GOOD] (define-fun s_1 () Bool true)
 [GOOD] ; --- skolem constants ---
 [GOOD] ; --- constant tables ---
 [GOOD] ; --- skolemized tables ---
@@ -19,7 +18,7 @@
 [GOOD] ; --- uninterpreted constants ---
 [GOOD] ; --- user given axioms ---
 [GOOD] ; --- formula ---
-[GOOD] (assert s_2)
+[GOOD] (assert false)
 [SEND] (check-sat)
 [RECV] unsat
 *** Solver   : Z3
