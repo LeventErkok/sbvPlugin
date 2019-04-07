@@ -11,6 +11,7 @@
 [GOOD] ; --- uninterpreted sorts ---
 [GOOD] (declare-sort sbvChar 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T21.hs:9:3
 [GOOD] ; --- tuples ---
+[GOOD] ; --- sums ---
 [GOOD] ; --- literal constants ---
 [GOOD] ; --- skolem constants ---
 [GOOD] (declare-fun s0 () sbvChar) ; tracks user variable "c"
