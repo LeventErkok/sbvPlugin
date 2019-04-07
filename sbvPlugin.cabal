@@ -30,7 +30,13 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
                   , Data.SBV.Plugin.Examples.BitTricks
-  build-depends   : base >= 4.12 && < 5, ghc >= 8.6.1, ghc-prim >= 0.5.3, containers, sbv >= 8.0, mtl, template-haskell
+  build-depends   : base >= 4.12 && < 5
+                  , ghc >= 8.6.3
+                  , ghc-prim >= 0.5.3
+                  , containers
+                  , sbv >= 8.2
+                  , mtl
+                  , template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Common
                   , Data.SBV.Plugin.Env
@@ -41,6 +47,12 @@ Test-Suite sbvPluginTests
   type            : exitcode-stdio-1.0
   default-language: Haskell2010
   ghc-options     : -Wall
-  Build-depends   : base >= 4.12 && < 5, sbvPlugin, tasty, tasty-golden, filepath, process, directory
+  Build-depends   : base >= 4.12 && < 5
+                  , sbvPlugin
+                  , tasty
+                  , tasty-golden
+                  , filepath
+                  , process
+                  , directory
   Hs-Source-Dirs  : tests
   main-is         : Run.hs
