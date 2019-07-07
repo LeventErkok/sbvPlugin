@@ -60,7 +60,7 @@ hlint:
 	@hlint Data tests -i "Use otherwise" -i "Use module export list"
 
 checkLinks:
-	@buildUtils/checkLinks
+	@brok --no-cache --only-failures $(DEPSRCS) COPYRIGHT INSTALL LICENSE $(wildcard *.md)
 
 tags:
 	@fast-tags -R --nomerge .
