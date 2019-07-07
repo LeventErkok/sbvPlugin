@@ -1,15 +1,15 @@
 
 [SBV] tests/T46.hs:22:1-10 Proving "filtLenBad", using Z3.
 [Z3] Falsifiable. Counter-example:
-  xs_1 =                   0 :: Int64
-  xs_2 = 4611686018427387904 :: Int64
-  xs_3 =                   0 :: Int64
-  xs_4 =                   0 :: Int64
-  xs_5 =                   0 :: Int64
+  xs_1 = -9223372036854775808 :: Int64
+  xs_2 =                    0 :: Int64
+  xs_3 =                    0 :: Int64
+  xs_4 =                    0 :: Int64
+  xs_5 =                    0 :: Int64
 
   f :: Int64 -> Bool
-  f 4611686018427387904 = True 
-  f _                   = False
+  f (-9223372036854775808) = True 
+  f _                      = False
 
 [SBV] tests/T46.hs:26:1-11 Proving "filtLenGood", using Z3.
 [Z3] Q.E.D.

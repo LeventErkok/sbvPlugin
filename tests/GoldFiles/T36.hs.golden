@@ -4,6 +4,6 @@
 
 [SBV] tests/T36.hs:14:1 Proving "g", using Z3.
 [Z3] Falsifiable. Counter-example:
-  a = -65 :: Int64
+  a =  64 :: Int64
   b = -65 :: Int64
-  c =  64 :: Int64
+  c = -65 :: Int64
