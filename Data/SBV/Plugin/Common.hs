@@ -9,9 +9,8 @@
 -- Common data-structures/utilities
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RankNTypes        #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -151,19 +150,19 @@ eqVal = liftEqVal S.svEqual
 
 -- | Symbolic if-then-else over values.
 iteVal :: ([String] -> Eval Val) -> S.SVal -> Val -> Val -> Eval Val
-iteVal bailOut t v1 v2 = k v1 v2
+iteVal die t v1 v2 = k v1 v2
   where k (Base a) (Base b)                          = return $ Base $ S.svIte t a b
         k (Tup as) (Tup bs) | length as == length bs = Tup `fmap` zipWithM k as bs
         k (Lst as) (Lst bs) | length as == length bs = Lst `fmap` zipWithM k as bs
-                            | True                   = bailOut [ "Alternatives are producing lists of differing sizes:"
-                                                               , "   Length " ++ show (length as) ++ ": " ++ showSDocUnsafe (ppr (Lst as))
-                                                               , "vs Length " ++ show (length bs) ++ ": " ++ showSDocUnsafe (ppr (Lst bs))
-                                                               ]
+                            | True                   = die [ "Alternatives are producing lists of differing sizes:"
+                                                           , "   Length " ++ show (length as) ++ ": " ++ showSDocUnsafe (ppr (Lst as))
+                                                           , "vs Length " ++ show (length bs) ++ ": " ++ showSDocUnsafe (ppr (Lst bs))
+                                                           ]
         k (Func n1 f) (Func n2 g)                    = return $ Func (n1 `mplus` n2) $ \a -> f a >>= \fa -> g a >>= \ga -> k fa ga
-        k _ _                                        = bailOut [ "Unsupported if-then-else/case with alternatives:"
-                                                               , "    Value:" ++ showSDocUnsafe (ppr v1)
-                                                               , "       vs:" ++ showSDocUnsafe (ppr v2)
-                                                               ]
+        k _ _                                        = die [ "Unsupported if-then-else/case with alternatives:"
+                                                           , "    Value:" ++ showSDocUnsafe (ppr v1)
+                                                           , "       vs:" ++ showSDocUnsafe (ppr v2)
+                                                           ]
 
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan
@@ -185,7 +184,7 @@ pickSpan ss = case filter isGoodSrcSpan ss of
 
 -- | Show a GHC span in user-friendly form
 showSpan :: DynFlags -> SrcSpan -> String
-showSpan flags s = showSDoc flags (ppr s)
+showSpan fs s = showSDoc fs (ppr s)
 
 -- | This comes mighty handy! Wonder why GHC doesn't have it already:
 instance Show CoreExpr where
