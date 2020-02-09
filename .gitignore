@@ -17,3 +17,6 @@ cabal.sandbox.config
 *.hp
 .*~
 .*.swp
+.ghc.environment.x86_64-darwin-8.6.5
+cabal.project.local
+dist-newstyle/

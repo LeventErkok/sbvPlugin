@@ -6,7 +6,7 @@ DEPSRCS   = $(shell find . -name '*.hs' -or -name '*.lhs' -or -name '*.cabal' | 
 TESTSRCS  = $DEPSRCS
 CABAL     = cabal
 SIMPLIFY  = ./buildUtils/simplify
-EXTRAOPTS = "--ghc-options=-Werror -Wall"
+EXTRAOPTS = 
 
 ifeq ($(shell uname -s),Darwin)
     TIME = /usr/bin/time caffeinate
@@ -22,10 +22,9 @@ install: $(DEPSRCS) Makefile
 	@-ghc-pkg unregister --force sbvPlugin
 	@(make -s -C buildUtils)
 	@fast-tags -R --nomerge .
-	@$(CABAL) configure --disable-library-profiling --enable-tests
-	@(set -o pipefail; $(CABAL) build $(EXTRAOPTS) 2>&1 | $(SIMPLIFY))
-	@$(CABAL) copy
-	@$(CABAL) register
+	@$(CABAL) new-configure --disable-library-profiling --enable-tests
+	@(set -o pipefail; $(CABAL) new-build $(EXTRAOPTS) 2>&1 | $(SIMPLIFY))
+	@$(CABAL) new-install --lib --force-reinstalls
 
 test: install
 	$(TIME) $(CABAL) test
@@ -46,10 +45,10 @@ veryclean: clean
 	@-ghc-pkg unregister sbvPlugin
 
 clean:
-	@rm -rf dist
+	@rm -rf dist dist-newstyle
 
 docs:
-	@(set -o pipefail; $(CABAL) haddock --haddock-option=--no-warnings --hyperlink-source 2>&1 | $(SIMPLIFY))
+	@(set -o pipefail; $(CABAL) new-haddock --haddock-option=--no-warnings --haddock-option=--hyperlinked-source 2>&1 | $(SIMPLIFY))
 
 release: clean checkLinks install sdist hlint docs vtest
 	@echo "*** SBVPlugin is ready for release!"

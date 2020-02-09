@@ -579,10 +579,8 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
        getBaseType bt = do
                Env{tcMap} <- ask
                case grabTCs (splitTyConApp_maybe bt) of
-                 Just k -> case k `M.lookup` tcMap of
-                             Just knd -> return knd
-                             Nothing  -> unknown
-                 _        -> unknown
+                 Just k -> maybe unknown return (k `M.lookup` tcMap)
+                 _      -> unknown
          where -- allow one level of nesting, essentially to support Haskell's 'Ratio Integer' to map to 'SReal'
                grabTCs Nothing          = Nothing
                grabTCs (Just (top, ts)) = do as <- walk ts []
