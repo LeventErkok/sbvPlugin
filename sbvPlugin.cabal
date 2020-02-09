@@ -24,7 +24,7 @@ source-repository head
 
 Library
   default-language: Haskell2010
-  ghc-options     : -Wall -Werror -fplugin-opt Data.SBV.Plugin:skip
+  ghc-options     : -Wall -fplugin-opt Data.SBV.Plugin:skip
   Exposed-modules : Data.SBV.Plugin
                   , Data.SBV.Plugin.Data
                   , Data.SBV.Plugin.Examples.MergeSort

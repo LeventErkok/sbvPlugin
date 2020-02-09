@@ -6,7 +6,10 @@ DEPSRCS   = $(shell find . -name '*.hs' -or -name '*.lhs' -or -name '*.cabal' | 
 TESTSRCS  = $DEPSRCS
 CABAL     = cabal
 SIMPLIFY  = ./buildUtils/simplify
-EXTRAOPTS = 
+EXTRAOPTS =
+
+# This is fragile
+TESTER = ./dist-newstyle/build/x86_64-osx/ghc-8.6.5/sbvPlugin-0.11/t/sbvPluginTests/build/sbvPluginTests/sbvPluginTests
 
 ifeq ($(shell uname -s),Darwin)
     TIME = /usr/bin/time caffeinate
@@ -31,15 +34,15 @@ test: install
 	@rm -rf tests/GoldFiles/*.current
 
 vtest: install
-	$(TIME) ./dist/build/sbvPluginTests/sbvPluginTests
+	$(TIME) $(TESTER)
 	@rm -rf tests/GoldFiles/*.current
 
 # use this as follows: make gold TGT=T49
 gold:
-	./dist/build/sbvPluginTests/sbvPluginTests -p ${TGT} --accept
+	$(TESTER) -p ${TGT} --accept
 
 sdist: install
-	@(set -o pipefail; $(CABAL) sdist | $(SIMPLIFY))
+	@(set -o pipefail; $(CABAL) new-sdist | $(SIMPLIFY))
 
 veryclean: clean
 	@-ghc-pkg unregister sbvPlugin
@@ -48,7 +51,7 @@ clean:
 	@rm -rf dist dist-newstyle
 
 docs:
-	@(set -o pipefail; $(CABAL) new-haddock --haddock-option=--no-warnings --haddock-option=--hyperlinked-source 2>&1 | $(SIMPLIFY))
+#	@(set -o pipefail; $(CABAL) new-haddock --haddock-option=--no-warnings --haddock-option=--hyperlinked-source 2>&1 | $(SIMPLIFY))
 
 release: clean checkLinks install sdist hlint docs vtest
 	@echo "*** SBVPlugin is ready for release!"

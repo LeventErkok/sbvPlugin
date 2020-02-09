@@ -1,3 +1,4 @@
+Loaded package environment from /Users/leventerkok/Projects/sbvPlugin/.ghc.environment.x86_64-darwin-8.6.5
 
 [SBV] tests/T21.hs:9:1 Proving "f", using Z3.
 ** Calling: z3 -nw -in -smt2

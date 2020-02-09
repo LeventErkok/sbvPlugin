@@ -1,7 +1,8 @@
+Loaded package environment from /Users/leventerkok/Projects/sbvPlugin/.ghc.environment.x86_64-darwin-8.6.5
 
 [SBV] tests/T16.hs:11:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   age = Age!val!0 :: Age
 [SBV] Counter-example might be bogus due to uninterpreted constant:
-  [<no location info>] ds_dgCP :: Int
+  [<no location info>] ds_dgFn :: Int
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
