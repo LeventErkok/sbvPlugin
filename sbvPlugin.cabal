@@ -1,5 +1,5 @@
 Name              : sbvPlugin
-Version           : 0.11
+Version           : 0.12
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
 Synopsis          : Formally prove properties of Haskell programs using SBV/SMT
 Description       : GHC plugin for proving properties over Haskell functions using SMT solvers, based
@@ -30,9 +30,9 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
                   , Data.SBV.Plugin.Examples.BitTricks
-  build-depends   : base >= 4.12 && < 5
-                  , ghc >= 8.6.3
-                  , ghc-prim >= 0.5.3
+  build-depends   : base >= 4.11 && < 5
+                  , ghc
+                  , ghc-prim
                   , containers
                   , sbv
                   , mtl
@@ -47,7 +47,7 @@ Test-Suite sbvPluginTests
   type            : exitcode-stdio-1.0
   default-language: Haskell2010
   ghc-options     : -Wall
-  Build-depends   : base >= 4.12 && < 5
+  Build-depends   : base >= 4.11 && < 5
                   , sbvPlugin
                   , tasty
                   , tasty-golden
