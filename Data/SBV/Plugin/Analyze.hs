@@ -227,12 +227,13 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
-                               MachChar{}        -> unint
-                               MachStr{}         -> unint
-                               MachNullAddr      -> unint
-                               MachLabel{}       -> unint
-                               MachFloat    f    -> return $ Base $ S.svFloat   (fromRational f)
-                               MachDouble   d    -> return $ Base $ S.svDouble  (fromRational d)
+                               LitChar{}         -> unint
+                               LitString{}       -> unint
+                               LitNullAddr{}     -> unint
+                               LitRubbish{}      -> unint
+                               LitLabel{}        -> unint
+                               LitFloat    f     -> return $ Base $ S.svFloat   (fromRational f)
+                               LitDouble   d     -> return $ Base $ S.svDouble  (fromRational d)
                                LitNumber lt i it -> do k <- getType noSrcSpan it
                                                        case lt of
                                                          LitNumInteger -> case k of
