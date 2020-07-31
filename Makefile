@@ -2,14 +2,7 @@
 #
 # sbvPlugin is distributed with the BSD3 license. See the LICENSE file in the distribution for details.
 SHELL     := /usr/bin/env bash
-DEPSRCS   = $(shell find . -name '*.hs' -or -name '*.lhs' -or -name '*.cabal' | grep -v Paths_sbvPlugin.hs | grep -v dist-sandbox)
-TESTSRCS  = $DEPSRCS
 CABAL     = cabal
-SIMPLIFY  = ./buildUtils/simplify
-EXTRAOPTS =
-
-# This is fragile
-TESTER = ./dist-newstyle/build/x86_64-osx/ghc-8.6.5/sbvPlugin-0.11/t/sbvPluginTests/build/sbvPluginTests/sbvPluginTests
 
 ifeq ($(shell uname -s),Darwin)
     TIME = /usr/bin/time caffeinate
@@ -22,38 +15,35 @@ endif
 all: install
 
 install: $(DEPSRCS) Makefile
-	@-ghc-pkg unregister --force sbvPlugin
-	@(make -s -C buildUtils)
 	@fast-tags -R --nomerge .
 	@$(CABAL) new-configure --disable-library-profiling --enable-tests
-	@(set -o pipefail; $(CABAL) new-build $(EXTRAOPTS) 2>&1 | $(SIMPLIFY))
-	@$(CABAL) new-install --lib --force-reinstalls
+	@$(CABAL) new-install --lib
 
 test: install
-	$(TIME) $(CABAL) test
+	$(TIME) $(CABAL) new-test
 	@rm -rf tests/GoldFiles/*.current
 
 vtest: install
-	$(TIME) $(TESTER)
+	$(TIME) cabal new-run sbvPluginTests
 	@rm -rf tests/GoldFiles/*.current
 
 # use this as follows: make gold TGT=T49
 gold:
-	$(TESTER) -p ${TGT} --accept
+	cabal new-run sbvPluginTests -- -p ${TGT} --accept
+
+# recreate all golds
+allgold:
+	cabal new-run sbvPluginTests -- --accept
 
 sdist: install
-	@(set -o pipefail; $(CABAL) new-sdist | $(SIMPLIFY))
+	$(CABAL) new-sdist
 
 veryclean: clean
-	@-ghc-pkg unregister sbvPlugin
 
 clean:
 	@rm -rf dist dist-newstyle
 
-docs:
-#	@(set -o pipefail; $(CABAL) new-haddock --haddock-option=--no-warnings --haddock-option=--hyperlinked-source 2>&1 | $(SIMPLIFY))
-
-release: clean checkLinks install sdist hlint docs vtest
+release: clean install sdist hlint docs vtest checkLinks
 	@echo "*** SBVPlugin is ready for release!"
 
 hlint: 
