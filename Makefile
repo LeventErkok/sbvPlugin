@@ -3,6 +3,7 @@
 # sbvPlugin is distributed with the BSD3 license. See the LICENSE file in the distribution for details.
 SHELL     := /usr/bin/env bash
 CABAL     = cabal
+CONFIGOPTS = "-Wall -fhide-source-paths"
 
 ifeq ($(shell uname -s),Darwin)
     TIME = /usr/bin/time caffeinate
@@ -16,7 +17,7 @@ all: install
 
 install: $(DEPSRCS) Makefile
 	@fast-tags -R --nomerge .
-	@$(CABAL) new-configure --disable-library-profiling --enable-tests
+	@$(CABAL) new-configure --disable-library-profiling --enable-tests --ghc-options=$(CONFIGOPTS)
 	@$(CABAL) new-install --lib
 
 test: install
