@@ -11,7 +11,7 @@ else
     TIME = /usr/bin/time
 endif
 
-.PHONY: all install test vtest sdist clean docs gold hlint tags
+.PHONY: all install test vtest sdist clean docs gold hlint tags ci
 
 all: install
 
@@ -54,6 +54,9 @@ hlint:
 
 checkLinks:
 	@brok --no-cache --only-failures $(DEPSRCS) COPYRIGHT INSTALL LICENSE $(wildcard *.md)
+
+ci:
+	haskell-ci sbvPlugin.cabal --no-tests --no-benchmarks --no-doctest --no-hlint --email-notifications
 
 tags:
 	@fast-tags -R --nomerge .
