@@ -1,2 +1,2 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/environments/default
 [SBV] tests/T20.hs:10:1 Skipping "f": Don't want to prove this now.

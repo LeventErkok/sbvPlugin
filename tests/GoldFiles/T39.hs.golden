@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/environments/default
 
 [SBV] tests/T39.hs:9:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:

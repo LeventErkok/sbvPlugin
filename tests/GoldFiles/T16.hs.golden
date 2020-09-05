@@ -1,8 +1,8 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/environments/default
 
 [SBV] tests/T16.hs:11:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   age = Age!val!0 :: Age
 [SBV] Counter-example might be bogus due to uninterpreted constant:
-  [<no location info>] ds_davu :: Int
+  [<no location info>] ds_daKn :: Int
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

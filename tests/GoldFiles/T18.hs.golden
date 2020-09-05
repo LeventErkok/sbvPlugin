@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/environments/default
 
 [SBV] tests/T18.hs:11:1 Proving "f", using Z3.
 ** Calling: z3 -nw -in -smt2
@@ -10,7 +10,7 @@ Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.1/env
 [GOOD] (set-option :produce-models true)
 [GOOD] (set-logic ALL) ; has user-defined sorts, using catch-all.
 [GOOD] ; --- uninterpreted sorts ---
-[GOOD] (declare-sort Age 0)  ; N.B. Uninterpreted: originating from sbvPlugin: tests/T18.hs:11:3
+[GOOD] (declare-sort Age 0)  ; N.B. Uninterpreted sort.
 [GOOD] ; --- tuples ---
 [GOOD] ; --- sums ---
 [GOOD] ; --- literal constants ---

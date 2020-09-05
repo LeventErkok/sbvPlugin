@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/environments/default
 
 [SBV] tests/T49.hs:36:1-14 Proving "fastMinCorrect", using Z3.
 [Z3] Q.E.D.
