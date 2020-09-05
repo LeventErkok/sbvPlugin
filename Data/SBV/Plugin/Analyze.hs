@@ -453,7 +453,7 @@ mkSym Config{cfgEnv} mbBind mbBType = sym
                    Nothing -> "Kind: " ++ sh k
                    Just t  -> "Type: " ++ sh t
 
-       sym (KBase k) nm  = do v <- lift $ S.symbolicEnv >>= liftIO . S.svMkSymVar Nothing k nm
+       sym (KBase k) nm  = do v <- lift $ S.symbolicEnv >>= liftIO . S.svMkSymVar (S.NonQueryVar Nothing) k nm
                               return (Base v)
 
        sym (KTup ks) nm = do let ns = map (\i -> (++ ("_" ++ show i)) `fmap` nm) [1 .. length ks]
@@ -565,7 +565,7 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
                     resK  <- getComposite res
                     return $ wrap tvs $ foldr KFun resK argKs
  where wrap ts f         = foldr (KFun . mkUninterpreted) f ts
-       mkUninterpreted v = KBase (S.KUninterpreted (show (occNameFS (occName (varName v)))) (Left "sbvPlugin"))
+       mkUninterpreted v = KBase $ S.KUserSort (show (occNameFS (occName (varName v)))) Nothing
 
        -- | Extract tuples, lists, or base kinds
        getComposite :: Type -> Eval SKind
@@ -596,7 +596,7 @@ getType sp typ = do let (tvs, typ') = splitForAllTys typ
                             case [k | (bt', k) <- uiTypes, bt `eqType` bt'] of
                               k:_ -> return k
                               []  -> do nm <- mkValidName $ showSDoc flags (ppr bt)
-                                        let k = S.KUninterpreted nm $ Left $ "originating from sbvPlugin: " ++ showSDoc flags (ppr sp)
+                                        let k = S.KUserSort nm Nothing
                                         liftIO $ modifyIORef rUITypes ((bt, k) :)
                                         return k
 
