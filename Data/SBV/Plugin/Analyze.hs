@@ -12,6 +12,8 @@
 {-# LANGUAGE CPP            #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
+{-# OPTIONS_GHC -Wall -Werror #-}
+
 module Data.SBV.Plugin.Analyze (analyzeBind) where
 
 import GhcPlugins
@@ -105,6 +107,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                 S.Unknown{}       -> False   -- conservative
                                 S.ProofError{}    -> False   -- conservative
                                 S.SatExtField{}   -> False   -- conservative
+                                S.DeltaSat{}      -> False   -- conservative
                 putStr $ "[" ++ show solver ++ "] "
                 print sres
 

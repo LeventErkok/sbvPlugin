@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall -Werror #-}
+
 module Main(main) where
 
 import Control.Monad (void)

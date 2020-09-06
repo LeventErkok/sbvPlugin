@@ -59,6 +59,9 @@
 -- Please report if you find any crucial differences when the plugin is run first or last, especially
 -- if the outputs are different.
 ---------------------------------------------------------------------------------
+
+{-# OPTIONS_GHC -Wall -Werror #-}
+
 module Data.SBV.Plugin(
        -- * Entry point
          plugin

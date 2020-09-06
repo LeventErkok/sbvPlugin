@@ -12,7 +12,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes        #-}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -Wall -Werror -fno-warn-orphans #-}
 
 module Data.SBV.Plugin.Common where
 

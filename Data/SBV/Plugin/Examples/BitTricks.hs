@@ -12,6 +12,8 @@
 
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
 
+{-# OPTIONS_GHC -Wall -Werror #-}
+
 module Data.SBV.Plugin.Examples.BitTricks where
 
 import Data.SBV.Plugin

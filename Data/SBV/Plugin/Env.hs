@@ -13,6 +13,8 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+{-# OPTIONS_GHC -Wall -Werror #-}
+
 module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildSpecials, uninterestingTypes) where
 
 import GhcPlugins

@@ -11,6 +11,8 @@
 
 {-# LANGUAGE DeriveDataTypeable #-}
 
+{-# OPTIONS_GHC -Wall -Werror #-}
+
 module Data.SBV.Plugin.Data where
 
 import Data.Data  (Data, Typeable)

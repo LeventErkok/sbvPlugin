@@ -8,8 +8,10 @@
 --
 -- An implementation of merge-sort and its correctness.
 -----------------------------------------------------------------------------
---
+
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+
+{-# OPTIONS_GHC -Wall -Werror #-}
 
 module Data.SBV.Plugin.Examples.MergeSort where
 
