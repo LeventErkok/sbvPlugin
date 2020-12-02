@@ -91,7 +91,7 @@ data Config = Config { isGHCi        :: Bool
 -- | Given the user options, determine which solver(s) to use
 pickSolvers :: [SBVOption] -> IO [S.SMTConfig]
 pickSolvers slvrs
-  | AnySolver `elem` slvrs = S.sbvAvailableSolvers
+  | AnySolver `elem` slvrs = S.getAvailableSolvers
   | True                   = case mapMaybe (`lookup` solvers) slvrs of
                                 [] -> return [S.defaultSMTCfg]
                                 xs -> return xs

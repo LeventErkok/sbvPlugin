@@ -36,7 +36,7 @@ Library
                   , ghc
                   , ghc-prim
                   , containers
-                  , sbv >= 8.8
+                  , sbv >= 8.9
                   , mtl
                   , template-haskell
   Other-modules   : Data.SBV.Plugin.Analyze
