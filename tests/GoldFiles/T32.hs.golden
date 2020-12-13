@@ -5,4 +5,4 @@ Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/env
 
 [SBV] tests/T32.hs:15:1 Proving "g", using Z3.
 [Z3] Falsifiable. Counter-example:
-  x = 32 :: Word8
+  x = 64 :: Word8

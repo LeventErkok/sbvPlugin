@@ -20,11 +20,11 @@ install: $(DEPSRCS) Makefile
 	@$(CABAL) new-configure --disable-library-profiling --enable-tests --ghc-options=$(CONFIGOPTS)
 	@$(CABAL) new-install --lib
 
-test: install
+test:
 	$(TIME) $(CABAL) new-test
 	@rm -rf tests/GoldFiles/*.current
 
-vtest: install
+vtest:
 	$(TIME) cabal new-run sbvPluginTests
 	@rm -rf tests/GoldFiles/*.current
 
