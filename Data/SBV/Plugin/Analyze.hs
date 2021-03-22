@@ -16,8 +16,8 @@
 
 module Data.SBV.Plugin.Analyze (analyzeBind) where
 
-import GhcPlugins
-import TyCoRep
+import GHC.Core.TyCo.Rep as TyCoRep
+import GHC.Plugins
 
 import Control.Monad.Reader
 import System.Exit
@@ -230,23 +230,20 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
 
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
-                               LitChar{}         -> unint
-                               LitString{}       -> unint
-                               LitNullAddr{}     -> unint
-                               LitRubbish{}      -> unint
-                               LitLabel{}        -> unint
-                               LitFloat    f     -> return $ Base $ S.svFloat   (fromRational f)
-                               LitDouble   d     -> return $ Base $ S.svDouble  (fromRational d)
-                               LitNumber lt i it -> do k <- getType noSrcSpan it
-                                                       case lt of
-                                                         LitNumInteger -> case k of
-                                                                            KBase b -> return $ Base $ S.svInteger b i
-                                                                            _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
-                                                         LitNumNatural -> unint
-                                                         LitNumInt     -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
-                                                         LitNumInt64   -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
-                                                         LitNumWord    -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
-                                                         LitNumWord64  -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
+                               LitChar{}      -> unint
+                               LitString{}    -> unint
+                               LitNullAddr{}  -> unint
+                               LitRubbish{}   -> unint
+                               LitLabel{}     -> unint
+                               LitFloat    f  -> return $ Base $ S.svFloat   (fromRational f)
+                               LitDouble   d  -> return $ Base $ S.svDouble  (fromRational d)
+                               LitNumber lt i -> case lt of
+                                                   LitNumInteger -> return $ Base $ S.svInteger S.KUnbounded                    i
+                                                   LitNumInt     -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
+                                                   LitNumInt64   -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
+                                                   LitNumWord    -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
+                                                   LitNumWord64  -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
+                                                   LitNumNatural -> unint
 
                   where unint = do Env{flags} <- ask
                                    k  <- getType noSrcSpan t
@@ -432,7 +429,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                chaseVars x          = return x
                            func <- chaseVars rf
                            case func of
-                             Lam x b -> do reduced <- betaReduce $ substExpr (ppr "SBV.betaReduce") (extendSubstList emptySubst [(x, a)]) b
+                             Lam x b -> do reduced <- betaReduce $ substExpr (extendSubstList emptySubst [(x, a)]) b
                                            () <- debugTrace ("Beta reduce:\n" ++ sh (orig, reduced)) $ return ()
                                            return reduced
                              _       -> return (App rf a)
@@ -485,6 +482,10 @@ mkSym Config{cfgEnv} mbBind mbBType = sym
                                                  ]
 
 
+-- | Unscale a value. We don't really care about the scale itself, so far as SBV is concerned
+unScale :: Scaled a -> a
+unScale (Scaled _ a) = a
+
 -- | Uninterpret an expression
 uninterpret :: Bool -> Type -> Var -> Eval Val
 uninterpret isInput t var = do
@@ -495,7 +496,7 @@ uninterpret isInput t var = do
              []            -> do let (tvs,  t')  = splitForAllTys t
                                      (args, res) = splitFunTys t'
                                      sp          = getSrcSpan var
-                                 argKs <- mapM (getType sp) args
+                                 argKs <- mapM (getType sp . unScale) args
                                  resK  <- getType sp res
                                  nm    <- mkValidName $ showSDoc flags (ppr var)
                                  body  <- walk argKs (nm, resK) []
@@ -564,7 +565,7 @@ mkValidName name =
 getType :: SrcSpan -> Type -> Eval SKind
 getType sp typ = do let (tvs, typ') = splitForAllTys typ
                         (args, res) = splitFunTys typ'
-                    argKs <- mapM (getType sp) args
+                    argKs <- mapM (getType sp . unScale) args
                     resK  <- getComposite res
                     return $ wrap tvs $ foldr KFun resK argKs
  where wrap ts f         = foldr (KFun . mkUninterpreted) f ts

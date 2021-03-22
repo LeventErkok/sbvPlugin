@@ -15,11 +15,11 @@
 
 module Data.SBV.Plugin.Plugin(plugin) where
 
-import GhcPlugins
+import GHC.Plugins
 import System.Exit
 
 import Data.Maybe (fromJust)
-import Data.List  (sortOn)
+import Data.List  (sortBy)
 import Data.Bits  (bitSizeMaybe)
 
 import Data.IORef
@@ -50,7 +50,7 @@ plugin = defaultPlugin {installCoreToDos = install}
        pass guts@ModGuts{mg_binds} = do
 
           df   <- getDynFlags
-          anns <- getAnnotations deserializeWithData guts
+          anns <- snd <$> getAnnotations deserializeWithData guts
 
           let wsz = fromJust (bitSizeMaybe (0::Int))
 
@@ -66,7 +66,7 @@ plugin = defaultPlugin {installCoreToDos = install}
 
           let cfg = Config { isGHCi        = hscTarget df == HscInterpreted
                            , opts          = []
-                           , sbvAnnotation = lookupWithDefaultUFM anns [] . varUnique
+                           , sbvAnnotation = lookupWithDefaultUFM anns [] . varName
                            , cfgEnv        = Env { curLoc         = []
                                                  , flags          = df
                                                  , machWordSize   = wsz
@@ -88,6 +88,8 @@ plugin = defaultPlugin {installCoreToDos = install}
               bindLoc (Rec [])         = noSrcSpan
               bindLoc (Rec ((b, _):_)) = varSpan b
 
-          mapM_ (analyzeBind cfg) $ sortOn bindLoc mg_binds
+              cmp a b = bindLoc a `leftmost_smallest` bindLoc b
+
+          mapM_ (analyzeBind cfg) $ sortBy cmp mg_binds
 
           return guts

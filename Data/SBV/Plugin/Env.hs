@@ -17,12 +17,12 @@
 
 module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildSpecials, uninterestingTypes) where
 
-import GhcPlugins
+import GHC.Plugins
 import GHC.Prim
 import GHC.Types  hiding (Type, TyCon)
 
-import Finder
-import IfaceEnv
+import GHC.Driver.Finder
+import GHC.Iface.Env
 
 import qualified Data.Map            as M
 import qualified Language.Haskell.TH as TH

@@ -18,10 +18,10 @@ module Data.SBV.Plugin.Common where
 
 import Control.Monad.Reader
 
-import CostCentre
-import GhcPlugins
+import GHC.Plugins
 
-import Unique (nonDetCmpUnique)
+import GHC.Types.CostCentre
+import GHC.Types.Unique (nonDetCmpUnique)
 
 import Data.Maybe (mapMaybe)
 import qualified Data.Map as M
@@ -167,7 +167,7 @@ iteVal die t v1 v2 = k v1 v2
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: Tickish t -> SrcSpan
 tickSpan (ProfNote cc _ _) = cc_loc cc
-tickSpan (SourceNote s _)  = RealSrcSpan s
+tickSpan (SourceNote s _)  = RealSrcSpan s Nothing
 tickSpan _                 = noSrcSpan
 
 -- | Compute the span for a binding.
