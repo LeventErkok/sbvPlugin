@@ -36,6 +36,9 @@ gold:
 allgold:
 	cabal new-run sbvPluginTests -- --accept
 
+ghcid:
+	ghcid --command="cabal new-repl --repl-options=-Wno-unused-packages"
+
 sdist: install
 	$(CABAL) new-sdist
 
