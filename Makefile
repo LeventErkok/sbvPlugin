@@ -28,6 +28,9 @@ vtest:
 	$(TIME) cabal new-run sbvPluginTests
 	@rm -rf tests/GoldFiles/*.current
 
+docs:
+	cabal new-haddock --haddock-option=--hyperlinked-source --haddock-option=--no-warnings
+
 # use this as follows: make gold TGT=T49
 gold:
 	cabal new-run sbvPluginTests -- -p ${TGT} --accept
