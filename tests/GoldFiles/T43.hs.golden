@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.0.1/environments/default
 
 [SBV] tests/T43.hs:13:1 Proving "t", using Z3.
 [Z3] Q.E.D.
@@ -6,9 +6,9 @@ Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-8.10.2/env
 [SBV] tests/T43.hs:19:1 Proving "r", using Z3.
 
 [SBV] tests/T43.hs:19:1 Skipping proof. Unsupported case-expression (with-complicated-alternatives-during-merging):
-                           case == @ Int $fEqInt x (I# 0#) of {
-  False -> : @ Int x (: @ Int x (: @ Int x (: @ Int x ([] @ Int))));
-  True -> : @ Int x (: @ Int x (: @ Int x ([] @ Int)))
+                           case == @Int $fEqInt x (I# 0#) of {
+  False -> : @Int x (: @Int x (: @Int x (: @Int x ([] @Int))));
+  True -> : @Int x (: @Int x (: @Int x ([] @Int)))
 }
                            While Analyzing:
                            Alternatives are producing lists of differing sizes:
