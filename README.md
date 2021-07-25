@@ -2,7 +2,7 @@
 
 On Hackage: http://hackage.haskell.org/package/sbvPlugin
 
-[![Build Status](http://img.shields.io/travis/LeventErkok/sbvPlugin.svg?label=Build)](http://travis-ci.org/LeventErkok/sbvPlugin)
+[![Build Status](http://img.shields.io/travis/LeventErkok/sbvPlugin.svg?label=Build)](http://travis-ci.com/LeventErkok/sbvPlugin)
 
 ### Example
 
