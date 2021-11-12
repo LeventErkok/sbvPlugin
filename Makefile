@@ -48,7 +48,7 @@ sdist: install
 veryclean: clean
 
 clean:
-	@rm -rf dist dist-newstyle
+	@rm -rf dist dist-newstyle cabal.project.local*
 
 release: clean install sdist hlint docs vtest checkLinks
 	@echo "*** SBVPlugin is ready for release!"
