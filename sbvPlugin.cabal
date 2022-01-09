@@ -29,9 +29,10 @@ Library
   ghc-options     : -Wall -fplugin-opt Data.SBV.Plugin:skip
   Exposed-modules : Data.SBV.Plugin
                   , Data.SBV.Plugin.Data
+                  , Data.SBV.Plugin.Examples.BitTricks
+                  , Data.SBV.Plugin.Examples.Maximum.hs
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
-                  , Data.SBV.Plugin.Examples.BitTricks
   build-depends   : base >= 4.11 && < 5
                   , ghc
                   , ghc-prim
