@@ -1,8 +1,8 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.0.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
 
 [SBV] tests/T47.hs:87:1-8 Proving "checkBad", using Z3.
 [Z3] Falsifiable. Counter-example:
-  range     =   200 :: Int64
+  range     =     0 :: Int64
   manual    = False :: Bool
   timeSince =     9 :: Int64
 

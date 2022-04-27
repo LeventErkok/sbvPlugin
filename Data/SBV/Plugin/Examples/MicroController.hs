@@ -74,12 +74,12 @@ computeLastBad range manual timeSince
 -- @
 --   [SBV] MicroController.hs:85:1-8 Proving "checkBad", using Z3.
 --   [Z3] Falsifiable. Counter-example:
---     range     =   200 :: Int64
+--     range     =     0 :: Int64
 --     manual    = False :: Bool
 --     timeSince =     9 :: Int64
 -- @
 --
--- We're being told that if the range is 200, and manual override is off, and time-since last is 9,
+-- We're being told that if the range is 0, and manual override is off, and time-since last is 9,
 -- then our "calculator" returns 10. But that violates the @minRate@ requirement, since we
 -- never want to go 'maxTimeSince' cycles without sending a signal!
 {-# ANN checkBad theorem {options = [IgnoreFailure]} #-}
