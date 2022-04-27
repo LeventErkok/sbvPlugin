@@ -240,8 +240,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                LitNumber lt i -> case lt of
                                                    LitNumInteger -> return $ Base $ S.svInteger S.KUnbounded                    i
                                                    LitNumInt     -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
+                                                   LitNumInt8    -> return $ Base $ S.svInteger (S.KBounded True  8           ) i
+                                                   LitNumInt16   -> return $ Base $ S.svInteger (S.KBounded True  16          ) i
+                                                   LitNumInt32   -> return $ Base $ S.svInteger (S.KBounded True  32          ) i
                                                    LitNumInt64   -> return $ Base $ S.svInteger (S.KBounded True  64          ) i
                                                    LitNumWord    -> return $ Base $ S.svInteger (S.KBounded False machWordSize) i
+                                                   LitNumWord8   -> return $ Base $ S.svInteger (S.KBounded False 8           ) i
+                                                   LitNumWord16  -> return $ Base $ S.svInteger (S.KBounded False 16          ) i
+                                                   LitNumWord32  -> return $ Base $ S.svInteger (S.KBounded False 32          ) i
                                                    LitNumWord64  -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
                                                    LitNumNatural -> unint
 
@@ -354,12 +360,14 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
            = do sce <- go ce
                 let caseTooComplicated w [] = tbd ("Unsupported case-expression (" ++ w ++ ")") [sh e]
                     caseTooComplicated w xs = tbd ("Unsupported case-expression (" ++ w ++ ")") $ [sh e, "While Analyzing:"] ++ xs
-                    isDefault (DEFAULT, _, _) = True
-                    isDefault _               = False
+
+                    isDefault (Alt DEFAULT _ _) = True
+                    isDefault _                 = False
+
                     (defs, nonDefs)           = partition isDefault alts
 
                     walk []                    = caseTooComplicated "with-non-exhaustive-match" []  -- can't really happen
-                    walk ((p, bs, rhs) : rest) =
+                    walk (Alt p bs rhs : rest) =
                          do -- try to get a "good" location for this alternative, if possible:
                             let eLoc = case (rhs, bs) of
                                         (Tick t _, _  ) -> tickSpan t
@@ -493,7 +501,7 @@ uninterpret isInput t var = do
           prevUninterpreted <- liftIO $ readIORef rUninterpreted
           case [r | ((v, t'), r) <- prevUninterpreted, var == v && t `eqType` t'] of
              (_, _, val):_ -> return val
-             []            -> do let (tvs,  t')  = splitForAllTys t
+             []            -> do let (tvs,  t')  = splitForAllTyCoVars t
                                      (args, res) = splitFunTys t'
                                      sp          = getSrcSpan var
                                  argKs <- mapM (getType sp . unScale) args
@@ -533,8 +541,9 @@ uninterpret isInput t var = do
                                         xs  -> return $ Tup xs
 
         walk (_:ks) nmk     args = return $ Func Nothing $ \a -> walk ks nmk (a:args)
+
         wrap []     f = f
-        wrap (_:ts) f = Func Nothing $ \(Typ _) -> return (wrap ts f)
+        wrap (_:ts) f = Func Nothing $ \_ -> return (wrap ts f)
 
 -- not every name is good, sigh
 mkValidName :: String -> Eval String
@@ -563,7 +572,7 @@ mkValidName name =
 
 -- | Convert a Core type to an SBV Type, retaining functions and tuples
 getType :: SrcSpan -> Type -> Eval SKind
-getType sp typ = do let (tvs, typ') = splitForAllTys typ
+getType sp typ = do let (tvs, typ') = splitForAllTyCoVars typ
                         (args, res) = splitFunTys typ'
                     argKs <- mapM (getType sp . unScale) args
                     resK  <- getComposite res

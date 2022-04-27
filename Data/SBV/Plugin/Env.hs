@@ -20,8 +20,9 @@ module Data.SBV.Plugin.Env (buildTCEnv, buildFunEnv, buildDests, buildSpecials, 
 import GHC.Plugins
 import GHC.Prim
 import GHC.Types  hiding (Type, TyCon)
+import GHC.Types.TyThing
 
-import GHC.Driver.Finder
+import GHC.Unit.Finder
 import GHC.Iface.Env
 
 import qualified Data.Map            as M

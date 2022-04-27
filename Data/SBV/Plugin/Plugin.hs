@@ -64,7 +64,7 @@ plugin = defaultPlugin {installCoreToDos = install}
           rUsedNames     <- liftIO $ newIORef []
           rUITypes       <- liftIO $ newIORef []
 
-          let cfg = Config { isGHCi        = hscTarget df == HscInterpreted
+          let cfg = Config { isGHCi        = ghcMode df == CompManager
                            , opts          = []
                            , sbvAnnotation = lookupWithDefaultUFM anns [] . varName
                            , cfgEnv        = Env { curLoc         = []
