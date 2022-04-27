@@ -1,15 +1,17 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.0.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
 
 [SBV] tests/T46.hs:22:1-10 Proving "filtLenBad", using Z3.
 [Z3] Falsifiable. Counter-example:
-  xs_1 = -9223372036854775808 :: Int64
-  xs_2 =                    0 :: Int64
-  xs_3 =                    0 :: Int64
-  xs_4 =                    0 :: Int64
-  xs_5 =                    0 :: Int64
+  xs_1 = -2306124484190404637 :: Int64
+  xs_2 = -2306124484190404613 :: Int64
+  xs_3 = -2306124484190404609 :: Int64
+  xs_4 = -2306124484190404616 :: Int64
+  xs_5 =  2306124484190404608 :: Int64
 
   f :: Int64 -> Bool
-  f (-9223372036854775808) = True 
+  f 2306124484190404608    = True 
+  f (-2306124484190404609) = True 
+  f (-2306124484190404616) = True 
   f _                      = False
 
 [SBV] tests/T46.hs:26:1-11 Proving "filtLenGood", using Z3.
