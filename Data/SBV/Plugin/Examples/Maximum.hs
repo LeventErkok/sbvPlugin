@@ -11,6 +11,10 @@
 -----------------------------------------------------------------------------
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
 
+{-# OPTIONS_GHC -Wall -Werror #-}
+
+module Data.SBV.Plugin.Examples.Maximum where
+
 import Data.SBV.Plugin
 
 myMax :: Int -> Int -> Int -> Int
