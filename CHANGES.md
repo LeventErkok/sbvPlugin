@@ -3,6 +3,10 @@
 
 * Latest Hackage released version: 9.0.1, 2021-03-22
 
+### Version 9.2.2, Not yet released
+  * Changes required to compile with GHC 9.2.2
+  * Bump up sbv dependence to >= 9.0
+
 ### Version 9.0.1, 2021-03-22
   * Changes required to compile with GHC 9.0.1
   * SBVPlugin version now matches the version of GHC we compiled it with.
