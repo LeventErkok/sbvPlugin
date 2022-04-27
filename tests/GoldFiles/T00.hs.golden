@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.0.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
 
 [SBV] tests/T00.hs:12:1 Proving "f", using Z3.
 [Z3] Q.E.D.

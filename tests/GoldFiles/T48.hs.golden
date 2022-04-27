@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.0.1/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
 
 [SBV] tests/T48.hs:102:1-16 Proving "mergeSortCorrect", using Z3.
 [Z3] Q.E.D.
