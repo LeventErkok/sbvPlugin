@@ -28,8 +28,12 @@ vtest:
 	$(TIME) cabal new-run sbvPluginTests
 	@rm -rf tests/GoldFiles/*.current
 
+# To upload docs to hackage, first run the below target (part of release), then run the next target..
 docs:
-	cabal new-haddock --haddock-option=--hyperlinked-source --haddock-option=--no-warnings --haddock-option="--optghc=-DHADDOCK"
+	cabal new-haddock --haddock-for-hackage --enable-doc --haddock-option="--optghc=-DHADDOCK"
+
+upload-docs-to-hackage:
+	cabal upload -d --publish ./dist-newstyle/sbvPlugin-9.2.2-docs.tar.gz
 
 # use this as follows: make gold TGT=T49
 gold:
