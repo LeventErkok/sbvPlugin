@@ -29,7 +29,7 @@ vtest:
 	@rm -rf tests/GoldFiles/*.current
 
 docs:
-	cabal new-haddock --haddock-option=--hyperlinked-source --haddock-option=--no-warnings
+	cabal new-haddock --haddock-option=--hyperlinked-source --haddock-option=--no-warnings --haddock-option="--optghc=-DHADDOCK"
 
 # use this as follows: make gold TGT=T49
 gold:

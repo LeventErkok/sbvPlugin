@@ -11,7 +11,11 @@
 --
 -----------------------------------------------------------------------------
 
+{-# LANGUAGE CPP #-}
+
+#ifndef HADDOCK
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+#endif
 
 {-# OPTIONS_GHC -Wall -Werror #-}
 

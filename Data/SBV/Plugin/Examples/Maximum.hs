@@ -9,7 +9,12 @@
 -- Shows that a naive definition of maximum doing bit-vector arithmetic
 -- is incorrect.
 -----------------------------------------------------------------------------
+
+{-# LANGUAGE CPP #-}
+
+#ifndef HADDOCK
 {-# OPTIONS_GHC -fplugin=Data.SBV.Plugin #-}
+#endif
 
 {-# OPTIONS_GHC -Wall -Werror #-}
 
@@ -17,6 +22,9 @@ module Data.SBV.Plugin.Examples.Maximum where
 
 import Data.SBV.Plugin
 
+-- | Compute the maximum of three integers, which
+-- is intuitively correct for unbounded values, but
+-- not for bounded bit-vectors.
 myMax :: Int -> Int -> Int -> Int
 myMax x y z | x-y >= 0 && x-z >= 0 = x
             | y-x >= 0 && y-z >= 0 = y
