@@ -9,9 +9,9 @@
 -- The environment for mapping concrete functions/types to symbolic ones.
 -----------------------------------------------------------------------------
 
-{-# LANGUAGE MagicHash       #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MagicHash             #-}
+{-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 
 {-# OPTIONS_GHC -Wall -Werror #-}
 
