@@ -103,3 +103,6 @@ zeroInWord v = hasZero == fastHasZero
          hasZero  = b3 || b2 || b1 || b0
 
          fastHasZero = ((v - 0x01010101) .&. complement v .&. 0x80808080) /= 0
+
+{-# ANN module ("HLint: ignore Use min" :: String) #-}
+{-# ANN module ("HLint: ignore Use max" :: String) #-}
