@@ -39,6 +39,8 @@ import qualified Control.Exception as C
 import Data.SBV.Plugin.Common
 import Data.SBV.Plugin.Data
 
+import Debug.Trace
+
 -- | Dispatch the analyzer over bindings
 analyzeBind :: Config -> CoreBind -> CoreM ()
 analyzeBind cfg@Config{sbvAnnotation, cfgEnv} = go
@@ -138,11 +140,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                              let marker = "[SBV] " ++ showSpan flags (pickSpan curLoc)
                                  tag s = marker ++ " " ++ s
                                  tab s = replicate (length marker) ' ' ++  "    " ++ s
-                                 msg   = concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
+                                 note  = concatMap ("\n" ++) $ tag ("Skipping proof. " ++ w ++ ":") : map tab es
 #if MIN_VERSION_base(4,9,0)
-                             errorWithoutStackTrace msg
+                             errorWithoutStackTrace note
 #else
-                             error msg
+                             error note
 #endif
 
         res initEnv topLoc = do
