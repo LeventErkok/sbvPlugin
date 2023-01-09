@@ -19,6 +19,7 @@ module Data.SBV.Plugin.Common where
 import Control.Monad.Reader
 
 import GHC.Plugins
+import qualified GHC.Data.Strict as GDS (Maybe(Nothing))
 
 import GHC.Types.Tickish
 import GHC.Types.CostCentre
@@ -168,7 +169,7 @@ iteVal die t v1 v2 = k v1 v2
 -- | Compute the span given a Tick. Returns the old-span if the tick span useless.
 tickSpan :: GenTickish t -> SrcSpan
 tickSpan (ProfNote cc _ _) = cc_loc cc
-tickSpan (SourceNote s _)  = RealSrcSpan s Nothing
+tickSpan (SourceNote s _)  = RealSrcSpan s GDS.Nothing
 tickSpan _                 = noSrcSpan
 
 -- | Compute the span for a binding.
