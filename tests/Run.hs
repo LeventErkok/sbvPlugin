@@ -31,6 +31,7 @@ runTest :: String -> TestTree
 runTest f = goldenVsFile f gld out act
   where (inp, hi, o, gld, out) = fileNames f
         act = do void $ system $ unwords ["ghc", "-c", inp, ">", out, "2>&1"]
+                 void $ system $ unwords ["sed", "-i", "''", "'s/^Loaded package environment from.*/Loaded package environment from test-modified path/g'", out]
                  void $ system $ unwords ["/bin/rm", "-f", hi, o]
 
 fileNames :: FilePath -> (FilePath, FilePath, FilePath, FilePath, FilePath)

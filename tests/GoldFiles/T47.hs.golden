@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.4.4/environments/default
+Loaded package environment from test-modified path
 
 [SBV] tests/T47.hs:91:1-8 Proving "checkBad", using Z3.
 [Z3] Falsifiable. Counter-example:
