@@ -1,7 +1,7 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
+Loaded package environment from test-modified path
 
 [SBV] tests/T12.hs:9:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
-  i =     0 :: Integer
+  i =     2 :: Integer
   b = False :: Bool
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
