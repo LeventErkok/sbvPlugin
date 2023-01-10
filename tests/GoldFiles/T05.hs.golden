@@ -1,4 +1,4 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.4.4/environments/default
+Loaded package environment from test-modified path
 
 [SBV] tests/T05.hs:9:1 Proving "f", using CVC4.
 [CVC4] Falsifiable. Counter-example:
