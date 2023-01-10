@@ -363,8 +363,8 @@ grabTH f n = do mbN <- thNameToGhcName n
                   Nothing -> f =<< lookInModule (TH.nameModule n) (TH.nameBase n)
   where lookInModule Nothing         _  = error $ "[SBV] Impossible happened, while trying to locate GHC name for: " ++ show n
         lookInModule (Just inModule) bn = do
-           env <- getHscEnv
-           liftIO $ do r <- findImportedModule env (mkModuleName inModule) Nothing
+           env@HscEnv{hsc_NC} <- getHscEnv
+           liftIO $ do r <- findImportedModule env (mkModuleName inModule) NoPkgQual
                        case r of
-                         Found _ mdl -> lookupOrigIO env mdl (mkVarOcc bn)
+                         Found _ mdl -> lookupNameCache hsc_NC mdl (mkVarOcc bn)
                          _           -> error $ "[SBV] Impossible happened, can't find " ++ show bn ++ " in module " ++ show inModule

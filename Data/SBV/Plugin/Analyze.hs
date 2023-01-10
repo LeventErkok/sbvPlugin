@@ -230,6 +230,12 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                            Nothing      -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
                                                                       $ uninterpret False t v
 
+        -- Integers are funky
+        tgo _ (App (Var dataCon) (Lit (LitNumber LitNumInt i)))
+           | idName dataCon == integerISDataConName
+           = return $ Base $ S.svInteger S.KUnbounded i
+
+        -- Other literals
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
                              case l of
                                LitChar{}      -> unint
@@ -240,7 +246,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                LitFloat    f  -> return $ Base $ S.svFloat   (fromRational f)
                                LitDouble   d  -> return $ Base $ S.svDouble  (fromRational d)
                                LitNumber lt i -> case lt of
-                                                   LitNumInteger -> return $ Base $ S.svInteger S.KUnbounded                    i
+                                                   LitNumBigNat  -> unint
                                                    LitNumInt     -> return $ Base $ S.svInteger (S.KBounded True  machWordSize) i
                                                    LitNumInt8    -> return $ Base $ S.svInteger (S.KBounded True  8           ) i
                                                    LitNumInt16   -> return $ Base $ S.svInteger (S.KBounded True  16          ) i
@@ -251,7 +257,6 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                                    LitNumWord16  -> return $ Base $ S.svInteger (S.KBounded False 16          ) i
                                                    LitNumWord32  -> return $ Base $ S.svInteger (S.KBounded False 32          ) i
                                                    LitNumWord64  -> return $ Base $ S.svInteger (S.KBounded False 64          ) i
-                                                   LitNumNatural -> unint
 
                   where unint = do Env{flags} <- ask
                                    k  <- getType noSrcSpan t
