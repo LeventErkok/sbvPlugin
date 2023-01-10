@@ -1,8 +1,8 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
+Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.4.4/environments/default
 
 [SBV] tests/T01.hs:14:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
-  x = 4.7435827807923985e8 :: Double
-  y =   -935540.0441384315 :: Double
-  z =   -5623.892542272864 :: Double
+  x = 1.892883191713573e-270 :: Double
+  y = 8.702540961683491e-277 :: Double
+  z = 3.786134356926097e-270 :: Double
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
