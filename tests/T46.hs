@@ -4,17 +4,17 @@ module T46 where
 
 import Data.SBV.Plugin
 
-type Valid a = (a, Bool)
+type Valid = (Int, Bool)
 
-markValid :: (a -> Bool) ->[a] -> [Valid a]
+markValid :: (Int -> Bool) -> [Int] -> [Valid]
 markValid f xs = [(x, f x) | x <- xs]
 
-foldValid :: (a -> b -> b) -> b -> [Valid a] -> b
+foldValid :: (Int -> Int -> Int) -> Int -> [Valid] -> Int
 foldValid _ b []                = b
-foldValid f b ((_, False):rest) =      foldValid f b rest
+foldValid f b ((_, False):rest) =     foldValid f b rest
 foldValid f b ((x, True) :rest) = f x (foldValid f b rest)
 
-len :: [Valid a] -> Int
+len :: [Valid] -> Int
 len = foldValid (\_ n -> n+1) 0
 
 {-# ANN filtLenBad theorem {options = [ListSize 5, IgnoreFailure]} #-}
