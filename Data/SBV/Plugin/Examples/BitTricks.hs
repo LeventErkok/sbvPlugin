@@ -28,7 +28,9 @@ import Data.Word
 import Prelude hiding(elem)
 
 -- | SBVPlugin can only see definitions in the current module. So we define `elem` ourselves.
-elem :: Eq a => a -> [a] -> Bool
+-- Also, it has to be monomoprhized, as the plugin isn't smart enough to deal with polymorphic
+-- functions out-of-the-box.
+elem :: Word32 -> [Word32] -> Bool
 elem _ []     = False
 elem k (x:xs) = k == x || elem k xs
 

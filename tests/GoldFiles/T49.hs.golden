@@ -1,25 +1,25 @@
-Loaded package environment from /Users/leventerkok/.ghc/x86_64-darwin-9.2.2/environments/default
+Loaded package environment from test-modified path
 
-[SBV] tests/T49.hs:42:1-14 Proving "fastMinCorrect", using Z3.
+[SBV] tests/T49.hs:44:1-14 Proving "fastMinCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:48:1-14 Proving "fastMaxCorrect", using Z3.
+[SBV] tests/T49.hs:50:1-14 Proving "fastMaxCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:54:1-20 Proving "oppositeSignsCorrect", using Z3.
+[SBV] tests/T49.hs:56:1-20 Proving "oppositeSignsCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:60:1-26 Proving "conditionalSetClearCorrect", using Z3.
+[SBV] tests/T49.hs:62:1-26 Proving "conditionalSetClearCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:67:1-17 Proving "powerOfTwoCorrect", using Z3.
+[SBV] tests/T49.hs:69:1-17 Proving "powerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:72:1-18 Proving "maskedMergeCorrect", using Z3.
+[SBV] tests/T49.hs:74:1-18 Proving "maskedMergeCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:78:1-22 Proving "roundPowerOfTwoCorrect", using Z3.
+[SBV] tests/T49.hs:80:1-22 Proving "roundPowerOfTwoCorrect", using Z3.
 [Z3] Q.E.D.
 
-[SBV] tests/T49.hs:98:1-10 Proving "zeroInWord", using Z3.
+[SBV] tests/T49.hs:100:1-10 Proving "zeroInWord", using Z3.
 [Z3] Q.E.D.
