@@ -32,7 +32,7 @@ own, and then merge.
 -}
 
 -- | Merging two given sorted lists, preserving the order.
-merge :: Ord a => [a] -> [a] -> [a]
+merge :: [Int] -> [Int] -> [Int]
 merge []     ys           = ys
 merge xs     []           = xs
 merge xs@(x:xr) ys@(y:yr)
@@ -40,12 +40,12 @@ merge xs@(x:xr) ys@(y:yr)
   | True                  = y : merge xs yr
 
 -- | Simple merge-sort implementation.
-mergeSort :: Ord a => [a] -> [a]
+mergeSort :: [Int] -> [Int]
 mergeSort []  = []
 mergeSort [x] = [x]
 mergeSort xs  = merge (mergeSort th) (mergeSort bh)
    where (th, bh) = halve xs ([], [])
-         halve :: [a] -> ([a], [a]) -> ([a], [a])
+         halve :: [Int] -> ([Int], [Int]) -> ([Int], [Int])
          halve []     sofar    = sofar
          halve (a:as) (fs, ss) = halve as (ss, a:fs)
 
@@ -62,7 +62,7 @@ There are two main parts to proving that a sorting algorithm is correct:
 -}
 
 -- | Check whether a given sequence is non-decreasing.
-nonDecreasing :: Ord a => [a] -> Bool
+nonDecreasing :: [Int] -> Bool
 nonDecreasing []       = True
 nonDecreasing [_]      = True
 nonDecreasing (a:b:xs) = a <= b && nonDecreasing (b:xs)
@@ -70,9 +70,9 @@ nonDecreasing (a:b:xs) = a <= b && nonDecreasing (b:xs)
 -- | Check whether two given sequences are permutations. We simply check that each sequence
 -- is a subset of the other, when considered as a set. The check is slightly complicated
 -- for the need to account for possibly duplicated elements.
-isPermutationOf :: Eq a => [a] -> [a] -> Bool
+isPermutationOf :: [Int] -> [Int] -> Bool
 isPermutationOf as bs = go as [(b, True) | b <- bs] && go bs [(a, True) | a <- as]
-  where go :: Eq a => [a] -> [(a, Bool)] -> Bool
+  where go :: [Int] -> [(Int, Bool)] -> Bool
         go []     _  = True
         go (x:xs) ys = found && go xs ys'
            where (found, ys') = mark x ys
@@ -80,7 +80,7 @@ isPermutationOf as bs = go as [(b, True) | b <- bs] && go bs [(a, True) | a <- a
         -- Go and mark off an instance of 'x' in the list, if possible. We keep track
         -- of unmarked elements by associating a boolean bit. Note that we have to
         -- keep the lists equal size for the recursive result to merge properly.
-        mark :: Eq a => a -> [(a, Bool)] -> (Bool, [(a, Bool)])
+        mark :: Int -> [(Int, Bool)] -> (Bool, [(Int, Bool)])
         mark _ []            = (False, [])
         mark x ((y, v) : ys)
           | v && x == y      = (True, (y, not v) : ys)
