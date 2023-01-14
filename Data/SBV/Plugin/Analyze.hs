@@ -230,12 +230,11 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                            Nothing      -> debugTrace ("Uninterpreting: " ++ sh (v, k, nub $ sort $ map (fst . fst) (M.toList envMap)))
                                                                       $ uninterpret False t v
 
-        -- This is really crummy. But I don't have enough knowledge of the internals to make this more robust. Oh well.
         tgo _ (App (Var dataCon) (Lit (LitNumber LitNumInt i)))
-           | all (== "IS") [is1, is2]
-           = return $ Base $ S.svInteger S.KUnbounded i
-           where is1 = showSDocUnsafe (ppr (varName dataCon))
-                 is2 = showSDocUnsafe (ppr integerISDataConName)
+           | Just con <- isDataConWorkId_maybe dataCon, con `elem` [integerISDataCon, integerIPDataCon, integerINDataCon]
+           = return $ Base $ S.svInteger S.KUnbounded (v con)
+           where v con | con == integerINDataCon = -i
+                       | True                    = i
 
         -- Other literals
         tgo t e@(Lit l) = do Env{machWordSize} <- ask
