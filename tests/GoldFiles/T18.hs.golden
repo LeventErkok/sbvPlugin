@@ -11,6 +11,7 @@ Loaded package environment from test-modified path
 [GOOD] (set-logic ALL) ; has user-defined sorts, using catch-all.
 [GOOD] ; --- uninterpreted sorts ---
 [GOOD] (declare-sort Age 0)  ; N.B. Uninterpreted sort.
+[GOOD] (declare-fun Age_witness () Age)
 [GOOD] ; --- tuples ---
 [GOOD] ; --- sums ---
 [GOOD] ; --- literal constants ---
