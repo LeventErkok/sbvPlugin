@@ -15,7 +15,7 @@ Loaded package environment from test-modified path
 [GOOD] ; --- tuples ---
 [GOOD] ; --- sums ---
 [GOOD] ; --- literal constants ---
-[GOOD] ; --- skolem constants ---
+[GOOD] ; --- top level inputs ---
 [GOOD] (declare-fun s0 () sbvChar) ; tracks user variable "c"
 [GOOD] (declare-fun s1 () sbvChar) ; tracks user variable "s_1"
 [GOOD] (declare-fun s2 () sbvChar) ; tracks user variable "s_2"
@@ -23,17 +23,15 @@ Loaded package environment from test-modified path
 [GOOD] (declare-fun s4 () sbvChar) ; tracks user variable "s_4"
 [GOOD] (declare-fun s5 () sbvChar) ; tracks user variable "s_5"
 [GOOD] ; --- constant tables ---
-[GOOD] ; --- skolemized tables ---
+[GOOD] ; --- non-constant tables ---
 [GOOD] ; --- arrays ---
 [GOOD] ; --- uninterpreted constants ---
-[GOOD] ; --- user given axioms ---
-[GOOD] ; --- preQuantifier assignments ---
+[GOOD] ; --- user defined functions ---
+[GOOD] ; --- assignments ---
 [GOOD] ; --- arrayDelayeds ---
 [GOOD] ; --- arraySetups ---
-[GOOD] ; --- formula ---
-[GOOD] ; --- postQuantifier assignments ---
 [GOOD] ; --- delayedEqualities ---
-[GOOD] ; -- finalAssert ---
+[GOOD] ; --- formula ---
 [GOOD] (assert false)
 [SEND] (check-sat)
 [RECV] unsat
