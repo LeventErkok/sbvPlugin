@@ -44,7 +44,7 @@ allgold:
 	cabal new-run sbvPluginTests -- --accept
 
 ghci:
-	ghci -package mtl -package sbv
+	cabal new-repl sbvPlugin
 
 ghcid:
 	ghcid --command="cabal new-repl --repl-options=-Wno-unused-packages"
