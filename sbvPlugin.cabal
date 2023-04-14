@@ -34,7 +34,7 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
   build-depends   : base >= 4.11 && < 5
-                  , sbv      >= 10.0.5
+                  , sbv      >= 10.1
                   , ghc      >= 9.6.1
                   , ghc-prim
                   , containers
