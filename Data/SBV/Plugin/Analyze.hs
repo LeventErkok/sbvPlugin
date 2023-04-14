@@ -18,7 +18,9 @@ module Data.SBV.Plugin.Analyze (analyzeBind) where
 
 import GHC.Core.TyCo.Rep as TyCoRep
 import GHC.Plugins
+import GHC.Tc.Utils.TcType
 
+import Control.Monad (unless, mplus, zipWithM)
 import Control.Monad.Reader
 import System.Exit
 
@@ -263,7 +265,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                    k  <- getType noSrcSpan t
                                    nm <- mkValidName (showSDoc flags (ppr e))
                                    case k of
-                                     KBase b -> return $ Base $ S.svUninterpreted b nm Nothing []
+                                     KBase b -> return $ Base $ S.svUninterpreted b nm S.UINone []
                                      _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
 
         tgo tFun orig@App{} = do
@@ -531,7 +533,7 @@ uninterpret isInput t var = do
                                           bArgs = concatMap mkArg (reverse args)
 
                                           mkRes :: String -> SKind -> Eval [S.SVal]
-                                          mkRes n (KBase b)  = return [S.svUninterpreted b n Nothing bArgs]
+                                          mkRes n (KBase b)  = return [S.svUninterpreted b n S.UINone bArgs]
                                           mkRes n (KTup  bs) = concat `fmap` zipWithM mkRes [n ++ "_" ++ show i | i <- [(1 :: Int) ..   ]] bs
                                           mkRes n (KLst  b)  = do ls <- case mbListSize of
                                                                           Just i  -> return i

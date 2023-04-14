@@ -18,7 +18,7 @@ Build-Type        : Simple
 Cabal-Version     : 1.14
 Extra-Source-Files: INSTALL, README.md, COPYRIGHT, CHANGES.md
 
-Tested-With       : GHC==9.4.4
+Tested-With       : GHC==9.6.1
 
 source-repository head
     type:       git
@@ -34,8 +34,8 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
   build-depends   : base >= 4.11 && < 5
-                  , sbv      >= 9.2
-                  , ghc      >= 9.4.4
+                  , sbv      >= 10.5
+                  , ghc      >= 9.6.1
                   , ghc-prim
                   , containers
                   , mtl

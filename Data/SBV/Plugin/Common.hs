@@ -16,6 +16,7 @@
 
 module Data.SBV.Plugin.Common where
 
+import Control.Monad (zipWithM, mplus)
 import Control.Monad.Reader
 
 import GHC.Plugins
