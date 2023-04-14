@@ -2,7 +2,7 @@ Loaded package environment from test-modified path
 
 [SBV] tests/T01.hs:14:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
-  x = 1.892883191713573e-270 :: Double
-  y = 8.702540961683491e-277 :: Double
-  z = 3.786134356926097e-270 :: Double
+  x = -7.786871055544975e-208 :: Double
+  y =  7.786871809763686e-208 :: Double
+  z = -3.041746506092207e-210 :: Double
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
