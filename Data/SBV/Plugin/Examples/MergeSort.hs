@@ -19,7 +19,9 @@
 
 module Data.SBV.Plugin.Examples.MergeSort where
 
+#ifndef HADDOCK
 import Data.SBV.Plugin
+#endif
 
 -----------------------------------------------------------------------------
 -- * Implementing merge-sort
@@ -101,7 +103,9 @@ isPermutationOf as bs = go as [(b, True) | b <- bs] && go bs [(a, True) | a <- a
 --   [SBV] tests/T48.hs:100:1-16 Proving "mergeSortCorrect", using Z3.
 --   [Z3] Q.E.D.
 -- @
+#ifndef HADDOCK
 {-# ANN mergeSortCorrect theorem { options = [ListSize 4] } #-}
+#endif
 mergeSortCorrect :: [Int] -> Bool
 mergeSortCorrect xs = nonDecreasing ys && isPermutationOf xs ys
    where ys = mergeSort xs
