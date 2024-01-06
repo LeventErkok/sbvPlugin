@@ -1,4 +1,4 @@
 Loaded package environment from test-modified path
 
-[SBV] tests/T48.hs:106:1-16 Proving "mergeSortCorrect", using Z3.
+[SBV] tests/T48.hs:110:1-16 Proving "mergeSortCorrect", using Z3.
 [Z3] Q.E.D.

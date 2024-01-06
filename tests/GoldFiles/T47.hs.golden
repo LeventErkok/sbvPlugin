@@ -1,10 +1,10 @@
 Loaded package environment from test-modified path
 
-[SBV] tests/T47.hs:91:1-8 Proving "checkBad", using Z3.
+[SBV] tests/T47.hs:93:1-8 Proving "checkBad", using Z3.
 [Z3] Falsifiable. Counter-example:
   range     =   200 :: Int64
   manual    = False :: Bool
   timeSince =     9 :: Int64
 
-[SBV] tests/T47.hs:113:1-9 Proving "checkGood", using Z3.
+[SBV] tests/T47.hs:115:1-9 Proving "checkGood", using Z3.
 [Z3] Q.E.D.
