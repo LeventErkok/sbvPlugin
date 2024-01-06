@@ -265,7 +265,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                    k  <- getType noSrcSpan t
                                    nm <- mkValidName (showSDoc flags (ppr e))
                                    case k of
-                                     KBase b -> return $ Base $ S.svUninterpreted b nm S.UINone []
+                                     KBase b -> return $ Base $ S.svUninterpreted b nm (S.UINone True) []
                                      _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
 
         tgo tFun orig@App{} = do
@@ -533,7 +533,7 @@ uninterpret isInput t var = do
                                           bArgs = concatMap mkArg (reverse args)
 
                                           mkRes :: String -> SKind -> Eval [S.SVal]
-                                          mkRes n (KBase b)  = return [S.svUninterpreted b n S.UINone bArgs]
+                                          mkRes n (KBase b)  = return [S.svUninterpreted b n (S.UINone True) bArgs]
                                           mkRes n (KTup  bs) = concat `fmap` zipWithM mkRes [n ++ "_" ++ show i | i <- [(1 :: Int) ..   ]] bs
                                           mkRes n (KLst  b)  = do ls <- case mbListSize of
                                                                           Just i  -> return i
@@ -564,21 +564,32 @@ mkValidName name =
            liftIO $ modifyIORef rUsedNames (unm :)
            return $ escape unm
   where genSym bad nm
-          | nm `elem` bad = head [nm' | i <- [(0::Int) ..], let nm' = nm ++ "_" ++ show i, nm' `notElem` bad]
+          | nm `elem` bad = hd ("genSym: " ++ nm) [nm' | i <- [(0::Int) ..], let nm' = nm ++ "_" ++ show i, nm' `notElem` bad]
           | True          = nm
+
         unSMT nm
           | map toLower nm `elem` S.smtLibReservedNames
-          = if not (null nm) && isUpper (head nm)
+          = if not (null nm) && isUpper (hd "unSMT" nm)
             then "sbv"  ++ nm
             else "sbv_" ++ nm
           | True
           = nm
-        escape nm | isAlpha (head nm) && all isGood (tail nm) = nm
-                  | True                                      = "|" ++ map tr nm ++ "|"
+
+        escape nm | isAlpha (hd "escape" nm) && all isGood (tl "escape" nm) = nm
+                  | True                                                    = "|" ++ map tr nm ++ "|"
+
         isGood c = isAlphaNum c || c == '_'
         tr '|'   = '_'
         tr '\\'  = '_'
         tr c     = c
+
+hd :: String -> [a] -> a
+hd _ (x:_) = x
+hd n []    = error $ "Impossible happened: hd received empty list while running " ++ show n
+
+tl :: String -> [a] -> [a]
+tl _ (_:xs) = xs
+tl n []     = error $ "Impossible happened: hd received empty list while running " ++ show n
 
 -- | Convert a Core type to an SBV Type, retaining functions and tuples
 getType :: SrcSpan -> Type -> Eval SKind
