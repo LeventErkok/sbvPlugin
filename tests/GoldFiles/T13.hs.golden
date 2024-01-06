@@ -3,6 +3,6 @@ Loaded package environment from test-modified path
 [SBV] tests/T13.hs:9:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
   i =         2 :: Integer
-  d = -1.0e-323 :: Double
+  d = -5.0e-324 :: Double
   b =     False :: Bool
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)
