@@ -1,5 +1,6 @@
+Cabal-Version     : 2.2
 Name              : sbvPlugin
-Version           : 9.6.1
+Version           : 9.8.1
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
 Synopsis          : Formally prove properties of Haskell programs using SBV/SMT
 Description       : GHC plugin for proving properties over Haskell functions using SMT solvers, based
@@ -7,7 +8,7 @@ Description       : GHC plugin for proving properties over Haskell functions usi
                     .
                     See "Data.SBV.Plugin" for a quick example, or the modules under 'Data.SBV.Plugin.Examples'
                     for more details.
-License           : BSD3
+License           : BSD-3-Clause
 License-file      : LICENSE
 Stability         : Experimental
 Author            : Levent Erkok
@@ -15,10 +16,9 @@ Homepage          : http://github.com/LeventErkok/sbvPlugin
 Bug-reports       : http://github.com/LeventErkok/sbvPlugin/issues
 Maintainer        : Levent Erkok (erkokl@gmail.com)
 Build-Type        : Simple
-Cabal-Version     : 1.14
 Extra-Source-Files: INSTALL, README.md, COPYRIGHT, CHANGES.md
 
-Tested-With       : GHC==9.6.1
+Tested-With       : GHC==9.8.1
 
 source-repository head
     type:       git
@@ -33,9 +33,9 @@ Library
                   , Data.SBV.Plugin.Examples.Maximum
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
-  build-depends   : base >= 4.11 && < 5
-                  , sbv      >= 10.1
-                  , ghc      >= 9.6.1
+  build-depends   : base >= 4.19 && < 5
+                  , sbv      >= 10.3
+                  , ghc      >= 9.8.1
                   , ghc-prim
                   , containers
                   , mtl
@@ -50,7 +50,7 @@ Test-Suite sbvPluginTests
   type            : exitcode-stdio-1.0
   default-language: Haskell2010
   ghc-options     : -Wall
-  Build-depends   : base >= 4.11 && < 5
+  Build-depends   : base >= 4.19 && < 5
                   , sbvPlugin
                   , tasty
                   , tasty-golden
