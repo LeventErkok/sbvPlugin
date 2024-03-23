@@ -69,7 +69,7 @@ checkLinks:
 	@brok --no-cache --only-failures $(DEPSRCS) COPYRIGHT INSTALL LICENSE $(wildcard *.md)
 
 ci:
-	haskell-ci sbvPlugin.cabal --no-tests --no-benchmarks --no-doctest --no-hlint --email-notifications --no-haddock
+	haskell-ci github sbvPlugin.cabal --no-tests --no-benchmarks --no-doctest --no-hlint --email-notifications --no-haddock
 
 tags:
 	@fast-tags -R --nomerge .
