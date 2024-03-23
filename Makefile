@@ -33,7 +33,7 @@ docs:
 	cabal new-haddock --haddock-for-hackage --enable-doc --haddock-option="--optghc=-DHADDOCK"
 
 upload-docs-to-hackage:
-	cabal upload -d --publish ./dist-newstyle/sbvPlugin-9.8.1-docs.tar.gz
+	cabal upload -d --publish ./dist-newstyle/sbvPlugin-9.8.2-docs.tar.gz
 
 # use this as follows: make gold TGT=T49
 gold:
