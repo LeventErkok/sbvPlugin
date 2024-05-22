@@ -2,17 +2,17 @@ Loaded package environment from test-modified path
 
 [SBV] tests/T46.hs:22:1-10 Proving "filtLenBad", using Z3.
 [Z3] Falsifiable. Counter-example:
-  xs_1 =  1896580642610626484 :: Int64
-  xs_2 = -1896580642610626485 :: Int64
-  xs_3 =  2122839034131759177 :: Int64
-  xs_4 =  1896667638314056885 :: Int64
-  xs_5 = -3347824179180231500 :: Int64
+  xs_1 =  1898904026880687412 :: Int64
+  xs_2 = -1898904026880687413 :: Int64
+  xs_3 =   967593163855872713 :: Int64
+  xs_4 =  1892166082921774645 :: Int64
+  xs_5 = -3384346643702766540 :: Int64
 
   f :: Int64 -> Bool
-  f (-3347824179180231500) = True 
-  f 1896667638314056885    = True 
-  f 1896580642610626484    = True 
-  f _                      = False
+  f 967593163855872713  = True 
+  f 1892166082921774645 = True 
+  f 1898904026880687412 = True 
+  f _                   = False
 
 [SBV] tests/T46.hs:26:1-11 Proving "filtLenGood", using Z3.
 [Z3] Q.E.D.
