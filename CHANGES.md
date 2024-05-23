@@ -1,7 +1,14 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
-* Latest Hackage released version: 9.8.2, 2024-03-23
+* Latest Hackage released version: 9.10.1, 2024-05-22
+
+### Version next, not yet released
+  * Add support for CVC5, DReal, OpenSMT, and Bitwuzla as backend solvers
+
+### Version 9.10.1, 2024-01-05
+  * Changes required to compile with GHC 9.10.1
+  * Bump up sbv dependence to >= 10.10
 
 ### Version 9.8.2, 2024-01-05
   * Changes required to compile with GHC 9.8.2

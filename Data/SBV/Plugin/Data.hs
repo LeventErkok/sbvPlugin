@@ -33,8 +33,12 @@ data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | Yices          -- ^ Use Yices
                | Boolector      -- ^ Use Boolector
                | CVC4           -- ^ Use CVC4
+               | CVC5           -- ^ Use CVC5
+               | DReal          -- ^ Use DReal
                | MathSAT        -- ^ Use MathSAT
+               | OpenSMT        -- ^ Use OpenSMT
                | ABC            -- ^ Use ABC
+               | Bitwuzla       -- ^ Use Bitwuzla
                | AnySolver      -- ^ Run all installed solvers in parallel, and report the result from the first to finish
                deriving (Show, Eq, Data, Typeable)
 

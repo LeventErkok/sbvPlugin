@@ -102,8 +102,12 @@ pickSolvers slvrs
                   , (Yices,     S.yices)
                   , (Boolector, S.boolector)
                   , (CVC4,      S.cvc4)
+                  , (CVC5,      S.cvc5)
                   , (MathSAT,   S.mathSAT)
                   , (ABC,       S.abc)
+                  , (DReal,     S.dReal)
+                  , (OpenSMT,   S.openSMT)
+                  , (Bitwuzla,  S.bitwuzla)
                   ]
 
 -- | The kinds used by the plugin
