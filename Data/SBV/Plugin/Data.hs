@@ -15,7 +15,7 @@
 
 module Data.SBV.Plugin.Data where
 
-import Data.Data  (Data, Typeable)
+import Data.Data (Data)
 
 -- | Plugin options. Note that we allow picking multiple solvers, which
 -- will all be run in parallel. You can pick and choose any number of them,
@@ -40,11 +40,11 @@ data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
                | ABC            -- ^ Use ABC
                | Bitwuzla       -- ^ Use Bitwuzla
                | AnySolver      -- ^ Run all installed solvers in parallel, and report the result from the first to finish
-               deriving (Show, Eq, Data, Typeable)
+               deriving (Show, Eq, Data)
 
 -- | The actual annotation.
 newtype SBVAnnotation = SBV {options :: [SBVOption]}
-                      deriving (Eq, Data, Typeable)
+                      deriving (Eq, Data)
 
 -- | A property annotation, using default options.
 sbv :: SBVAnnotation

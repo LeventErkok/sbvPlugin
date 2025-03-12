@@ -26,7 +26,7 @@ import System.Exit
 
 import Data.IORef
 
-import Data.Char     (isAlpha, isAlphaNum, toLower, isUpper)
+import Data.Char     (isAlpha, isAlphaNum, isUpper)
 import Data.List     (intercalate, partition, nub, nubBy, sort, sortOn, isPrefixOf)
 import Data.Maybe    (listToMaybe, fromMaybe)
 
@@ -265,7 +265,7 @@ proveIt cfg@Config{cfgEnv, sbvAnnotation} opts topBind topExpr = do
                                    k  <- getType noSrcSpan t
                                    nm <- mkValidName (showSDoc flags (ppr e))
                                    case k of
-                                     KBase b -> return $ Base $ S.svUninterpreted b nm (S.UINone True) []
+                                     KBase b -> return $ Base $ S.svUninterpreted b (S.UIGiven nm) (S.UINone True) []
                                      _       -> error $ "Impossible: The type for literal resulted in non base kind: " ++ sh (e, k)
 
         tgo tFun orig@App{} = do
@@ -533,7 +533,7 @@ uninterpret isInput t var = do
                                           bArgs = concatMap mkArg (reverse args)
 
                                           mkRes :: String -> SKind -> Eval [S.SVal]
-                                          mkRes n (KBase b)  = return [S.svUninterpreted b n (S.UINone True) bArgs]
+                                          mkRes n (KBase b)  = return [S.svUninterpreted b (S.UIGiven n) (S.UINone True) bArgs]
                                           mkRes n (KTup  bs) = concat `fmap` zipWithM mkRes [n ++ "_" ++ show i | i <- [(1 :: Int) ..   ]] bs
                                           mkRes n (KLst  b)  = do ls <- case mbListSize of
                                                                           Just i  -> return i
@@ -568,7 +568,7 @@ mkValidName name =
           | True          = nm
 
         unSMT nm
-          | map toLower nm `elem` S.smtLibReservedNames
+          | S.isReserved nm
           = if not (null nm) && isUpper (hd "unSMT" nm)
             then "sbv"  ++ nm
             else "sbv_" ++ nm
