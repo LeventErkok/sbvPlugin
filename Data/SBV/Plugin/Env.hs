@@ -12,6 +12,7 @@
 {-# LANGUAGE MagicHash             #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE UnboxedTuples         #-}
 
 {-# OPTIONS_GHC -Wall -Werror #-}
 
@@ -219,7 +220,7 @@ buildDests = do simple <- mapM mkSingle dests
 -- | These types show up during uninterpretation, but are not really "interesting" as they
 -- are singly inhabited.
 uninterestingTypes :: CoreM [Type]
-uninterestingTypes = map varType `fmap` mapM (grabTH lookupId) ['void#]
+uninterestingTypes = map varType `fmap` mapM (grabTH lookupId) ['(# #)]
 
 -- | Certain things are just too special, as they uniformly apply to uninterpreted types.
 buildSpecials :: CoreM Specials
