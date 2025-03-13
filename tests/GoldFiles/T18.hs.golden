@@ -20,13 +20,10 @@ Loaded package environment from test-modified path
 [GOOD] (declare-fun s1 () Age) ; tracks user variable "b"
 [GOOD] ; --- constant tables ---
 [GOOD] ; --- non-constant tables ---
-[GOOD] ; --- arrays ---
 [GOOD] ; --- uninterpreted constants ---
 [GOOD] ; --- user defined functions ---
 [GOOD] ; --- assignments ---
 [GOOD] (define-fun s2 () Bool (= s0 s1))
-[GOOD] ; --- arrayDelayeds ---
-[GOOD] ; --- arraySetups ---
 [GOOD] ; --- delayedEqualities ---
 [GOOD] ; --- formula ---
 [GOOD] (assert (not s2))
@@ -39,6 +36,6 @@ Loaded package environment from test-modified path
 *** Solver   : Z3
 *** Exit code: ExitSuccess
 [Z3] Falsifiable. Counter-example:
-  a = Age!val!0 :: Age
-  b = Age!val!1 :: Age
+  a = Age_0 :: Age
+  b = Age_1 :: Age
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

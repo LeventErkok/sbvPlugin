@@ -5,11 +5,11 @@ Loaded package environment from test-modified path
 
 [SBV] tests/T19.hs:15:1 Proving "g", using Z3.
 [Z3] Falsifiable. Counter-example:
-  s_1 = sbvChar!val!0 :: sbvChar
-  s_2 = sbvChar!val!0 :: sbvChar
-  s_3 = sbvChar!val!0 :: sbvChar
-  s_4 = sbvChar!val!0 :: sbvChar
-  s_5 = sbvChar!val!0 :: sbvChar
-  s_6 = sbvChar!val!0 :: sbvChar
+  s_1 = Char_0 :: Char
+  s_2 = Char_0 :: Char
+  s_3 = Char_0 :: Char
+  s_4 = Char_0 :: Char
+  s_5 = Char_0 :: Char
+  s_6 = Char_0 :: Char
 [SBV] Counter-example might be bogus due to uninterpreted constants:
   [<wired into compiler>] C# :: Char# %1 -> Char

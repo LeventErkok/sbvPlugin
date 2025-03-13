@@ -2,8 +2,8 @@ Loaded package environment from test-modified path
 
 [SBV] tests/T16.hs:11:1 Proving "f", using Z3.
 [Z3] Falsifiable. Counter-example:
-  ds_daCJ =         0 :: Int64
-  age     = Age!val!0 :: Age
+  ds_dbal =     0 :: Int64
+  age     = Age_0 :: Age
 [SBV] Counter-example might be bogus due to uninterpreted constant:
-  [<no location info>] ds_daCJ :: Int
+  [<no location info>] ds_dbal :: Int
 [SBV] Failed. (Use option 'IgnoreFailure' to continue.)

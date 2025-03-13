@@ -10,26 +10,23 @@ Loaded package environment from test-modified path
 [GOOD] (set-option :produce-models true)
 [GOOD] (set-logic ALL) ; has user-defined sorts, using catch-all.
 [GOOD] ; --- uninterpreted sorts ---
-[GOOD] (declare-sort sbvChar 0)  ; N.B. Uninterpreted sort.
-[GOOD] (declare-fun sbvChar_witness () sbvChar)
+[GOOD] (declare-sort Char 0)  ; N.B. Uninterpreted sort.
+[GOOD] (declare-fun Char_witness () Char)
 [GOOD] ; --- tuples ---
 [GOOD] ; --- sums ---
 [GOOD] ; --- literal constants ---
 [GOOD] ; --- top level inputs ---
-[GOOD] (declare-fun s0 () sbvChar) ; tracks user variable "c"
-[GOOD] (declare-fun s1 () sbvChar) ; tracks user variable "s_1"
-[GOOD] (declare-fun s2 () sbvChar) ; tracks user variable "s_2"
-[GOOD] (declare-fun s3 () sbvChar) ; tracks user variable "s_3"
-[GOOD] (declare-fun s4 () sbvChar) ; tracks user variable "s_4"
-[GOOD] (declare-fun s5 () sbvChar) ; tracks user variable "s_5"
+[GOOD] (declare-fun s0 () Char) ; tracks user variable "c"
+[GOOD] (declare-fun s1 () Char) ; tracks user variable "s_1"
+[GOOD] (declare-fun s2 () Char) ; tracks user variable "s_2"
+[GOOD] (declare-fun s3 () Char) ; tracks user variable "s_3"
+[GOOD] (declare-fun s4 () Char) ; tracks user variable "s_4"
+[GOOD] (declare-fun s5 () Char) ; tracks user variable "s_5"
 [GOOD] ; --- constant tables ---
 [GOOD] ; --- non-constant tables ---
-[GOOD] ; --- arrays ---
 [GOOD] ; --- uninterpreted constants ---
 [GOOD] ; --- user defined functions ---
 [GOOD] ; --- assignments ---
-[GOOD] ; --- arrayDelayeds ---
-[GOOD] ; --- arraySetups ---
 [GOOD] ; --- delayedEqualities ---
 [GOOD] ; --- formula ---
 [GOOD] (assert false)
