@@ -61,22 +61,25 @@ The plugin currently understands the following options. Multiple options can be 
 by comma separating them.
 
 ```haskell
-data SBVOption =
-   IgnoreFailure  -- ^ Continue even if proof fails
- | Skip String    -- ^ Skip the proof. Can be handy for properties that we currently do not want to focus on.
- | Verbose        -- ^ Produce verbose output, good for debugging
- | Debug          -- ^ Produce really verbose output, use only when things go really wrong!
- | QuickCheck     -- ^ Perform quickCheck
- | Uninterpret    -- ^ Uninterpret this binding for proof purposes
- | Names [String] -- ^ Use these names for the arguments; need not be exhaustive
- | ListSize Int   -- ^ If a list-input is found, use this length. If not specified, we will complain!
- | Z3             -- ^ Use Z3
- | Yices          -- ^ Use Yices
- | Boolector      -- ^ Use Boolector
- | CVC4           -- ^ Use CVC4
- | MathSAT        -- ^ Use MathSAT
- | ABC            -- ^ Use ABC
- | AnySolver      -- ^ Run all installed solvers in parallel, and report the result from the first to finish
+data SBVOption = IgnoreFailure  -- ^ Continue even if proof fails
+               | Skip String    -- ^ Skip the proof. Can be handy for properties that we currently do not want to focus on.
+               | Verbose        -- ^ Produce verbose output, good for debugging
+               | Debug          -- ^ Produce really verbose output, use only when things go really wrong!
+               | QuickCheck     -- ^ Perform quickCheck
+               | Uninterpret    -- ^ Uninterpret this binding for proof purposes
+               | Names [String] -- ^ Use these names for the arguments; need not be exhaustive
+               | ListSize Int   -- ^ If a list-input is found, use this length. If not specified, we will complain!
+               | Z3             -- ^ Use Z3
+               | Yices          -- ^ Use Yices
+               | Boolector      -- ^ Use Boolector
+               | CVC4           -- ^ Use CVC4
+               | CVC5           -- ^ Use CVC5
+               | DReal          -- ^ Use DReal
+               | MathSAT        -- ^ Use MathSAT
+               | OpenSMT        -- ^ Use OpenSMT
+               | ABC            -- ^ Use ABC
+               | Bitwuzla       -- ^ Use Bitwuzla
+               | AnySolver      -- ^ Run all installed solvers in parallel, and report the result from the first to finish
 ```
 
 ### Using SBVPlugin from GHCi
