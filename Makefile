@@ -28,12 +28,14 @@ vtest:
 	$(TIME) cabal new-run sbvPluginTests
 	@rm -rf tests/GoldFiles/*.current
 
-# To upload docs to hackage, first run the below target (part of release), then run the next target..
+HADDOCK_OPTS=${CABAL_OPTS} --enable-documentation --ghc-options=-DHADDOCK --haddock-option="--optghc=-DHADDOCK"
+
+# To upload docs to hackage, first run the below target then run the next target..
 docs:
-	cabal new-haddock --haddock-for-hackage --enable-doc --haddock-option="--optghc=-DHADDOCK"
+	@cabal haddock ${HADDOCK_OPTS} --haddock-for-hackage
 
 upload-docs-to-hackage:
-	cabal upload -d --publish ./dist-newstyle/sbvPlugin-9.10.1-docs.tar.gz
+	cabal upload -d --publish ./dist-newstyle/sbvPlugin-9.12.1-docs.tar.gz
 
 # use this as follows: make gold TGT=T49
 gold:
@@ -57,7 +59,7 @@ veryclean: clean
 clean:
 	@rm -rf dist dist-newstyle cabal.project.local*
 
-release: clean install sdist hlint vtest checkLinks docs
+release: clean install sdist hlint vtest checkLinks
 	@echo "*** SBVPlugin is ready for release!"
 
 hlint: 
