@@ -18,7 +18,7 @@ all: install
 install: $(DEPSRCS) Makefile
 	@fast-tags -R --nomerge .
 	@$(CABAL) new-configure --disable-library-profiling --enable-tests --ghc-options=$(CONFIGOPTS)
-	@$(CABAL) new-install --lib
+	@$(CABAL) new-install --lib --force-reinstalls
 
 test:
 	$(TIME) $(CABAL) new-test
