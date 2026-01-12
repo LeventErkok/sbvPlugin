@@ -1,6 +1,6 @@
 Cabal-Version     : 2.2
 Name              : sbvPlugin
-Version           : 9.12.2
+Version           : 9.14.1
 Category          : Formal methods, Theorem provers, Math, SMT, Symbolic Computation
 Synopsis          : Formally prove properties of Haskell programs using SBV/SMT
 Description       : GHC plugin for proving properties over Haskell functions using SMT solvers, based
@@ -18,11 +18,11 @@ Maintainer        : Levent Erkok (erkokl@gmail.com)
 Build-Type        : Simple
 Extra-Source-Files: INSTALL, README.md, COPYRIGHT, CHANGES.md
 
-Tested-With       : GHC==9.12.2
+Tested-With       : GHC==9.14.1
 
 source-repository head
     type:       git
-    location:   git://github.com/LeventErkok/sbvPlugin.git
+    location:   https://github.com/LeventErkok/sbvPlugin.git
 
 Library
   default-language: Haskell2010
@@ -34,13 +34,13 @@ Library
                   , Data.SBV.Plugin.Examples.MergeSort
                   , Data.SBV.Plugin.Examples.MicroController
   build-depends   : base >= 4.19 && < 5
-                  , sbv      >= 13.3
-                  , ghc      >= 9.12.2
+                  , sbv      >= 13.4
+                  , ghc      >= 9.14.1
                   , ghc-prim
                   , containers
                   , mtl
                   , template-haskell
-  Other-modules   : Data.SBV.Plugin.Analyze
+  other-modules   : Data.SBV.Plugin.Analyze
                   , Data.SBV.Plugin.Common
                   , Data.SBV.Plugin.Env
                   , Data.SBV.Plugin.Plugin

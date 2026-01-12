@@ -1,6 +1,10 @@
 * Hackage: <http://hackage.haskell.org/package/sbvPlugin>
 * GitHub:  <http://github.com/LeventErkok/sbvPlugin>
 
+### Version 9.14.1, 2026-01-12
+  * Changes required to compile with GHC 9.14.1
+  * Bump up sbv dependence to >= 13.4
+  
 ### Version 9.12.1, 2025-03-12
   * Changes required to compile with GHC 9.12.1
   * Add support for CVC5, DReal, OpenSMT, and Bitwuzla as backend solvers
